@@ -5,7 +5,8 @@ install_requires = [
     'numpy',
     'matplotlib',
     'scikit-learn',
-    'scipy'
+    'scipy',
+    'pytest'
 ]
 
 setup(
