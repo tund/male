@@ -213,7 +213,7 @@ class Model(BaseEstimator, ClassifierMixin,
         if self.task == 'classification':
             return float(accuracy_score(self.predict(x), y))
         else:
-            return float(mean_squared_error(self.predict(x), y))
+            return -float(mean_squared_error(self.predict(x), y))
 
     def save(self, file_path, overwrite=True):
         if not os.path.exists(os.path.dirname(file_path)):

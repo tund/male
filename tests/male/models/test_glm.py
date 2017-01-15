@@ -336,6 +336,46 @@ def test_glm_mnist_softmax_gridsearch():
     print("Testing error = %.4f" % (1 - metrics.accuracy_score(y_test, y_test_pred)))
 
 
+def test_glm_regression_gridsearch():
+    # regression
+    eps = 1e-6
+    num_data = 100
+    num_features = 5
+    x = np.random.rand(num_data, num_features)
+    y = np.random.rand(num_data)
+
+    # params = {'l1_penalty': [0.0001, 0.001, 0.01, 0.1, 0.0],
+    #           'l2_penalty': [0.0001, 0.001, 0.01, 0.1, 0.0]}
+    params = {'l1_penalty': [0.0001],
+              'l2_penalty': [0.0001, 0.001]}
+
+    ps = PredefinedSplit(test_fold=[-1] * 70 + [1] * 30)
+
+    clf = GLM(model_name="glm_regression_gridsearch",
+              task='regression',
+              link='linear',  # link function
+              loss='quadratic',  # loss function
+              l2_penalty=0.0,  # ridge regularization
+              l1_penalty=0.0,  # Lasso regularization
+              l1_smooth=1E-5,  # smoothing for Lasso regularization
+              l1_method='pseudo_huber',  # approximation method for L1-norm
+              random_state=6789)
+
+    gs = GridSearchCV(clf, params, cv=ps, n_jobs=-1, refit=False, verbose=True)
+    gs.fit(x, y)
+
+    print("Best score {} @ params {}".format(-gs.best_score_, gs.best_params_))
+
+    best_clf = clone(clf).set_params(**gs.best_params_)
+    best_clf.fit(x[:70], y[:70])
+
+    y_train_pred = best_clf.predict(x[:70])
+    y_test_pred = best_clf.predict(x[70:])
+
+    print("Training error = %.4f" % (metrics.mean_squared_error(y[:70], y_train_pred)))
+    print("Testing error = %.4f" % (metrics.mean_squared_error(y[70:], y_test_pred)))
+
+
 def test_glm_mnist_cv():
     from male import HOME
     x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"),
@@ -390,4 +430,5 @@ def test_glm_mnist_cv():
 if __name__ == '__main__':
     pytest.main([__file__])
     # test_glm_check_grad()
+    # test_glm_regression_gridsearch()
     # test_glm_mnist_cv()
