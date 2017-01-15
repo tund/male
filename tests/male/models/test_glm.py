@@ -388,6 +388,6 @@ def test_glm_mnist_cv():
 
 
 if __name__ == '__main__':
-    # pytest.main(['-s', __file__])
+    pytest.main([__file__])
     # test_glm_check_grad()
-    test_glm_mnist_cv()
+    # test_glm_mnist_cv()

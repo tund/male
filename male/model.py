@@ -50,6 +50,7 @@ class Model(BaseEstimator, ClassifierMixin,
         self.random_state = random_state
         self.verbose = verbose
 
+    def _init(self):
         self.epoch_ = 0
         self.history_ = None
         self.n_classes_ = 0
@@ -84,6 +85,7 @@ class Model(BaseEstimator, ClassifierMixin,
             x_valid, y_valid = None, None
 
         if (not hasattr(self, 'epoch_')) or self.epoch_ == 0:
+            self._init()
             if y_train is not None:
                 # encode labels
                 y_train = self._encode_labels(y_train)
@@ -150,6 +152,8 @@ class Model(BaseEstimator, ClassifierMixin,
     def check_grad(self, x, y=None):
         """Check gradients of the model using data x and label y if available
         """
+        self._init()
+
         if y is not None:
             # encode labels
             y = self._encode_labels(y)

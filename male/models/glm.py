@@ -26,7 +26,7 @@ class GLM(Model):
     """
 
     def __init__(self,
-                 model_name='glm',
+                 model_name='GLM',
                  link='logit',  # link function
                  loss='logit',  # loss function
                  optimizer='L-BFGS-B',
@@ -47,6 +47,8 @@ class GLM(Model):
         self.l1_smooth = l1_smooth
         self.l2_penalty = l2_penalty
 
+    def _init(self):
+        super(GLM, self)._init()
         self.w_ = None
         self.b_ = None
         self.onehot_encoder_ = None
