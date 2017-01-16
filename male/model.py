@@ -242,9 +242,9 @@ class Model(BaseEstimator, ClassifierMixin,
                 'task': self.task,
                 'num_epochs': self.num_epochs,
                 'batch_size': self.batch_size,
-                'cv': copy.deepcopy(self.cv),
-                'callbacks': copy.deepcopy(self.callbacks),
-                'metrics': copy.deepcopy(self.metrics),
+                'cv': self.cv,
+                'callbacks': self.callbacks,
+                'metrics': self.metrics,
                 'random_state': self.random_state,
                 'verbose': self.verbose}
 
