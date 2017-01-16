@@ -37,7 +37,7 @@ class Model(BaseEstimator, ClassifierMixin,
                  batch_size=32,
                  cv=None,  # cross-validation
                  callbacks=[],
-                 metrics=None,  # {'loss', 'acc', 'err'}
+                 metrics=[],  # {'loss', 'acc', 'err'}
                  random_state=None,
                  verbose=0):
         self.model_name = model_name
@@ -53,7 +53,7 @@ class Model(BaseEstimator, ClassifierMixin,
     def _init(self):
         self.epoch_ = 0
         self.history_ = None
-        self.n_classes_ = 0
+        self.num_classes_ = 0
         self.label_encoder_ = None
         self.train_time_ = 0.0
         self.stop_training_ = 0
@@ -185,7 +185,7 @@ class Model(BaseEstimator, ClassifierMixin,
         if self.task == 'classification':
             self.label_encoder_ = LabelEncoder()
             y = self.label_encoder_.fit_transform(y)
-            self.n_classes_ = len(self.label_encoder_.classes_)
+            self.num_classes_ = len(self.label_encoder_.classes_)
         return y
 
     def _decode_labels(self, y):
@@ -253,7 +253,7 @@ class Model(BaseEstimator, ClassifierMixin,
         out = self.get_params(deep=deep)
         out.update({'epoch_': self.epoch_,
                     'train_time_': self.train_time_,
-                    'n_classes_': self.n_classes_,
+                    'num_classes_': self.num_classes_,
                     'stop_training_': self.stop_training_,
                     'history_': copy.deepcopy(self.history_),
                     'label_encoder_': copy.deepcopy(self.label_encoder_),

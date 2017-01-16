@@ -55,9 +55,9 @@ class GLM(Model):
 
     def _init_params(self, x):
         # initialize weights
-        if self.n_classes_ > 2:
-            self.w_ = 0.01 * self.random_state_.randn(x.shape[1], self.n_classes_)
-            self.b_ = np.zeros(self.n_classes_)
+        if self.num_classes_ > 2:
+            self.w_ = 0.01 * self.random_state_.randn(x.shape[1], self.num_classes_)
+            self.b_ = np.zeros(self.num_classes_)
         else:
             self.w_ = 0.01 * self.random_state_.randn(x.shape[1])
             self.b_ = np.zeros(1)

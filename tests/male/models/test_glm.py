@@ -206,6 +206,20 @@ def test_glm_mnist_logit():
     print("Training error = %.4f" % (1 - metrics.accuracy_score(y_train, y_train_pred)))
     print("Testing error = %.4f" % (1 - metrics.accuracy_score(y_test, y_test_pred)))
 
+    clf = GLM(model_name="mnist_glm_logit",
+              optimizer='sgd',
+              l1_penalty=0.0,
+              l2_penalty=0.0,
+              random_state=6789)
+
+    clf.fit(x_train, y_train)
+
+    y_train_pred = clf.predict(x_train)
+    y_test_pred = clf.predict(x_test)
+
+    print("Training error = %.4f" % (1 - metrics.accuracy_score(y_train, y_train_pred)))
+    print("Testing error = %.4f" % (1 - metrics.accuracy_score(y_test, y_test_pred)))
+
 
 def test_glm_mnist_softmax():
     from male import HOME
@@ -227,6 +241,20 @@ def test_glm_mnist_softmax():
     print("# testing samples = {}".format(len(idx_test)))
 
     clf = GLM(model_name="mnist_glm_softmax",
+              link='softmax',
+              loss='softmax',
+              random_state=6789)
+
+    clf.fit(x_train, y_train)
+
+    y_train_pred = clf.predict(x_train)
+    y_test_pred = clf.predict(x_test)
+
+    print("Training error = %.4f" % (1 - metrics.accuracy_score(y_train, y_train_pred)))
+    print("Testing error = %.4f" % (1 - metrics.accuracy_score(y_test, y_test_pred)))
+
+    clf = GLM(model_name="mnist_glm_softmax",
+              optimizer='sgd',
               link='softmax',
               loss='softmax',
               random_state=6789)
@@ -432,3 +460,5 @@ if __name__ == '__main__':
     # test_glm_check_grad()
     # test_glm_regression_gridsearch()
     # test_glm_mnist_cv()
+    # test_glm_mnist_logit()
+    # test_glm_mnist_softmax()
