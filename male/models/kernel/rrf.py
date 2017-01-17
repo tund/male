@@ -177,7 +177,7 @@ class RRF(FOGD):
                     dw, dgamma = self.get_grad(x_batch, y_batch)
 
                     self.w_ -= self.learning_rate * dw
-                    self.gamma_ -= self.learning_rate * dgamma
+                    self.gamma_ -= self.learning_rate_gamma * dgamma
 
                     outs = self._on_batch_end(x_batch, y_batch)
                     for l, o in zip(self.metrics, outs):
