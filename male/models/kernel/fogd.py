@@ -11,6 +11,8 @@ from scipy.optimize import check_grad
 from . import KSGD
 from ...utils.generic_utils import make_batches
 
+INF = 1e+8
+
 
 class FOGD(KSGD):
     """Fourier Online Gradient Descent
@@ -32,7 +34,7 @@ class FOGD(KSGD):
         super(FOGD, self)._init()
 
         self.omega_ = None
-        self.mistake_rate_ = np.inf
+        self.mistake_rate_ = INF
 
     def _init_params(self, x):
         if self.num_classes_ > 2:

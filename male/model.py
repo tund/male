@@ -22,6 +22,8 @@ from scipy.optimize import check_grad as scipy_check_grad
 from . import callbacks as cbks
 from .utils.io_utils import ask_to_proceed_with_overwrite
 
+INF = 1e+8
+
 
 class Model(BaseEstimator, ClassifierMixin,
             RegressorMixin, TransformerMixin):
@@ -216,7 +218,7 @@ class Model(BaseEstimator, ClassifierMixin,
 
     def score(self, x, y, sample_weight=None):
         if self.exception_:
-            return -np.inf
+            return -INF
         else:
             if self.task == 'classification':
                 return float(accuracy_score(self.predict(x), y))
