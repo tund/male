@@ -130,7 +130,7 @@ def test_fogd_mnist_bin():
     y_test = y_test[idx_test]
 
     clf = FOGD(model_name="mnist_fogd_hinge",
-               D=1000,
+               D=100,
                lbd=0.0,
                gamma=0.5,
                loss='hinge',
@@ -147,7 +147,7 @@ def test_fogd_mnist_bin():
     print("Testing error = %.4f" % (1 - metrics.accuracy_score(y_test, y_test_pred)))
 
     clf = FOGD(model_name="mnist_fogd_hinge",
-               D=1000,
+               D=100,
                lbd=0.0,
                gamma=0.5,
                loss='hinge',
@@ -179,7 +179,7 @@ def test_fogd_mnist_softmax():
     print("# testing samples = {}".format(len(idx_test)))
 
     clf = FOGD(model_name="mnist_fogd_hinge",
-               D=1000,
+               D=100,
                lbd=0.0,
                gamma=0.5,
                loss='hinge',
@@ -196,7 +196,7 @@ def test_fogd_mnist_softmax():
     print("Testing error = %.4f" % (1 - metrics.accuracy_score(y_test, y_test_pred)))
 
     clf = FOGD(model_name="mnist_fogd_hinge",
-               D=1000,
+               D=100,
                lbd=0.0,
                gamma=0.5,
                loss='hinge',
@@ -237,7 +237,7 @@ def test_fogd_mnist_softmax_gridsearch():
     ps = PredefinedSplit(test_fold=[-1] * x_train.shape[0] + [1] * x_test.shape[0])
 
     clf = FOGD(model_name="mnist_fogd_hinge",
-               D=1000,
+               D=100,
                lbd=0.0,
                gamma=0.5,
                loss='hinge',
@@ -274,7 +274,7 @@ def test_fogd_regression_gridsearch():
     ps = PredefinedSplit(test_fold=[-1] * 70 + [1] * 30)
 
     clf = FOGD(model_name="mnist_fogd_l2",
-               D=1000,
+               D=100,
                lbd=0.0,
                gamma=0.5,
                loss='l2',
@@ -326,7 +326,7 @@ def test_fogd_mnist_cv():
                                  save_best_only=True)
 
     clf = FOGD(model_name="mnist_fogd_hinge",
-               D=1000,
+               D=100,
                lbd=0.0,
                gamma=0.5,
                loss='hinge',
@@ -384,7 +384,7 @@ def test_fogd_mnist_cv_gridsearch():
                                  save_best_only=True)
 
     clf = FOGD(model_name="mnist_fogd_hinge",
-               D=1000,
+               D=100,
                lbd=0.0,
                gamma=0.5,
                loss='hinge',

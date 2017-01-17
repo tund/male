@@ -57,6 +57,7 @@ class Model(BaseEstimator, ClassifierMixin,
         self.label_encoder_ = None
         self.train_time_ = 0.0
         self.stop_training_ = 0
+        self.exception_ = False
         self.random_state_ = check_random_state(self.random_state)
 
     def _init_params(self, x):
@@ -127,12 +128,16 @@ class Model(BaseEstimator, ClassifierMixin,
             self.train_time_ = time.time() - start_time
         except KeyboardInterrupt:
             pass
+        except:
+            self._init_params(x_train)  # reset all parameters
+            self.exception_ = True
+            return self
 
         callbacks.on_train_end()
 
         return self
 
-    def _fit_loop(self, *args, **kwargs):
+    def _fit_loop(self, x, y, *args, **kwargs):
         pass
 
     def _on_batch_end(self, x, y=None):
@@ -210,10 +215,13 @@ class Model(BaseEstimator, ClassifierMixin,
         pass
 
     def score(self, x, y, sample_weight=None):
-        if self.task == 'classification':
-            return float(accuracy_score(self.predict(x), y))
+        if self.exception_:
+            return -np.inf
         else:
-            return -float(mean_squared_error(self.predict(x), y))
+            if self.task == 'classification':
+                return float(accuracy_score(self.predict(x), y))
+            else:
+                return -float(mean_squared_error(self.predict(x), y))
 
     def save(self, file_path, overwrite=True):
         if not os.path.exists(os.path.dirname(file_path)):

@@ -32,7 +32,7 @@ class FOGD(KSGD):
         super(FOGD, self)._init()
 
         self.omega_ = None
-        self.mistake_rate_ = 0.0
+        self.mistake_rate_ = np.inf
 
     def _init_params(self, x):
         if self.num_classes_ > 2:

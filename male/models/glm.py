@@ -9,7 +9,6 @@ from __future__ import absolute_import
 import copy
 import numpy as np
 from scipy.optimize import minimize
-from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.utils.validation import check_is_fitted
 

@@ -436,7 +436,7 @@ def test_glm_mnist_cv():
               link='softmax',
               loss='softmax',
               optimizer='sgd',
-              num_epochs=100,
+              num_epochs=10,
               batch_size=100,
               learning_rate=0.5,
               task='classification',
