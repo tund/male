@@ -319,7 +319,7 @@ def test_kmm_mnist_bin():
               num_kernels=4,
               temperature=0.1,
               num_epochs=50,
-              num_nested_epochs=1,
+              num_nested_epochs=10,
               learning_rate=0.001,
               learning_rate_mu=0.001,
               learning_rate_gamma=0.001,
@@ -549,7 +549,7 @@ def test_kmm_mnist_cv():
     x = np.vstack([x_train, x_test])
     y = np.concatenate([y_train, y_test])
 
-    early_stopping = EarlyStopping(monitor='val_err', patience=10)
+    early_stopping = EarlyStopping(monitor='val_err', patience=2, verbose=1)
     filepath = os.path.join(HOME, "rmodel/male/kmm/mnist_{epoch:04d}_{val_err:.6f}.pkl")
     checkpoint = ModelCheckpoint(filepath,
                                  mode='min',
@@ -589,7 +589,7 @@ def test_kmm_mnist_cv():
               num_kernels=3,
               batch_size=100,
               temperature=1.0,
-              num_epochs=50,
+              num_epochs=20,
               num_nested_epochs=1,
               learning_rate=0.1,
               learning_rate_mu=0.0,
@@ -686,11 +686,11 @@ def test_kmm_mnist_cv_gridsearch():
 
 
 if __name__ == '__main__':
-    pytest.main([__file__])
+    # pytest.main([__file__])
     # test_kmm_check_grad()
     # test_kmm_mnist_bin()
     # test_kmm_mnist_softmax()
     # test_kmm_mnist_softmax_gridsearch()
     # test_kmm_regression_gridsearch()
-    # test_kmm_mnist_cv()
+    test_kmm_mnist_cv()
     # test_kmm_mnist_cv_gridsearch()

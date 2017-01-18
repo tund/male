@@ -383,10 +383,13 @@ class EarlyStopping(Callback):
         if self.monitor_op(current - self.min_delta, self.best):
             self.best = current
             self.best_idx = epoch + 1
+            self.model.best_ = current
+            self.model.best_params_ = self.model.get_all_params()
             self.wait = 0
         else:
             if self.wait >= self.patience:
                 self.stopped_epoch = epoch
+                self.model.set_params(**self.model.best_params_)
                 self.model.stop_training_ = self.best_idx
             self.wait += 1
 

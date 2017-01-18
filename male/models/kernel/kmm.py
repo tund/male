@@ -79,8 +79,6 @@ class KMM(RRF):
         wx = kwargs['wx'] if 'wx' in kwargs else phi.dot(w)  # (N,C)
 
         dw = self.lbd * w  # (2D,C)
-        dmu = np.zeros(mu.shape)
-        dgamma = np.zeros(gamma.shape)
 
         if self.num_classes_ > 2:
             wxy, t = self._get_wxy(wx, y)
@@ -96,8 +94,8 @@ class KMM(RRF):
             for i in range(self.num_classes_):
                 dw[:, i] += -d[y == i].sum(axis=0) / n
                 dw[:, i] += d[t == i].sum(axis=0) / n
-            dmu += self._get_dmu(domega, dphi, z) / n  # (M,d)
-            dgamma += self._get_dgamma(gamma, domega, dphi, z) / n  # (M,d)
+            dmu = self._get_dmu(domega, dphi, z) / n  # (M,d)
+            dgamma = self._get_dgamma(gamma, domega, dphi, z) / n  # (M,d)
         else:
             if self.loss == 'hinge':
                 wxy = y * wx
@@ -130,10 +128,78 @@ class KMM(RRF):
                 dphi = c * w  # (N,2D)
                 domega = self._get_domega(x[wxy], phi[wxy])  # (N,2D,d) (gradient of \omega)
 
-            dmu += self._get_dmu(domega, dphi, z) / n  # (M,d)
-            dgamma += self._get_dgamma(gamma, domega, dphi, z) / n  # (M,d)
+            dmu = self._get_dmu(domega, dphi, z) / n  # (M,d)
+            dgamma = self._get_dgamma(gamma, domega, dphi, z) / n  # (M,d)
 
         return dw, dmu, dgamma
+
+    def get_grad_all(self, x, y, *args, **kwargs):
+        n = x.shape[0]  # batch size
+        z = kwargs['z'] if 'z' in kwargs else self.z_  # (D,)
+        w = kwargs['w'] if 'w' in kwargs else self.w_  # (2D,C)
+        mu = kwargs['mu'] if 'mu' in kwargs else self.mu_  # (M,d)
+        gamma = kwargs['gamma'] if 'gamma' in kwargs else self.gamma_  # (M,d)
+        alpha = kwargs['alpha'] if 'alpha' in kwargs else self.alpha_  # (M,)
+
+        phi = kwargs['phi'] if 'phi' in kwargs else self._get_phi(x, **kwargs)  # (N,2D)
+        wx = kwargs['wx'] if 'wx' in kwargs else phi.dot(w)  # (N,C)
+
+        dw = self.lbd * w  # (2D,C)
+
+        if self.num_classes_ > 2:
+            wxy, t = self._get_wxy(wx, y)
+            if self.loss == 'hinge':
+                d = (wxy[:, np.newaxis] < 1) * phi  # (N,2D)
+                dphi = -w[:, y[wxy < 1]].T + w[:, t[wxy < 1]].T  # (N,2D)
+                domega = self._get_domega(x[wxy < 1], phi[wxy < 1])  # (N,2D,d) (gradient of \omega)
+            else:  # logit loss
+                c = np.exp(-wxy - np.logaddexp(0, -wxy))[:, np.newaxis]
+                d = c * phi
+                dphi = -c * (w[:, y].T - w[:, t].T)  # (N,2D)
+                domega = self._get_domega(x, phi)  # (N,2D,d) (gradient of \omega)
+            for i in range(self.num_classes_):
+                dw[:, i] += -d[y == i].sum(axis=0) / n
+                dw[:, i] += d[t == i].sum(axis=0) / n
+            dmu = self._get_dmu(domega, dphi, z) / n  # (M,d)
+            dgamma = self._get_dgamma(gamma, domega, dphi, z) / n  # (M,d)
+            dalpha = self._get_dalpha(domega, dphi, z, mu, gamma) / n  # (M,)
+        else:
+            if self.loss == 'hinge':
+                wxy = y * wx
+                dw += np.sum(-y[wxy < 1, np.newaxis] * phi[wxy < 1], axis=0) / n
+
+                # compute gradients of \mu
+                dphi = -y[wxy < 1, np.newaxis] * w  # (N,2D) (gradient of \Phi(x))
+                domega = self._get_domega(x[wxy < 1], phi[wxy < 1])  # (N,2D,d) (gradient of \omega)
+            elif self.loss == 'l1':
+                wxy = np.sign(wx - y)[:, np.newaxis]
+                dw += (wxy * phi).mean(axis=0)
+                dphi = wxy * w  # (N,2D)
+                domega = self._get_domega(x, phi)  # (N,2D,d) (gradient of \omega)
+            elif self.loss == 'l2':
+                wxy = (wx - y)[:, np.newaxis]
+                dw += (wxy * phi).mean(axis=0)
+                dphi = wxy * w  # (N,2D)
+                domega = self._get_domega(x, phi)  # (N,2D,d) (gradient of \omega)
+            elif self.loss == 'logit':
+                wxy = y * wx
+                c = (-y * np.exp(-wxy - np.logaddexp(0, -wxy)))[:, np.newaxis]
+                dw += np.mean(c * phi, axis=0)
+                dphi = c * w  # (N,2D)
+                domega = self._get_domega(x, phi)  # (N,2D,d) (gradient of \omega)
+            elif self.loss == 'eps_insensitive':
+                wxy = np.abs(y - wx) > self.eps
+                c = np.sign(wx - y)[:, np.newaxis]
+                d = c * phi
+                dw += d[wxy].sum(axis=0) / n
+                dphi = c * w  # (N,2D)
+                domega = self._get_domega(x[wxy], phi[wxy])  # (N,2D,d) (gradient of \omega)
+
+            dmu = self._get_dmu(domega, dphi, z) / n  # (M,d)
+            dgamma = self._get_dgamma(gamma, domega, dphi, z) / n  # (M,d)
+            dalpha = self._get_dalpha(domega, dphi, z, mu, gamma) / n  # (M,)
+
+        return dw, dmu, dgamma, dalpha
 
     def get_grad_alpha(self, x, y, *args, **kwargs):
         n = x.shape[0]  # batch size
@@ -271,6 +337,7 @@ class KMM(RRF):
 
         else:  # batch mode
             c = 0
+            c_alpha = 0
             s_w, t_w = np.zeros(self.w_.shape), np.zeros(self.w_.shape)
             s_mu, t_mu = np.zeros(self.mu_.shape), np.zeros(self.mu_.shape)
             s_gamma, t_gamma = np.zeros(self.gamma_.shape), np.zeros(self.gamma_.shape)
@@ -282,55 +349,92 @@ class KMM(RRF):
                 epoch_logs = {}
                 callbacks.on_epoch_begin(self.epoch_)
 
-                # for i in range(self.num_nested_epochs):
-                # for batch_idx, (batch_start, batch_end) in enumerate(batches):
-                #     x_batch = x[batch_start:batch_end]
-                #     y_batch = y[batch_start:batch_end]
-                #
-                #     dw, dmu, dgamma = self.get_grad(x_batch, y_batch)
-                #
-                #     self.w_ -= self.learning_rate * dw
-                #     self.mu_ -= self.learning_rate_mu * dmu
-                #     self.gamma_ -= self.learning_rate_gamma * dgamma
+                if self.num_nested_epochs > 0:
 
-                for batch_idx, (batch_start, batch_end) in enumerate(batches):
-                    batch_logs = {'batch': batch_idx,
-                                  'size': batch_end - batch_start + 1}
-                    callbacks.on_batch_begin(batch_idx, batch_logs)
+                    for i in range(self.num_nested_epochs):
+                        for batch_idx, (batch_start, batch_end) in enumerate(batches):
+                            x_batch = x[batch_start:batch_end]
+                            y_batch = y[batch_start:batch_end]
 
-                    x_batch = x[batch_start:batch_end]
-                    y_batch = y[batch_start:batch_end]
+                            dw, dmu, dgamma = self.get_grad(x_batch, y_batch)
 
-                    dw, dmu, dgamma = self.get_grad(x_batch, y_batch)
-                    # self.w_ -= self.learning_rate * dw
-                    # self.mu_ -= self.learning_rate_mu * dmu
-                    # self.gamma_ -= self.learning_rate_gamma * dgamma
+                            # update
+                            # self.w_ -= self.learning_rate * dw
+                            # self.mu_ -= self.learning_rate_mu * dmu
+                            # self.gamma_ -= self.learning_rate_gamma * dgamma
 
-                    # adam update
-                    c += 1
-                    dw, s_w, t_w = self._get_adam_update(c, s_w, t_w, dw,
-                                                         self.learning_rate)
-                    self.w_ -= dw
-                    dmu, s_mu, t_mu = self._get_adam_update(c, s_mu, t_mu, dmu,
-                                                            self.learning_rate_mu)
-                    self.mu_ -= dmu
-                    dgamma, s_gamma, t_gamma = self._get_adam_update(c, s_gamma, t_gamma, dgamma,
-                                                                     self.learning_rate_gamma)
-                    self.gamma_ -= dgamma
+                            # adam update
+                            c += 1
+                            dw, s_w, t_w = self._get_adam_update(
+                                c, s_w, t_w, dw, self.learning_rate)
+                            self.w_ -= dw
+                            dmu, s_mu, t_mu = self._get_adam_update(
+                                c, s_mu, t_mu, dmu, self.learning_rate_mu)
+                            self.mu_ -= dmu
+                            dgamma, s_gamma, t_gamma = self._get_adam_update(
+                                c, s_gamma, t_gamma, dgamma, self.learning_rate_gamma)
+                            self.gamma_ -= dgamma
 
-                    dalpha = self.get_grad_alpha(x_batch, y_batch)
-                    # self.alpha_ -= self.learning_rate_alpha * dalpha
+                    for batch_idx, (batch_start, batch_end) in enumerate(batches):
+                        batch_logs = {'batch': batch_idx,
+                                      'size': batch_end - batch_start + 1}
+                        callbacks.on_batch_begin(batch_idx, batch_logs)
 
-                    dalpha, s_alpha, t_alpha = self._get_adam_update(c, s_alpha, t_alpha, dalpha,
-                                                                     self.learning_rate_alpha)
-                    self.alpha_ -= dalpha
-                    self.z_ = self._get_z()
+                        x_batch = x[batch_start:batch_end]
+                        y_batch = y[batch_start:batch_end]
 
-                    outs = self._on_batch_end(x_batch, y_batch)
-                    for l, o in zip(self.metrics, outs):
-                        batch_logs[l] = o
+                        dalpha = self.get_grad_alpha(x_batch, y_batch)
+                        c_alpha += 1
+                        dalpha, s_alpha, t_alpha = self._get_adam_update(
+                            c_alpha, s_alpha, t_alpha, dalpha, self.learning_rate_alpha)
+                        self.alpha_ -= dalpha
+                        self.z_ = self._get_z()
 
-                    callbacks.on_batch_end(batch_idx, batch_logs)
+                        outs = self._on_batch_end(x_batch, y_batch)
+                        for l, o in zip(self.metrics, outs):
+                            batch_logs[l] = o
+
+                        callbacks.on_batch_end(batch_idx, batch_logs)
+
+                else:  # num_nested_epochs = 0
+
+                    for batch_idx, (batch_start, batch_end) in enumerate(batches):
+                        batch_logs = {'batch': batch_idx,
+                                      'size': batch_end - batch_start + 1}
+                        callbacks.on_batch_begin(batch_idx, batch_logs)
+
+                        x_batch = x[batch_start:batch_end]
+                        y_batch = y[batch_start:batch_end]
+
+                        dw, dmu, dgamma, dalpha = self.get_grad_all(x_batch, y_batch)
+
+                        # update
+                        # self.w_ -= self.learning_rate * dw
+                        # self.mu_ -= self.learning_rate_mu * dmu
+                        # self.gamma_ -= self.learning_rate_gamma * dgamma
+                        # self.alpha_ -= self.learning_rate_alpha * dalpha
+
+                        # adam update
+                        c += 1
+                        dw, s_w, t_w = self._get_adam_update(
+                            c, s_w, t_w, dw, self.learning_rate)
+                        self.w_ -= dw
+                        dmu, s_mu, t_mu = self._get_adam_update(
+                            c, s_mu, t_mu, dmu, self.learning_rate_mu)
+                        self.mu_ -= dmu
+                        dgamma, s_gamma, t_gamma = self._get_adam_update(
+                            c, s_gamma, t_gamma, dgamma, self.learning_rate_gamma)
+                        self.gamma_ -= dgamma
+                        dalpha, s_alpha, t_alpha = self._get_adam_update(
+                            c, s_alpha, t_alpha, dalpha, self.learning_rate_alpha)
+                        self.alpha_ -= dalpha
+                        self.z_ = self._get_z()
+
+                        outs = self._on_batch_end(x_batch, y_batch)
+                        for l, o in zip(self.metrics, outs):
+                            batch_logs[l] = o
+
+                        callbacks.on_batch_end(batch_idx, batch_logs)
 
                 if do_validation:
                     outs = self._on_batch_end(x_valid, self._transform_labels(y_valid))

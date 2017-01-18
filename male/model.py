@@ -60,6 +60,8 @@ class Model(BaseEstimator, ClassifierMixin,
         self.train_time_ = 0.0
         self.stop_training_ = 0
         self.exception_ = False
+        self.best_ = -INF
+        self.best_params_ = None
         self.random_state_ = check_random_state(self.random_state)
 
     def _init_params(self, x):
@@ -267,6 +269,8 @@ class Model(BaseEstimator, ClassifierMixin,
         out.update({'epoch_': self.epoch_,
                     'train_time_': self.train_time_,
                     'num_classes_': self.num_classes_,
+                    'best_': self.best_,
+                    'best_params_': self.best_params_,
                     'stop_training_': self.stop_training_,
                     'history_': copy.deepcopy(self.history_),
                     'label_encoder_': copy.deepcopy(self.label_encoder_),
