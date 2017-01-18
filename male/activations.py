@@ -15,8 +15,8 @@ def sigmoid(x):
 
 
 def softmax(x):
-    x = np.exp(x - np.max(x, 1, keepdims=True))
-    return x / (np.sum(x, 1, keepdims=True) + EPS)
+    xx = np.exp(x - np.max(x, 1, keepdims=True))
+    return xx / (np.sum(xx, 1, keepdims=True) + EPS)
 
 
 def logsumone(x):

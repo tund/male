@@ -18,7 +18,7 @@ from male.callbacks import ModelCheckpoint
 
 
 def test_glm_check_grad():
-    # binary classification
+    # <editor-fold desc="Binary classification">
     eps = 1e-6
     num_data = 10
     num_features = 5
@@ -69,8 +69,9 @@ def test_glm_check_grad():
                 l1_method='pseudo_huber',  # approximation method for L1-norm
                 random_state=6789)
     assert model.check_grad(x, y) < eps
+    # </editor-fold>
 
-    # multiclass classification
+    # <editor-fold desc="Multiclass classification">
     eps = 1e-6
     num_data = 10
     num_features = 5
@@ -121,8 +122,9 @@ def test_glm_check_grad():
                 l1_method='pseudo_huber',  # approximation method for L1-norm
                 random_state=6789)
     assert model.check_grad(x, y) < eps
+    # </editor-fold>
 
-    # regression
+    # <editor-fold desc="Regression">
     eps = 1e-6
     num_data = 10
     num_features = 5
@@ -172,6 +174,7 @@ def test_glm_check_grad():
                 l1_method='pseudo_huber',  # approximation method for L1-norm
                 random_state=6789)
     assert model.check_grad(x, y) < eps
+    # </editor-fold>
 
 
 def test_glm_mnist_logit():
@@ -292,7 +295,7 @@ def test_glm_mnist_logit_gridsearch():
 
     # params = {'l1_penalty': [0.0001, 0.001, 0.01, 0.1, 0.0],
     #           'l2_penalty': [0.0001, 0.001, 0.01, 0.1, 0.0]}
-    params = {'l1_penalty': [0.0001],
+    params = {'l1_penalty': [0.0001, 0.001],
               'l2_penalty': [0.0001, 0.001]}
 
     ps = PredefinedSplit(test_fold=[-1] * x_train.shape[0] + [1] * x_test.shape[0])
@@ -374,7 +377,7 @@ def test_glm_regression_gridsearch():
 
     # params = {'l1_penalty': [0.0001, 0.001, 0.01, 0.1, 0.0],
     #           'l2_penalty': [0.0001, 0.001, 0.01, 0.1, 0.0]}
-    params = {'l1_penalty': [0.0001],
+    params = {'l1_penalty': [0.0001, 0.001],
               'l2_penalty': [0.0001, 0.001]}
 
     ps = PredefinedSplit(test_fold=[-1] * 70 + [1] * 30)
@@ -458,7 +461,9 @@ def test_glm_mnist_cv():
 if __name__ == '__main__':
     pytest.main([__file__])
     # test_glm_check_grad()
-    # test_glm_regression_gridsearch()
-    # test_glm_mnist_cv()
     # test_glm_mnist_logit()
     # test_glm_mnist_softmax()
+    # test_glm_mnist_logit_gridsearch()
+    # test_glm_mnist_softmax_gridsearch()
+    # test_glm_regression_gridsearch()
+    # test_glm_mnist_cv()

@@ -267,7 +267,7 @@ class KMM(RRF):
                 self.alpha_ -= self.learning_rate_alpha * dalpha
                 self.z_ = self._get_z()
 
-            self.mistake_rate_ = mistake / x.shape[0]
+            self.mistake_ = mistake / x.shape[0]
 
         else:  # batch mode
             c = 0
@@ -276,11 +276,11 @@ class KMM(RRF):
             s_gamma, t_gamma = np.zeros(self.gamma_.shape), np.zeros(self.gamma_.shape)
             s_alpha, t_alpha = np.zeros(self.alpha_.shape), np.zeros(self.alpha_.shape)
 
-            while self.epoch_ < self.num_epochs:
-                callbacks.on_epoch_begin(self.epoch_)
+            batches = make_batches(x.shape[0], self.batch_size)
 
-                batches = make_batches(x.shape[0], self.batch_size)
+            while self.epoch_ < self.num_epochs:
                 epoch_logs = {}
+                callbacks.on_epoch_begin(self.epoch_)
 
                 # for i in range(self.num_nested_epochs):
                 # for batch_idx, (batch_start, batch_end) in enumerate(batches):
@@ -350,20 +350,20 @@ class KMM(RRF):
         eps = 1e-8
         s = beta1 * s + (1 - beta1) * d
         t = beta2 * t + (1 - beta2) * d * d
-        lr = lr * np.sqrt(1 - beta2 ** c) / (1 - beta1 ** c)
-        return lr * (s / (eps + np.sqrt(t))), s, t
+        lr1 = lr * np.sqrt(1 - beta2 ** c) / (1 - beta1 ** c)
+        return lr1 * (s / (eps + np.sqrt(t))), s, t
 
     def _roll_params(self):
         return np.concatenate([super(KMM, self)._roll_params(),
-                               np.ravel(self.mu_), np.ravel(self.alpha_)])
+                               np.ravel(self.mu_.copy()), np.ravel(self.alpha_.copy())])
 
     def _unroll_params(self, w):
         ww = super(KMM, self)._unroll_params(w)
         ww = tuple([ww]) if not isinstance(ww, tuple) else ww
         idx = np.sum([i.size for i in ww])
-        mu = w[idx:idx + self.mu_.size].reshape(self.mu_.shape)
+        mu = w[idx:idx + self.mu_.size].reshape(self.mu_.shape).copy()
         idx += self.mu_.size
-        alpha = w[idx:idx + self.alpha_.size].reshape(self.alpha_.shape)
+        alpha = w[idx:idx + self.alpha_.size].reshape(self.alpha_.shape).copy()
         return ww + (mu, alpha)
 
     def get_loss(self, x, y, **kwargs):
@@ -374,15 +374,15 @@ class KMM(RRF):
         return super(KMM, self).get_loss(x, y, **kwargs)
 
     def _get_loss_check_grad(self, w, x, y):
-        w, gamma, mu, alpha = self._unroll_params(w)
+        ww, gamma, mu, alpha = self._unroll_params(w)
         self.z_ = self._get_z(alpha=alpha)
-        return self.get_loss(x, y, w=w, mu=mu, gamma=gamma, alpha=alpha)
+        return self.get_loss(x, y, w=ww, mu=mu, gamma=gamma, alpha=alpha)
 
     def _get_grad_check_grad(self, w, x, y):
-        w, gamma, mu, alpha = self._unroll_params(w)
+        ww, gamma, mu, alpha = self._unroll_params(w)
         self.z_ = self._get_z(alpha=alpha)
-        dw, dmu, dgamma = self.get_grad(x, y, w=w, mu=mu, gamma=gamma, alpha=alpha)
-        dalpha = self.get_grad_alpha(x, y, w=w, mu=mu, gamma=gamma, alpha=alpha)
+        dw, dmu, dgamma = self.get_grad(x, y, w=ww, mu=mu, gamma=gamma, alpha=alpha)
+        dalpha = self.get_grad_alpha(x, y, w=ww, mu=mu, gamma=gamma, alpha=alpha)
         return np.concatenate([np.ravel(dw), np.ravel(dgamma), np.ravel(dmu), np.ravel(dalpha)])
 
     def check_grad_online(self, x, y):

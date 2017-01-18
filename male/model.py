@@ -69,6 +69,8 @@ class Model(BaseEstimator, ClassifierMixin,
         """Fit the model to the data X and the label y if available
         """
 
+        x, y = x.copy(), y.copy()  # copy to avoid modifying
+
         if x.ndim < 2:
             x = x[..., np.newaxis]
 
@@ -189,11 +191,12 @@ class Model(BaseEstimator, ClassifierMixin,
         pass
 
     def _encode_labels(self, y):
+        yy = y.copy()
         if self.task == 'classification':
             self.label_encoder_ = LabelEncoder()
-            y = self.label_encoder_.fit_transform(y)
+            yy = self.label_encoder_.fit_transform(yy)
             self.num_classes_ = len(self.label_encoder_.classes_)
-        return y
+        return yy
 
     def _decode_labels(self, y):
         if self.task == 'classification':

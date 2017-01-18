@@ -6,6 +6,8 @@ import copy
 
 import numpy as np
 
+np.seterr(all='raise')
+
 from scipy.optimize import check_grad
 
 from . import KSGD
@@ -34,7 +36,7 @@ class FOGD(KSGD):
         super(FOGD, self)._init()
 
         self.omega_ = None
-        self.mistake_rate_ = INF
+        self.mistake_ = INF
 
     def _init_params(self, x):
         if self.num_classes_ > 2:
@@ -48,10 +50,8 @@ class FOGD(KSGD):
                   x_valid=None, y_valid=None,
                   callbacks=None, callback_metrics=None):
 
-        if self.mode == 'online':
-            y0 = self._decode_labels(y)
-
         if self.mode == 'online':  # online setting
+            y0 = self._decode_labels(y)
             if self.avg_weight:
                 w_avg = np.zeros(self.w_.shape)
 
@@ -102,13 +102,13 @@ class FOGD(KSGD):
             if self.avg_weight:
                 self.w_ = w_avg / x.shape[0]
 
-            self.mistake_rate_ = mistake / x.shape[0]
+            self.mistake_ = mistake / x.shape[0]
         else:  # batch setting
-            while self.epoch_ < self.num_epochs:
-                callbacks.on_epoch_begin(self.epoch_)
+            batches = make_batches(x.shape[0], self.batch_size)
 
-                batches = make_batches(x.shape[0], self.batch_size)
+            while self.epoch_ < self.num_epochs:
                 epoch_logs = {}
+                callbacks.on_epoch_begin(self.epoch_)
 
                 for batch_idx, (batch_start, batch_end) in enumerate(batches):
                     batch_logs = {'batch': batch_idx,
@@ -142,7 +142,7 @@ class FOGD(KSGD):
 
     def predict(self, x):
         if x.ndim < 2:
-            x = x[..., np.newaxis]
+            x = x.copy()[..., np.newaxis]
 
         phi = self._get_phi(x)
         wx = phi.dot(self.w_)
@@ -157,7 +157,7 @@ class FOGD(KSGD):
 
     def _predict(self, x):
         if x.ndim < 2:
-            x = x[..., np.newaxis]
+            x = x.copy()[..., np.newaxis]
 
         phi = self._get_phi(x)
         wx = phi.dot(self.w_)
@@ -172,19 +172,19 @@ class FOGD(KSGD):
 
     def score(self, x, y, sample_weight=None):
         if self.mode == 'online':
-            return -self.mistake_rate_
+            return -self.mistake_
         else:
             return super(FOGD, self).score(x, y)
 
     def _roll_params(self):
         return np.concatenate([super(FOGD, self)._roll_params(),
-                               np.ravel(self.w_)])
+                               np.ravel(self.w_.copy())])
 
     def _unroll_params(self, w):
         ww = super(FOGD, self)._unroll_params(w)
         ww = tuple([ww]) if not isinstance(ww, tuple) else ww
         idx = np.sum([i.size for i in ww])
-        w_ = w[idx:idx + self.w_.size].reshape(self.w_.shape)
+        w_ = w[idx:idx + self.w_.size].reshape(self.w_.shape).copy()
         if len(ww) == 0:
             return w_
         else:
@@ -269,12 +269,12 @@ class FOGD(KSGD):
         return f
 
     def _get_loss_check_grad(self, w, x, y):
-        w = self._unroll_params(w)
-        return self.get_loss(x, y, w=w)
+        ww = self._unroll_params(w)
+        return self.get_loss(x, y, w=ww)
 
     def _get_grad_check_grad(self, w, x, y):
-        w = self._unroll_params(w)
-        dw = self.get_grad(x, y, w=w)
+        ww = self._unroll_params(w)
+        dw = self.get_grad(x, y, w=ww)
         return np.ravel(dw)
 
     def check_grad_online(self, x, y):
@@ -316,6 +316,6 @@ class FOGD(KSGD):
         out = super(FOGD, self).get_all_params(deep=deep)
         out.update({
             'omega_': copy.deepcopy(self.omega_),
-            'mistake_rate_': self.mistake_rate_
+            'mistake_': self.mistake_
         })
         return out

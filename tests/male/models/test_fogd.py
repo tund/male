@@ -18,7 +18,7 @@ from male.callbacks import ModelCheckpoint
 
 
 def test_fogd_check_grad():
-    # binary classification
+    # <editor-fold desc="Binary classification">
     eps = 1e-6
     num_data = 10
     num_features = 5
@@ -45,8 +45,9 @@ def test_fogd_check_grad():
                  learning_rate=0.001)
     assert model.check_grad(x, y) < eps
     assert model.check_grad_online(x, y) < eps
+    # </editor-fold>
 
-    # multiclass classification
+    # <editor-fold desc="Multiclass classification">
     eps = 1e-6
     num_data = 10
     num_features = 5
@@ -73,8 +74,9 @@ def test_fogd_check_grad():
                  learning_rate=0.001)
     assert model.check_grad(x, y) < eps
     assert model.check_grad_online(x, y) < eps
+    # </editor-fold>
 
-    # regression with L1 loss
+    # <editor-fold desc="Regression with L1 loss">
     x = np.random.rand(num_data, num_features)
     y = np.random.randn(num_data)
     model = FOGD(model_name="checkgrad_fogd_l1",
@@ -86,8 +88,9 @@ def test_fogd_check_grad():
                  learning_rate=0.001)
     assert model.check_grad(x, y) < eps
     assert model.check_grad_online(x, y) < eps
+    # </editor-fold>
 
-    # regression with L2 loss
+    # <editor-fold desc="Regression with L2 loss">
     model = FOGD(model_name="checkgrad_fogd_l2",
                  D=4,
                  lbd=0.01,
@@ -97,8 +100,9 @@ def test_fogd_check_grad():
                  learning_rate=0.001)
     assert model.check_grad(x, y) < eps
     assert model.check_grad_online(x, y) < eps
+    # </editor-fold>
 
-    # regression with eps-insensitive loss
+    # <editor-fold desc="Regression with eps-insensitive loss">
     model = FOGD(model_name="checkgrad_fogd_eps",
                  D=4,
                  lbd=0.01,
@@ -108,6 +112,7 @@ def test_fogd_check_grad():
                  learning_rate=0.001)
     assert model.check_grad(x, y) < eps
     assert model.check_grad_online(x, y) < eps
+    # </editor-fold>
 
 
 def test_fogd_mnist_bin():
@@ -156,7 +161,7 @@ def test_fogd_mnist_bin():
 
     clf.fit(x_train, y_train)
 
-    print("Mistake rate = %.4f" % clf.mistake_rate_)
+    print("Mistake rate = %.4f" % clf.mistake_)
 
 
 def test_fogd_mnist_softmax():
@@ -206,7 +211,7 @@ def test_fogd_mnist_softmax():
 
     clf.fit(x_train, y_train)
 
-    print("Mistake rate = %.4f" % clf.mistake_rate_)
+    print("Mistake rate = %.4f" % clf.mistake_)
 
 
 def test_fogd_mnist_softmax_gridsearch():

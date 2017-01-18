@@ -18,7 +18,7 @@ from male.callbacks import ModelCheckpoint
 
 
 def test_rrf_check_grad():
-    # binary classification
+    # <editor-fold desc="Binary classification">
     eps = 1e-6
     num_data = 10
     num_features = 5
@@ -47,8 +47,9 @@ def test_rrf_check_grad():
                 learning_rate_gamma=0.001)
     assert model.check_grad(x, y) < eps
     assert model.check_grad_online(x, y) < eps
+    # </editor-fold>
 
-    # multiclass classification
+    # <editor-fold desc="Multiclass classification">
     eps = 1e-6
     num_data = 10
     num_features = 5
@@ -77,8 +78,9 @@ def test_rrf_check_grad():
                 learning_rate_gamma=0.001)
     assert model.check_grad(x, y) < eps
     assert model.check_grad_online(x, y) < eps
+    # </editor-fold>
 
-    # regression with L1 loss
+    # <editor-fold desc="Regression with L1 loss">
     x = np.random.rand(num_data, num_features)
     y = np.random.randn(num_data)
     model = RRF(model_name="checkgrad_rrf_l1",
@@ -91,8 +93,9 @@ def test_rrf_check_grad():
                 learning_rate_gamma=0.001)
     assert model.check_grad(x, y) < eps
     assert model.check_grad_online(x, y) < eps
+    # </editor-fold>
 
-    # regression with L2 loss
+    # <editor-fold desc="Regression with L2 loss">
     model = RRF(model_name="checkgrad_rrf_l2",
                 D=4,
                 lbd=0.01,
@@ -103,8 +106,9 @@ def test_rrf_check_grad():
                 learning_rate_gamma=0.001)
     assert model.check_grad(x, y) < eps
     assert model.check_grad_online(x, y) < eps
+    # </editor-fold>
 
-    # regression with eps-insensitive loss
+    # <editor-fold desc="Regression with eps-insensitive loss">
     model = RRF(model_name="checkgrad_rrf_eps",
                 D=4,
                 lbd=0.01,
@@ -115,6 +119,7 @@ def test_rrf_check_grad():
                 learning_rate_gamma=0.001)
     assert model.check_grad(x, y) < eps
     assert model.check_grad_online(x, y) < eps
+    # </editor-fold>
 
 
 def test_rrf_mnist_bin():
@@ -164,7 +169,7 @@ def test_rrf_mnist_bin():
 
     clf.fit(x_train, y_train)
 
-    print("Mistake rate = %.4f" % clf.mistake_rate_)
+    print("Mistake rate = %.4f" % clf.mistake_)
 
 
 def test_rrf_mnist_softmax():
@@ -214,7 +219,7 @@ def test_rrf_mnist_softmax():
 
     clf.fit(x_train, y_train)
 
-    print("Mistake rate = %.4f" % clf.mistake_rate_)
+    print("Mistake rate = %.4f" % clf.mistake_)
 
 
 def test_rrf_mnist_softmax_gridsearch():
@@ -424,10 +429,10 @@ def test_rrf_mnist_cv_gridsearch():
 
 if __name__ == '__main__':
     # pytest.main([__file__])
-    # test_rrf_check_grad()
-    # test_rrf_mnist_bin()
-    # test_rrf_mnist_softmax()
+    test_rrf_check_grad()
+    test_rrf_mnist_bin()
+    test_rrf_mnist_softmax()
     # test_rrf_mnist_softmax_gridsearch()
-    test_rrf_regression_gridsearch()
+    # test_rrf_regression_gridsearch()
     test_rrf_mnist_cv()
-    test_rrf_mnist_cv_gridsearch()
+    # test_rrf_mnist_cv_gridsearch()

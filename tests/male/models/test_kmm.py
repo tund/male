@@ -353,7 +353,7 @@ def test_kmm_mnist_bin():
 
     clf.fit(x_train, y_train)
 
-    print("Mistake rate = %.4f" % clf.mistake_rate_)
+    print("Mistake rate = %.4f" % clf.mistake_)
 
 
 def test_kmm_mnist_softmax():
@@ -420,7 +420,7 @@ def test_kmm_mnist_softmax():
 
     clf.fit(x_train, y_train)
 
-    print("Mistake rate = %.4f" % clf.mistake_rate_)
+    print("Mistake rate = %.4f" % clf.mistake_)
 
 
 def test_kmm_mnist_softmax_gridsearch():

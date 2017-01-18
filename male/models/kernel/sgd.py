@@ -126,21 +126,24 @@ class KSGD(Model):
             self.w_ = w_avg / n
 
     def _encode_labels(self, y):
-        y = super(KSGD, self)._encode_labels(y)
+        yy = y.copy()
+        yy = super(KSGD, self)._encode_labels(yy)
         if self.num_classes_ == 2:
-            y[y == 0] = -1
-        return y
+            yy[yy == 0] = -1
+        return yy
 
     def _decode_labels(self, y):
+        yy = y.copy()
         if self.num_classes_ == 2:
-            y[y == -1] = 0
-        return super(KSGD, self)._decode_labels(y)
+            yy[yy == -1] = 0
+        return super(KSGD, self)._decode_labels(yy)
 
     def _transform_labels(self, y):
-        y = super(KSGD, self)._transform_labels(y)
+        yy = y.copy()
+        yy = super(KSGD, self)._transform_labels(yy)
         if self.num_classes_ == 2:
-            y[y == 0] = -1
-        return y
+            yy[yy == 0] = -1
+        return yy
 
     def predict(self, x):
         y = np.zeros(x.shape[0])

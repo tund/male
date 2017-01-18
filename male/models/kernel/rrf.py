@@ -8,7 +8,6 @@ import numpy as np
 np.seterr(all='raise')
 
 from scipy.optimize import check_grad
-from sklearn.utils import check_random_state
 
 from . import FOGD
 from ...utils.generic_utils import make_batches
@@ -157,14 +156,13 @@ class RRF(FOGD):
             if self.avg_weight:
                 self.w_ = w_avg / x.shape[0]
 
-            self.mistake_rate_ = mistake / x.shape[0]
+            self.mistake_ = mistake / x.shape[0]
 
         else:  # batch setting
+            batches = make_batches(x.shape[0], self.batch_size)
             while self.epoch_ < self.num_epochs:
-                callbacks.on_epoch_begin(self.epoch_)
-
-                batches = make_batches(x.shape[0], self.batch_size)
                 epoch_logs = {}
+                callbacks.on_epoch_begin(self.epoch_)
 
                 for batch_idx, (batch_start, batch_end) in enumerate(batches):
                     batch_logs = {'batch': batch_idx,
@@ -209,13 +207,13 @@ class RRF(FOGD):
 
     def _roll_params(self):
         return np.concatenate([super(RRF, self)._roll_params(),
-                               np.ravel(self.gamma_)])
+                               np.ravel(self.gamma_.copy())])
 
     def _unroll_params(self, w):
         ww = super(RRF, self)._unroll_params(w)
         ww = tuple([ww]) if not isinstance(ww, tuple) else ww
         idx = np.sum([i.size for i in ww])
-        gamma = w[idx:idx + self.gamma_.size].reshape(self.gamma_.shape)
+        gamma = w[idx:idx + self.gamma_.size].reshape(self.gamma_.shape).copy()
         return ww + (gamma,)
 
     def get_loss(self, x, y, *args, **kwargs):
@@ -224,12 +222,12 @@ class RRF(FOGD):
         return super(RRF, self).get_loss(x, y, **kwargs)
 
     def _get_loss_check_grad(self, w, x, y):
-        w, gamma = self._unroll_params(w)
-        return self.get_loss(x, y, w=w, gamma=gamma)
+        ww, gamma = self._unroll_params(w)
+        return self.get_loss(x, y, w=ww, gamma=gamma)
 
     def _get_grad_check_grad(self, w, x, y):
-        w, gamma = self._unroll_params(w)
-        dw, dgamma = self.get_grad(x, y, w=w, gamma=gamma)
+        ww, gamma = self._unroll_params(w)
+        dw, dgamma = self.get_grad(x, y, w=ww, gamma=gamma)
         return np.concatenate([np.ravel(dw), np.ravel(dgamma)])
 
     def check_grad_online(self, x, y):
@@ -271,6 +269,6 @@ class RRF(FOGD):
         out.update({
             'gamma_': copy.deepcopy(self.gamma_),
             'e_': copy.deepcopy(self.e_),
-            'num_features': self.num_features_,
+            'num_features_': self.num_features_,
         })
         return out

@@ -71,11 +71,11 @@ class GLM(Model):
                                  options={'disp': (self.verbose != 0)})
             self.w_, self.b_ = self._unroll_params(optimizer.x)
         if self.optimizer == 'sgd':
-            while self.epoch_ < self.num_epochs:
-                callbacks.on_epoch_begin(self.epoch_)
+            batches = make_batches(x.shape[0], self.batch_size)
 
-                batches = make_batches(x.shape[0], self.batch_size)
+            while self.epoch_ < self.num_epochs:
                 epoch_logs = {}
+                callbacks.on_epoch_begin(self.epoch_)
 
                 for batch_idx, (batch_start, batch_end) in enumerate(batches):
                     batch_logs = {'batch': batch_idx,
@@ -109,22 +109,25 @@ class GLM(Model):
                     break
 
     def _encode_labels(self, y):
-        y = super(GLM, self)._encode_labels(y)
+        yy = y.copy()
+        yy = super(GLM, self)._encode_labels(yy)
         if self.loss == 'softmax':
             self.onehot_encoder_ = OneHotEncoder()
-            y = self.onehot_encoder_.fit_transform(y.reshape(-1, 1)).toarray()
-        return y
+            yy = self.onehot_encoder_.fit_transform(yy.reshape(-1, 1)).toarray()
+        return yy
 
     def _decode_labels(self, y):
+        yy = y.copy()
         if self.loss == 'softmax':
-            y = np.argmax(y, axis=1)
-        return super(GLM, self)._decode_labels(y)
+            yy = np.argmax(yy, axis=1)
+        return super(GLM, self)._decode_labels(yy)
 
     def _transform_labels(self, y):
-        y = super(GLM, self)._transform_labels(y)
+        yy = y.copy()
+        yy = super(GLM, self)._transform_labels(yy)
         if self.loss == 'softmax':
-            y = self.onehot_encoder_.transform(y.reshape(-1, 1)).toarray()
-        return y
+            yy = self.onehot_encoder_.transform(yy.reshape(-1, 1)).toarray()
+        return yy
 
     def get_loss(self, x, y, *args, **kwargs):
         w = kwargs['w'] if 'w' in kwargs else self.w_
@@ -187,12 +190,12 @@ class GLM(Model):
         return dw, db
 
     def _get_loss_check_grad(self, w, x, y):
-        w, b = self._unroll_params(w)
-        return self.get_loss(x, y, w=w, b=b)
+        ww, bb = self._unroll_params(w)
+        return self.get_loss(x, y, w=ww, b=bb)
 
     def _get_grad_check_grad(self, w, x, y):
-        w, b = self._unroll_params(w)
-        dw, db = self.get_grad(x, y, w=w, b=b)
+        ww, bb = self._unroll_params(w)
+        dw, db = self.get_grad(x, y, w=ww, b=bb)
         return np.concatenate([np.ravel(dw), np.ravel(db)])
 
     def predict(self, x):
@@ -214,16 +217,16 @@ class GLM(Model):
 
     def _roll_params(self):
         return np.concatenate([super(GLM, self)._roll_params(),
-                               np.ravel(self.w_),
-                               np.ravel(self.b_)])
+                               np.ravel(self.w_.copy()),
+                               np.ravel(self.b_.copy())])
 
     def _unroll_params(self, w):
         ww = super(GLM, self)._unroll_params(w)
         ww = tuple([ww]) if not isinstance(ww, tuple) else ww
         idx = np.sum([i.size for i in ww])
-        w_ = w[idx:idx + self.w_.size].reshape(self.w_.shape)
+        w_ = w[idx:idx + self.w_.size].reshape(self.w_.shape).copy()
         idx += self.w_.size
-        b_ = w[idx:idx + self.b_.size].reshape(self.b_.shape)
+        b_ = w[idx:idx + self.b_.size].reshape(self.b_.shape).copy()
         return ww + (w_, b_)
 
     def get_params(self, deep=True):
