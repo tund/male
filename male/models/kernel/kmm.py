@@ -539,3 +539,245 @@ class KMM(RRF):
             'gumbel_': copy.deepcopy(self.gumbel_),
         })
         return out
+
+
+class KMM0(KMM):
+    def _fit_loop(self, x, y,
+                  do_validation=False,
+                  x_valid=None, y_valid=None,
+                  callbacks=None, callback_metrics=None):
+        if self.mode == 'online':
+            y0 = self._decode_labels(y)
+            mistake = 0.0
+
+            for t in range(x.shape[0]):
+                phi = self._get_phi(x[[t]])
+
+                wx = phi.dot(self.w_)  # (x,)
+                if self.task == 'classification':
+                    if self.num_classes_ == 2:
+                        y_pred = self._decode_labels(np.uint8(wx >= 0))[0]
+                    else:
+                        y_pred = self._decode_labels(np.argmax(wx))
+                    mistake += (y_pred != y0[t])
+                else:
+                    mistake += (wx[0] - y0[t]) ** 2
+
+                dw, dgamma = self.get_grad(x[[t]], y[[t]], phi=phi, wx=wx)  # compute gradients
+                dalpha = self.get_grad_alpha(x[[t]], y[[t]], phi=phi, wx=wx)
+
+                # update parameters
+                self.w_ -= self.learning_rate * dw
+                self.gamma_ -= self.learning_rate_gamma * dgamma
+                self.alpha_ -= self.learning_rate_alpha * dalpha
+                self.z_ = self._get_z()
+
+            self.mistake_ = mistake / x.shape[0]
+
+        else:  # batch mode
+            c = 0
+            c_alpha = 0
+            s_w, t_w = np.zeros(self.w_.shape), np.zeros(self.w_.shape)
+            s_gamma, t_gamma = np.zeros(self.gamma_.shape), np.zeros(self.gamma_.shape)
+            s_alpha, t_alpha = np.zeros(self.alpha_.shape), np.zeros(self.alpha_.shape)
+
+            batches = make_batches(x.shape[0], self.batch_size)
+
+            while self.epoch_ < self.num_epochs:
+                epoch_logs = {}
+                callbacks.on_epoch_begin(self.epoch_)
+
+                if self.num_nested_epochs > 0:
+
+                    for i in range(self.num_nested_epochs):
+                        for batch_idx, (batch_start, batch_end) in enumerate(batches):
+                            x_batch = x[batch_start:batch_end]
+                            y_batch = y[batch_start:batch_end]
+
+                            dw, dgamma = self.get_grad(x_batch, y_batch)
+
+                            # update
+                            # self.w_ -= self.learning_rate * dw
+                            # self.mu_ -= self.learning_rate_mu * dmu
+                            # self.gamma_ -= self.learning_rate_gamma * dgamma
+
+                            # adam update
+                            c += 1
+                            dw, s_w, t_w = self._get_adam_update(
+                                c, s_w, t_w, dw, self.learning_rate)
+                            self.w_ -= dw
+                            dgamma, s_gamma, t_gamma = self._get_adam_update(
+                                c, s_gamma, t_gamma, dgamma, self.learning_rate_gamma)
+                            self.gamma_ -= dgamma
+
+                    for batch_idx, (batch_start, batch_end) in enumerate(batches):
+                        x_batch = x[batch_start:batch_end]
+                        y_batch = y[batch_start:batch_end]
+
+                        dalpha = self.get_grad_alpha(x_batch, y_batch)
+                        c_alpha += 1
+                        dalpha, s_alpha, t_alpha = self._get_adam_update(
+                            c_alpha, s_alpha, t_alpha, dalpha, self.learning_rate_alpha)
+                        self.alpha_ -= dalpha
+                        self.z_ = self._get_z()
+
+                else:  # num_nested_epochs = 0
+
+                    for batch_idx, (batch_start, batch_end) in enumerate(batches):
+                        x_batch = x[batch_start:batch_end]
+                        y_batch = y[batch_start:batch_end]
+
+                        dw, dgamma, dalpha = self.get_grad_all(x_batch, y_batch)
+
+                        # update
+                        # self.w_ -= self.learning_rate * dw
+                        # self.mu_ -= self.learning_rate_mu * dmu
+                        # self.gamma_ -= self.learning_rate_gamma * dgamma
+                        # self.alpha_ -= self.learning_rate_alpha * dalpha
+
+                        # adam update
+                        c += 1
+                        dw, s_w, t_w = self._get_adam_update(
+                            c, s_w, t_w, dw, self.learning_rate)
+                        self.w_ -= dw
+                        dgamma, s_gamma, t_gamma = self._get_adam_update(
+                            c, s_gamma, t_gamma, dgamma, self.learning_rate_gamma)
+                        self.gamma_ -= dgamma
+                        dalpha, s_alpha, t_alpha = self._get_adam_update(
+                            c, s_alpha, t_alpha, dalpha, self.learning_rate_alpha)
+                        self.alpha_ -= dalpha
+                        self.z_ = self._get_z()
+
+                callbacks.on_epoch_end(self.epoch_, epoch_logs)
+
+                self.epoch_ += 1
+                if self.stop_training_:
+                    self.epoch_ = self.stop_training_
+                    break
+
+    def get_grad(self, x, y, *args, **kwargs):
+        n = x.shape[0]  # batch size
+        z = kwargs['z'] if 'z' in kwargs else self.z_  # (D,)
+        w = kwargs['w'] if 'w' in kwargs else self.w_  # (2D,C)
+        gamma = kwargs['gamma'] if 'gamma' in kwargs else self.gamma_  # (M,d)
+
+        phi = kwargs['phi'] if 'phi' in kwargs else self._get_phi(x, **kwargs)  # (N,2D)
+        wx = kwargs['wx'] if 'wx' in kwargs else phi.dot(w)  # (N,C)
+
+        dw = self.lbd * w  # (2D,C)
+
+        if self.num_classes_ > 2:
+            wxy, t = self._get_wxy(wx, y)
+            if self.loss == 'hinge':
+                d = (wxy[:, np.newaxis] < 1) * phi  # (N,2D)
+                dphi = -w[:, y[wxy < 1]].T + w[:, t[wxy < 1]].T  # (N,2D)
+                domega = self._get_domega(x[wxy < 1], phi[wxy < 1])  # (N,2D,d) (gradient of \omega)
+            else:  # logit loss
+                c = np.exp(-wxy - np.logaddexp(0, -wxy))[:, np.newaxis]
+                d = c * phi
+                dphi = -c * (w[:, y].T - w[:, t].T)  # (N,2D)
+                domega = self._get_domega(x, phi)  # (N,2D,d) (gradient of \omega)
+            for i in range(self.num_classes_):
+                dw[:, i] += -d[y == i].sum(axis=0) / n
+                dw[:, i] += d[t == i].sum(axis=0) / n
+            dgamma = self._get_dgamma(gamma, domega, dphi, z) / n  # (M,d)
+        else:
+            if self.loss == 'hinge':
+                wxy = y * wx
+                dw += np.sum(-y[wxy < 1, np.newaxis] * phi[wxy < 1], axis=0) / n
+
+                # compute gradients of \mu
+                dphi = -y[wxy < 1, np.newaxis] * w  # (N,2D) (gradient of \Phi(x))
+                domega = self._get_domega(x[wxy < 1], phi[wxy < 1])  # (N,2D,d) (gradient of \omega)
+            elif self.loss == 'l1':
+                wxy = np.sign(wx - y)[:, np.newaxis]
+                dw += (wxy * phi).mean(axis=0)
+                dphi = wxy * w  # (N,2D)
+                domega = self._get_domega(x, phi)  # (N,2D,d) (gradient of \omega)
+            elif self.loss == 'l2':
+                wxy = (wx - y)[:, np.newaxis]
+                dw += (wxy * phi).mean(axis=0)
+                dphi = wxy * w  # (N,2D)
+                domega = self._get_domega(x, phi)  # (N,2D,d) (gradient of \omega)
+            elif self.loss == 'logit':
+                wxy = y * wx
+                c = (-y * np.exp(-wxy - np.logaddexp(0, -wxy)))[:, np.newaxis]
+                dw += np.mean(c * phi, axis=0)
+                dphi = c * w  # (N,2D)
+                domega = self._get_domega(x, phi)  # (N,2D,d) (gradient of \omega)
+            elif self.loss == 'eps_insensitive':
+                wxy = np.abs(y - wx) > self.eps
+                c = np.sign(wx - y)[:, np.newaxis]
+                d = c * phi
+                dw += d[wxy].sum(axis=0) / n
+                dphi = c * w  # (N,2D)
+                domega = self._get_domega(x[wxy], phi[wxy])  # (N,2D,d) (gradient of \omega)
+
+            dgamma = self._get_dgamma(gamma, domega, dphi, z) / n  # (M,d)
+
+        return dw, dgamma
+
+    def get_grad_all(self, x, y, *args, **kwargs):
+        n = x.shape[0]  # batch size
+        z = kwargs['z'] if 'z' in kwargs else self.z_  # (D,)
+        w = kwargs['w'] if 'w' in kwargs else self.w_  # (2D,C)
+        mu = kwargs['mu'] if 'mu' in kwargs else self.mu_  # (M,d)
+        gamma = kwargs['gamma'] if 'gamma' in kwargs else self.gamma_  # (M,d)
+
+        phi = kwargs['phi'] if 'phi' in kwargs else self._get_phi(x, **kwargs)  # (N,2D)
+        wx = kwargs['wx'] if 'wx' in kwargs else phi.dot(w)  # (N,C)
+
+        dw = self.lbd * w  # (2D,C)
+
+        if self.num_classes_ > 2:
+            wxy, t = self._get_wxy(wx, y)
+            if self.loss == 'hinge':
+                d = (wxy[:, np.newaxis] < 1) * phi  # (N,2D)
+                dphi = -w[:, y[wxy < 1]].T + w[:, t[wxy < 1]].T  # (N,2D)
+                domega = self._get_domega(x[wxy < 1], phi[wxy < 1])  # (N,2D,d) (gradient of \omega)
+            else:  # logit loss
+                c = np.exp(-wxy - np.logaddexp(0, -wxy))[:, np.newaxis]
+                d = c * phi
+                dphi = -c * (w[:, y].T - w[:, t].T)  # (N,2D)
+                domega = self._get_domega(x, phi)  # (N,2D,d) (gradient of \omega)
+            for i in range(self.num_classes_):
+                dw[:, i] += -d[y == i].sum(axis=0) / n
+                dw[:, i] += d[t == i].sum(axis=0) / n
+            dgamma = self._get_dgamma(gamma, domega, dphi, z) / n  # (M,d)
+            dalpha = self._get_dalpha(domega, dphi, z, mu, gamma) / n  # (M,)
+        else:
+            if self.loss == 'hinge':
+                wxy = y * wx
+                dw += np.sum(-y[wxy < 1, np.newaxis] * phi[wxy < 1], axis=0) / n
+
+                # compute gradients of \mu
+                dphi = -y[wxy < 1, np.newaxis] * w  # (N,2D) (gradient of \Phi(x))
+                domega = self._get_domega(x[wxy < 1], phi[wxy < 1])  # (N,2D,d) (gradient of \omega)
+            elif self.loss == 'l1':
+                wxy = np.sign(wx - y)[:, np.newaxis]
+                dw += (wxy * phi).mean(axis=0)
+                dphi = wxy * w  # (N,2D)
+                domega = self._get_domega(x, phi)  # (N,2D,d) (gradient of \omega)
+            elif self.loss == 'l2':
+                wxy = (wx - y)[:, np.newaxis]
+                dw += (wxy * phi).mean(axis=0)
+                dphi = wxy * w  # (N,2D)
+                domega = self._get_domega(x, phi)  # (N,2D,d) (gradient of \omega)
+            elif self.loss == 'logit':
+                wxy = y * wx
+                c = (-y * np.exp(-wxy - np.logaddexp(0, -wxy)))[:, np.newaxis]
+                dw += np.mean(c * phi, axis=0)
+                dphi = c * w  # (N,2D)
+                domega = self._get_domega(x, phi)  # (N,2D,d) (gradient of \omega)
+            elif self.loss == 'eps_insensitive':
+                wxy = np.abs(y - wx) > self.eps
+                c = np.sign(wx - y)[:, np.newaxis]
+                d = c * phi
+                dw += d[wxy].sum(axis=0) / n
+                dphi = c * w  # (N,2D)
+                domega = self._get_domega(x[wxy], phi[wxy])  # (N,2D,d) (gradient of \omega)
+
+            dgamma = self._get_dgamma(gamma, domega, dphi, z) / n  # (M,d)
+            dalpha = self._get_dalpha(domega, dphi, z, mu, gamma) / n  # (M,)
+
+        return dw, dgamma, dalpha

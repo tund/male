@@ -4,6 +4,7 @@ from __future__ import absolute_import
 
 import os
 import abc
+import sys
 import copy
 import time
 import numpy as np
@@ -135,6 +136,7 @@ class Model(BaseEstimator, ClassifierMixin,
         except KeyboardInterrupt:
             pass
         except:
+            print("Unexpected error: {}".format(sys.exc_info()[0]))
             self._init_params(x_train)  # reset all parameters
             self.exception_ = True
             return self
