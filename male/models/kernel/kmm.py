@@ -306,6 +306,13 @@ class KMM(RRF):
                   do_validation=False,
                   x_valid=None, y_valid=None,
                   callbacks=None, callback_metrics=None):
+        c = 0
+        c_alpha = 0
+        s_w, t_w = np.zeros(self.w_.shape), np.zeros(self.w_.shape)
+        s_mu, t_mu = np.zeros(self.mu_.shape), np.zeros(self.mu_.shape)
+        s_gamma, t_gamma = np.zeros(self.gamma_.shape), np.zeros(self.gamma_.shape)
+        s_alpha, t_alpha = np.zeros(self.alpha_.shape), np.zeros(self.alpha_.shape)
+
         if self.mode == 'online':
             y0 = self._decode_labels(y)
             mistake = 0.0
@@ -323,26 +330,38 @@ class KMM(RRF):
                 else:
                     mistake += (wx[0] - y0[t]) ** 2
 
-                dw, dmu, dgamma = self.get_grad(x[[t]], y[[t]], phi=phi, wx=wx)  # compute gradients
-                dalpha = self.get_grad_alpha(x[[t]], y[[t]], phi=phi, wx=wx)
+                # compute gradients
+                # dw, dmu, dgamma = self.get_grad(x[[t]], y[[t]], phi=phi, wx=wx)
+                # dalpha = self.get_grad_alpha(x[[t]], y[[t]], phi=phi, wx=wx)
+
+                dw, dmu, dgamma, dalpha = self.get_grad_all(x[[t]], y[[t]], phi=phi, wx=wx)
 
                 # update parameters
-                self.w_ -= self.learning_rate * dw
-                self.mu_ -= self.learning_rate_mu * dmu
-                self.gamma_ -= self.learning_rate_gamma * dgamma
-                self.alpha_ -= self.learning_rate_alpha * dalpha
+                # self.w_ -= self.learning_rate * dw
+                # self.mu_ -= self.learning_rate_mu * dmu
+                # self.gamma_ -= self.learning_rate_gamma * dgamma
+                # self.alpha_ -= self.learning_rate_alpha * dalpha
+                # self.z_ = self._get_z()
+
+                # adam update
+                c += 1
+                dw, s_w, t_w = self._get_adam_update(
+                    c, s_w, t_w, dw, self.learning_rate)
+                self.w_ -= dw
+                dmu, s_mu, t_mu = self._get_adam_update(
+                    c, s_mu, t_mu, dmu, self.learning_rate_mu)
+                self.mu_ -= dmu
+                dgamma, s_gamma, t_gamma = self._get_adam_update(
+                    c, s_gamma, t_gamma, dgamma, self.learning_rate_gamma)
+                self.gamma_ -= dgamma
+                dalpha, s_alpha, t_alpha = self._get_adam_update(
+                    c, s_alpha, t_alpha, dalpha, self.learning_rate_alpha)
+                self.alpha_ -= dalpha
                 self.z_ = self._get_z()
 
             self.mistake_ = mistake / x.shape[0]
 
         else:  # batch mode
-            c = 0
-            c_alpha = 0
-            s_w, t_w = np.zeros(self.w_.shape), np.zeros(self.w_.shape)
-            s_mu, t_mu = np.zeros(self.mu_.shape), np.zeros(self.mu_.shape)
-            s_gamma, t_gamma = np.zeros(self.gamma_.shape), np.zeros(self.gamma_.shape)
-            s_alpha, t_alpha = np.zeros(self.alpha_.shape), np.zeros(self.alpha_.shape)
-
             batches = make_batches(x.shape[0], self.batch_size)
 
             while self.epoch_ < self.num_epochs:

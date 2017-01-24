@@ -357,6 +357,8 @@ def test_kmm_mnist_bin():
 
 
 def test_kmm_mnist_softmax():
+    np.random.seed(6789)
+
     from male import HOME
     x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"),
                                           n_features=784)
@@ -393,17 +395,17 @@ def test_kmm_mnist_softmax():
               random_state=6789,
               verbose=1)
 
-    clf.fit(x_train, y_train)
-
-    y_train_pred = clf.predict(x_train)
-    y_test_pred = clf.predict(x_test)
-
-    print("Training error = %.4f" % (1 - metrics.accuracy_score(y_train, y_train_pred)))
-    print("Testing error = %.4f" % (1 - metrics.accuracy_score(y_test, y_test_pred)))
+    # clf.fit(x_train, y_train)
+    #
+    # y_train_pred = clf.predict(x_train)
+    # y_test_pred = clf.predict(x_test)
+    #
+    # print("Training error = %.4f" % (1 - metrics.accuracy_score(y_train, y_train_pred)))
+    # print("Testing error = %.4f" % (1 - metrics.accuracy_score(y_test, y_test_pred)))
 
     clf = KMM(model_name="mnist_kmm_hinge",
-              D=4,
-              lbd=0.01,
+              D=100,
+              lbd=0.0,
               gamma=0.01,
               mode='online',
               loss='hinge',
@@ -424,6 +426,8 @@ def test_kmm_mnist_softmax():
 
 
 def test_kmm_mnist_softmax_gridsearch():
+    np.random.seed(6789)
+
     from male import HOME
     x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"),
                                           n_features=784)
@@ -481,6 +485,34 @@ def test_kmm_mnist_softmax_gridsearch():
 
     print("Training error = %.4f" % (1 - metrics.accuracy_score(y_train, y_train_pred)))
     print("Testing error = %.4f" % (1 - metrics.accuracy_score(y_test, y_test_pred)))
+
+    x_train = x_train[:np.int(x_train.shape[0] / 10)]
+    y_train = y_train[:x_train.shape[0]]
+
+    ps = PredefinedSplit(test_fold=[-1] * (x_train.shape[0] - 2) + [1] * 2)
+
+    clf = KMM(model_name="mnist_kmm_hinge",
+              D=100,
+              lbd=0.01,
+              gamma=0.01,
+              mode='online',
+              loss='hinge',
+              num_kernels=4,
+              batch_size=100,
+              temperature=0.1,
+              num_epochs=50,
+              num_nested_epochs=1,
+              learning_rate=0.001,
+              learning_rate_mu=0.001,
+              learning_rate_gamma=0.001,
+              learning_rate_alpha=0.001,
+              random_state=6789,
+              verbose=1)
+
+    gs = GridSearchCV(clf, params, cv=ps, n_jobs=-1, refit=False, verbose=True)
+    gs.fit(x_train, y_train)
+
+    print("Best score {} @ params {}".format(-gs.best_score_, gs.best_params_))
 
 
 def test_kmm_regression_gridsearch():
@@ -686,11 +718,11 @@ def test_kmm_mnist_cv_gridsearch():
 
 
 if __name__ == '__main__':
-    # pytest.main([__file__])
+    pytest.main([__file__])
     # test_kmm_check_grad()
     # test_kmm_mnist_bin()
     # test_kmm_mnist_softmax()
     # test_kmm_mnist_softmax_gridsearch()
     # test_kmm_regression_gridsearch()
-    test_kmm_mnist_cv()
+    # test_kmm_mnist_cv()
     # test_kmm_mnist_cv_gridsearch()
