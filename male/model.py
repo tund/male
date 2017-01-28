@@ -133,6 +133,8 @@ class Model(BaseEstimator, ClassifierMixin,
                            x_valid=x_valid, y_valid=y_valid,
                            callbacks=callbacks, callback_metrics=callback_metrics)
             self.train_time_ = time.time() - start_time
+        except KeyboardInterrupt:
+            sys.exit()
         except:
             print("Unexpected error: {}".format(sys.exc_info()[0]))
             self._init_params(x_train)  # reset all parameters
