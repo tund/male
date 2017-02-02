@@ -68,13 +68,15 @@ class Model(BaseEstimator, ClassifierMixin,
     def _init_params(self, x):
         pass
 
-    def fit(self, x, y=None):
+    def fit(self, x=None, y=None):
         """Fit the model to the data X and the label y if available
         """
 
-        x, y = x.copy(), y.copy()  # copy to avoid modifying
+        # copy to avoid modifying
+        x = x.copy() if x is not None else x
+        y = y.copy() if y is not None else y
 
-        if x.ndim < 2:
+        if (x is not None) and (x.ndim < 2):
             x = x[..., np.newaxis]
 
         if self.cv is not None:
@@ -117,7 +119,7 @@ class Model(BaseEstimator, ClassifierMixin,
         callbacks._set_params({
             'batch_size': self.batch_size,
             'num_epochs': self.num_epochs,
-            'num_samples': x_train.shape[0],
+            'num_samples': x_train.shape[0] if x_train is not None else 0,
             'verbose': self.verbose,
             'do_validation': do_validation,
             'metrics': callback_metrics,
