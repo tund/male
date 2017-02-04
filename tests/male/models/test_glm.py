@@ -435,33 +435,37 @@ def test_glm_mnist_cv():
                                  monitor='val_loss',
                                  verbose=0,
                                  save_best_only=True)
-    display = Display(layout=(2, 2),
-                      monitor=[{'metrics': ['loss', 'val_loss'],
-                                'type': 'line',
-                                'labels': ["training loss", "validation loss"],
-                                'title': "Learning losses",
-                                'xlabel': "epoch",
-                                'ylabel': "loss",
-                                },
-                               {'metrics': ['err', 'val_err'],
-                                'type': 'line',
-                                'title': "Learning errors",
-                                'xlabel': "epoch",
-                                'ylabel': "error",
-                                },
-                               {'metrics': ['err'],
-                                'type': 'line',
-                                'labels': ["training error"],
-                                'title': "Learning errors",
-                                'xlabel': "epoch",
-                                'ylabel': "error",
-                                },
-                               {'metrics': ['weights'],
-                                'title': "Learned weights",
-                                'type': 'img',
-                                'tile_shape': (5, 2),
-                                },
-                               ])
+    loss_display = Display(layout=(3, 1),
+                           monitor=[{'metrics': ['loss', 'val_loss'],
+                                     'type': 'line',
+                                     'labels': ["training loss", "validation loss"],
+                                     'title': "Learning losses",
+                                     'xlabel': "epoch",
+                                     'ylabel': "loss",
+                                     },
+                                    {'metrics': ['err', 'val_err'],
+                                     'type': 'line',
+                                     'title': "Learning errors",
+                                     'xlabel': "epoch",
+                                     'ylabel': "error",
+                                     },
+                                    {'metrics': ['err'],
+                                     'type': 'line',
+                                     'labels': ["training error"],
+                                     'title': "Learning errors",
+                                     'xlabel': "epoch",
+                                     'ylabel': "error",
+                                     },
+                                    ])
+
+    weight_display = Display(layout=(1, 1),
+                             figsize=(6, 15),
+                             monitor=[{'metrics': ['weights'],
+                                       'title': "Learned weights",
+                                       'type': 'img',
+                                       'tile_shape': (5, 2),
+                                       },
+                                      ])
 
     clf = GLM(model_name="mnist_glm_softmax",
               link='softmax',
@@ -469,10 +473,10 @@ def test_glm_mnist_cv():
               optimizer='sgd',
               num_epochs=100,
               batch_size=100,
-              learning_rate=0.5,
+              learning_rate=0.001,
               task='classification',
               metrics=['loss', 'err'],
-              callbacks=[early_stopping, checkpoint, display],
+              callbacks=[early_stopping, checkpoint, loss_display, weight_display],
               cv=[-1] * x_train.shape[0] + [0] * x_test.shape[0],
               random_state=6789,
               verbose=1)
@@ -487,11 +491,11 @@ def test_glm_mnist_cv():
 
 
 if __name__ == '__main__':
-    pytest.main([__file__])
-    # # test_glm_check_grad()
-    # # test_glm_mnist_logit()
-    # # test_glm_mnist_softmax()
-    # # test_glm_mnist_logit_gridsearch()
-    # # test_glm_mnist_softmax_gridsearch()
-    # # test_glm_regression_gridsearch()
-    # test_glm_mnist_cv()
+    # pytest.main([__file__])
+    # test_glm_check_grad()
+    # test_glm_mnist_logit()
+    # test_glm_mnist_softmax()
+    # test_glm_mnist_logit_gridsearch()
+    # test_glm_mnist_softmax_gridsearch()
+    # test_glm_regression_gridsearch()
+    test_glm_mnist_cv()

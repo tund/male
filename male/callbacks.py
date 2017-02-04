@@ -211,9 +211,10 @@ class Display(Callback):
     LINESTYLE = ['-', '--', '-.', ':']
     LINE_WIDTH = 4
 
-    def __init__(self, layout=(1, 1), monitor=None):
+    def __init__(self, layout=(1, 1), figsize=None, monitor=None):
         super(Display, self).__init__()
         self.layout = layout
+        self.figsize = figsize
         self.monitor = monitor
 
     def draw(self, ax, title, **kwargs):
@@ -224,8 +225,10 @@ class Display(Callback):
 
     def on_train_begin(self, logs={}):
         if self.monitor is not None:
-            self.fig, self.axs = plt.subplots(self.layout[0], self.layout[1], squeeze=False,
-                                              figsize=(12 * self.layout[1], 6.75 * self.layout[0]))
+            self.fig, self.axs = plt.subplots(
+                self.layout[0], self.layout[1], squeeze=False,
+                figsize=self.figsize if self.figsize is not None else (
+                    12 * self.layout[1], 6.75 * self.layout[0]))
             for i in range(len(self.monitor)):
                 u, v = np.unravel_index(i, self.layout, order='C')
                 self.draw(self.axs[u, v], **self.monitor[i])
@@ -255,7 +258,7 @@ class Display(Callback):
                 if self.axs[u, v].get_legend() is None:
                     self.axs[u, v].legend(fontsize=24, numpoints=1)
             plt.pause(0.0001)
-            plt.tight_layout()
+            self.fig.tight_layout()
 
     def disp(self, ax, id, x, y, type, label, *args, **kwargs):
         if type == 'line':

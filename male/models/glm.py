@@ -263,7 +263,10 @@ class GLM(Model):
                               cmap=kwargs['color'] if 'color' in kwargs else 'Greys_r',
                               interpolation=kwargs[
                                   'interpolation'] if 'interpolation' in kwargs else 'none')
-                ax.axis('off')
+                ax.grid(0)
+                ax.set_xticklabels([])
+                ax.set_yticklabels([])
+                ax.set_xlabel("epoch #{}".format(kwargs['epoch']), fontsize=28)
             else:
                 fig, ax = plt.subplots()
                 ax.set_title(kwargs['title'] if 'title' in kwargs else "Learned weights",
