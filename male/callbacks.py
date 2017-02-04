@@ -211,10 +211,11 @@ class Display(Callback):
     LINESTYLE = ['-', '--', '-.', ':']
     LINE_WIDTH = 4
 
-    def __init__(self, layout=(1, 1), figsize=None, monitor=None):
+    def __init__(self, layout=(1, 1), figsize=None, freq=1, monitor=None):
         super(Display, self).__init__()
         self.layout = layout
         self.figsize = figsize
+        self.freq = freq
         self.monitor = monitor
 
     def draw(self, ax, title, **kwargs):
@@ -235,7 +236,7 @@ class Display(Callback):
             plt.ion()
 
     def on_epoch_end(self, epoch, logs={}):
-        if self.monitor is not None:
+        if ((epoch+1) % self.freq == 0) and (self.monitor is not None):
             for i in range(len(self.monitor)):
                 u, v = np.unravel_index(i, self.layout, order='C')
                 self.axs[u, v].clear()

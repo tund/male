@@ -436,6 +436,7 @@ def test_glm_mnist_cv():
                                  verbose=0,
                                  save_best_only=True)
     loss_display = Display(layout=(3, 1),
+                           freq=4,
                            monitor=[{'metrics': ['loss', 'val_loss'],
                                      'type': 'line',
                                      'labels': ["training loss", "validation loss"],
@@ -460,6 +461,7 @@ def test_glm_mnist_cv():
 
     weight_display = Display(layout=(1, 1),
                              figsize=(6, 15),
+                             freq=10,
                              monitor=[{'metrics': ['weights'],
                                        'title': "Learned weights",
                                        'type': 'img',
