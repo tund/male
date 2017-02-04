@@ -13,6 +13,7 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import PredefinedSplit
 
 from male.models.kernel import KMM
+from male.callbacks import Display
 from male.callbacks import EarlyStopping
 from male.callbacks import ModelCheckpoint
 
@@ -717,6 +718,110 @@ def test_kmm_mnist_cv_gridsearch():
     print("Testing error = %.4f" % (1 - metrics.accuracy_score(y_test, y_test_pred)))
 
 
+def test_kmm_mnist_cv_disp():
+    from male import HOME
+    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"),
+                                          n_features=784)
+    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"),
+                                        n_features=784)
+
+    x_train = x_train.toarray() / 255.0
+    idx_train = np.random.permutation(x_train.shape[0])
+    x_train = x_train[idx_train]
+    y_train = y_train[idx_train]
+
+    x_test = x_test.toarray() / 255.0
+    idx_test = np.random.permutation(x_test.shape[0])
+    x_test = x_test[idx_test]
+    y_test = y_test[idx_test]
+
+    x = np.vstack([x_train, x_test])
+    y = np.concatenate([y_train, y_test])
+
+    early_stopping = EarlyStopping(monitor='val_err', patience=2, verbose=1)
+    filepath = os.path.join(HOME, "rmodel/male/kmm/mnist_{epoch:04d}_{val_err:.6f}.pkl")
+    checkpoint = ModelCheckpoint(filepath,
+                                 mode='min',
+                                 monitor='val_err',
+                                 verbose=0,
+                                 save_best_only=True)
+
+    display = Display(layout=(3, 1),
+                      monitor=[{'metrics': ['loss', 'val_loss'],
+                                'type': 'line',
+                                'labels': ["training loss", "validation loss"],
+                                'title': "Learning losses",
+                                'xlabel': "epoch",
+                                'ylabel': "loss",
+                                },
+                               {'metrics': ['err', 'val_err'],
+                                'type': 'line',
+                                'title': "Learning errors",
+                                'xlabel': "epoch",
+                                'ylabel': "error",
+                                },
+                               {'metrics': ['err'],
+                                'type': 'line',
+                                'labels': ["training error"],
+                                'title': "Learning errors",
+                                'xlabel': "epoch",
+                                'ylabel': "error",
+                                },
+                               ])
+
+    # <editor-fold desc="Best params">
+    # clf = KMM(model_name="mnist_kmm_hinge",
+    #           D=200,
+    #           lbd=0.0,
+    #           gamma=0.1,
+    #           mode='batch',
+    #           loss='hinge',
+    #           num_kernels=10,
+    #           batch_size=100,
+    #           temperature=1.0,
+    #           num_epochs=50,
+    #           num_nested_epochs=1,
+    #           learning_rate=0.001,
+    #           learning_rate_mu=0.0,
+    #           learning_rate_gamma=0.001,
+    #           learning_rate_alpha=0.001,
+    #           metrics=['loss', 'err'],
+    #           callbacks=[early_stopping, checkpoint],
+    #           cv=[-1] * x_train.shape[0] + [0] * x_test.shape[0],
+    #           random_state=6789,
+    #           verbose=1)
+    # </editor-fold>
+
+    clf = KMM(model_name="mnist_kmm_hinge",
+              D=20,
+              lbd=0.0,
+              gamma=0.1,
+              mode='batch',
+              loss='hinge',
+              num_kernels=3,
+              batch_size=100,
+              temperature=1.0,
+              num_epochs=20,
+              num_nested_epochs=1,
+              learning_rate=0.1,
+              learning_rate_mu=0.0,
+              learning_rate_gamma=0.1,
+              learning_rate_alpha=0.1,
+              metrics=['loss', 'err'],
+              callbacks=[display, early_stopping, checkpoint],
+              cv=[-1] * x_train.shape[0] + [0] * x_test.shape[0],
+              random_state=6789,
+              verbose=1)
+
+    clf.fit(x, y)
+
+    y_train_pred = clf.predict(x_train)
+    y_test_pred = clf.predict(x_test)
+
+    print("Training error = %.4f" % (1 - metrics.accuracy_score(y_train, y_train_pred)))
+    print("Testing error = %.4f" % (1 - metrics.accuracy_score(y_test, y_test_pred)))
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
     # test_kmm_check_grad()
@@ -726,3 +831,4 @@ if __name__ == '__main__':
     # test_kmm_regression_gridsearch()
     # test_kmm_mnist_cv()
     # test_kmm_mnist_cv_gridsearch()
+    # test_kmm_mnist_cv_disp()

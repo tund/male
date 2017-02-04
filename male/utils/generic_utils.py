@@ -4,7 +4,17 @@ from __future__ import absolute_import
 
 import sys
 import time
+import copy
+import warnings
 import numpy as np
+
+
+def deepcopy(obj):
+    try:
+        return copy.deepcopy(obj)
+    except:
+        warnings.warn("Fail to deepcopy {}".format(obj))
+        return None
 
 
 def make_batches(size, batch_size):

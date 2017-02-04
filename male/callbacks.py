@@ -8,6 +8,10 @@ import numpy as np
 from collections import deque
 from .utils.generic_utils import Progbar
 
+import matplotlib.pyplot as plt
+
+plt.style.use('ggplot')
+
 
 class CallbackList(object):
     def __init__(self, callbacks=[], queue_length=10):
@@ -195,6 +199,89 @@ class ProgbarLogger(Callback):
                 self.log_values.append((k, logs[k]))
         if self.verbose:
             self.progbar.update(self.seen, self.log_values, force=True)
+
+
+class Display(Callback):
+    """Callback that visualizes/displays events
+    """
+    COLOR = ['r', 'g', 'b', 'y', 'c', 'm', 'k']
+    MARKER = ["x", "d", "o", ">", "<", "^", "v", "|", "1", "s", "+", "*"]
+    MARKER_SIZE = 16
+    MARKER_EDGE_WIDTH = [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
+    LINESTYLE = ['-', '--', '-.', ':']
+    LINE_WIDTH = 4
+
+    def __init__(self, layout=(1, 1), monitor=None):
+        super(Display, self).__init__()
+        self.layout = layout
+        self.monitor = monitor
+
+    def draw(self, ax, title, **kwargs):
+        ax.set_title(title, fontsize=28)
+        ax.set_xlabel(kwargs['xlabel'] if 'xlabel' in kwargs else "", fontsize=28)
+        ax.set_ylabel(kwargs['ylabel'] if 'ylabel' in kwargs else "", fontsize=28)
+        ax.tick_params(axis='both', which='major', labelsize=24)
+
+    def on_train_begin(self, logs={}):
+        if self.monitor is not None:
+            self.fig, self.axs = plt.subplots(self.layout[0], self.layout[1], squeeze=False,
+                                              figsize=(12 * self.layout[1], 6.75 * self.layout[0]))
+            for i in range(len(self.monitor)):
+                u, v = np.unravel_index(i, self.layout, order='C')
+                self.draw(self.axs[u, v], **self.monitor[i])
+            plt.ion()
+
+    def on_epoch_end(self, epoch, logs={}):
+        if self.monitor is not None:
+            for i in range(len(self.monitor)):
+                u, v = np.unravel_index(i, self.layout, order='C')
+                self.axs[u, v].clear()
+                self.draw(self.axs[u, v], **self.monitor[i])
+                for (j, value) in enumerate(self.monitor[i]['metrics']):
+                    if value in self.model.history_.history:
+                        self.disp(self.axs[u, v], j,
+                                  np.array(self.model.history_.epoch) + 1,
+                                  self.model.history_.history[value],
+                                  label=self.monitor[i]['labels'][j] if 'labels' in self.monitor[
+                                      i] else value,
+                                  **self.monitor[i]
+                                  )
+                    else:
+                        self.model.disp_params(param=value,
+                                               epoch=epoch + 1,
+                                               ax=self.axs[u, v],
+                                               **self.monitor[i])
+
+                if self.axs[u, v].get_legend() is None:
+                    self.axs[u, v].legend(fontsize=24, numpoints=1)
+            plt.pause(0.0001)
+            plt.tight_layout()
+
+    def disp(self, ax, id, x, y, type, label, *args, **kwargs):
+        if type == 'line':
+            _ = ax.plot(x, y, label=label,
+                        color=kwargs['color'] if 'color' in kwargs else self.COLOR[
+                            id % len(self.COLOR)],
+                        linestyle=kwargs['linestyle'] if 'linestyle' in kwargs else self.LINESTYLE[
+                            id % len(self.LINESTYLE)],
+                        linewidth=kwargs['linewidth'] if 'linewidth' in kwargs else self.LINE_WIDTH,
+                        marker=kwargs['marker'] if 'marker' in kwargs else self.MARKER[
+                            id % len(self.MARKER)],
+                        markersize=kwargs[
+                            'markersize'] if 'markersize' in kwargs else self.MARKER_SIZE,
+                        markeredgewidth=kwargs[
+                            'markeredgewidth'] if 'markeredgewidth' in kwargs else
+                        self.MARKER_EDGE_WIDTH[id % len(self.MARKER_EDGE_WIDTH)],
+                        markevery=len(x) // 10 + 1,
+                        )
+        elif type == 'img':
+            _ = ax.imshow(x, aspect='auto',
+                          cmap=kwargs['color'] if 'color' in kwargs else 'Greys_r',
+                          interpolation=kwargs[
+                              'interpolation'] if 'interpolation' in kwargs else 'none')
+
+    def on_train_end(self, logs={}):
+        plt.show(block=True)
 
 
 class History(Callback):

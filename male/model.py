@@ -41,6 +41,7 @@ class Model(BaseEstimator, ClassifierMixin,
                  cv=None,  # cross-validation
                  callbacks=[],
                  metrics=[],  # {'loss', 'acc', 'err'}
+                 catch_exception=False,
                  random_state=None,
                  verbose=0):
         self.model_name = model_name
@@ -50,6 +51,7 @@ class Model(BaseEstimator, ClassifierMixin,
         self.cv = cv
         self.callbacks = callbacks
         self.metrics = metrics
+        self.catch_exception = catch_exception
         self.random_state = random_state
         self.verbose = verbose
 
@@ -105,7 +107,7 @@ class Model(BaseEstimator, ClassifierMixin,
                 y_train = self._transform_labels(y_train)
 
         self.history_ = cbks.History()
-        callbacks = [cbks.BaseLogger()] + self.callbacks + [self.history_]
+        callbacks = [cbks.BaseLogger()] + [self.history_] + self.callbacks
         if self.verbose:
             callbacks += [cbks.ProgbarLogger()]
         callbacks = cbks.CallbackList(callbacks)
@@ -128,20 +130,28 @@ class Model(BaseEstimator, ClassifierMixin,
         callbacks.on_train_begin()
         self.stop_training_ = 0
 
-        try:
+        if self.catch_exception:
+            try:
+                start_time = time.time()
+                self._fit_loop(x_train, y_train,
+                               do_validation=do_validation,
+                               x_valid=x_valid, y_valid=y_valid,
+                               callbacks=callbacks, callback_metrics=callback_metrics)
+                self.train_time_ = time.time() - start_time
+            except KeyboardInterrupt:
+                sys.exit()
+            except:
+                print("Unexpected error: {}".format(sys.exc_info()[0]))
+                self._init_params(x_train)  # reset all parameters
+                self.exception_ = True
+                return self
+        else:
             start_time = time.time()
             self._fit_loop(x_train, y_train,
                            do_validation=do_validation,
                            x_valid=x_valid, y_valid=y_valid,
                            callbacks=callbacks, callback_metrics=callback_metrics)
             self.train_time_ = time.time() - start_time
-        except KeyboardInterrupt:
-            sys.exit()
-        except:
-            print("Unexpected error: {}".format(sys.exc_info()[0]))
-            self._init_params(x_train)  # reset all parameters
-            self.exception_ = True
-            return self
 
         callbacks.on_train_end()
 
@@ -255,6 +265,9 @@ class Model(BaseEstimator, ClassifierMixin,
             setattr(self, p, value)
         return self
 
+    def disp_params(self, param, **kwargs):
+        pass
+
     @abc.abstractmethod
     def get_params(self, deep=True):
         return {'model_name': self.model_name,
@@ -264,6 +277,7 @@ class Model(BaseEstimator, ClassifierMixin,
                 'cv': self.cv,
                 'callbacks': self.callbacks,
                 'metrics': self.metrics,
+                'catch_exception': self.catch_exception,
                 'random_state': self.random_state,
                 'verbose': self.verbose}
 
@@ -275,7 +289,14 @@ class Model(BaseEstimator, ClassifierMixin,
                     'num_classes_': self.num_classes_,
                     'best_': self.best_,
                     'stop_training_': self.stop_training_,
-                    'history_': copy.deepcopy(self.history_),
+                    'history_': self.copy_history(),
                     'label_encoder_': copy.deepcopy(self.label_encoder_),
                     'random_state_': copy.deepcopy(self.random_state)})
+        return out
+
+    def copy_history(self):
+        out = copy.copy(self.history_)
+        out.epoch = copy.deepcopy(self.history_.epoch)
+        out.history = copy.deepcopy(self.history_.history)
+        out.params = copy.deepcopy(self.history_.params)
         return out

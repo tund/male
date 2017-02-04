@@ -16,6 +16,11 @@ from .. import Model
 from ..activations import sigmoid
 from ..activations import softmax
 from ..utils.generic_utils import make_batches
+from ..utils.disp_utils import tile_raster_images
+
+import matplotlib.pyplot as plt
+
+plt.style.use('ggplot')
 
 EPS = np.finfo(np.float32).eps
 
@@ -228,6 +233,50 @@ class GLM(Model):
         idx += self.w_.size
         b_ = w[idx:idx + self.b_.size].reshape(self.b_.shape).copy()
         return ww + (w_, b_)
+
+    def disp_params(self, param, disp_dim=None, tile_shape=None,
+                    output_pixel_vals=False, **kwargs):
+        if param == 'weights':
+            w = self.w_.copy()
+            if w.ndim < 2:
+                w = w[..., np.newaxis]
+
+            if disp_dim is None:
+                n = int(np.sqrt(w.shape[0]))
+                disp_dim = (n, n)
+            else:
+                assert len(disp_dim) == 2
+            n = np.prod(disp_dim)
+
+            if tile_shape is None:
+                tile_shape = (w.shape[1], 1)
+            assert w.shape[1] == np.prod(tile_shape)
+
+            img = tile_raster_images(w.T, img_shape=disp_dim, tile_shape=tile_shape,
+                                     tile_spacing=(1, 1),
+                                     scale_rows_to_unit_interval=False,
+                                     output_pixel_vals=output_pixel_vals)
+
+            if 'ax' in kwargs:
+                ax = kwargs['ax']
+                _ = ax.imshow(img, aspect='auto',
+                              cmap=kwargs['color'] if 'color' in kwargs else 'Greys_r',
+                              interpolation=kwargs[
+                                  'interpolation'] if 'interpolation' in kwargs else 'none')
+                ax.axis('off')
+            else:
+                fig, ax = plt.subplots()
+                ax.set_title(kwargs['title'] if 'title' in kwargs else "Learned weights",
+                             fontsize=28)
+                ax.axis('off')
+                plt.colorbar()
+                _ = ax.imshow(img, aspect='auto',
+                              cmap=kwargs['color'] if 'color' in kwargs else 'Greys_r',
+                              interpolation=kwargs[
+                                  'interpolation'] if 'interpolation' in kwargs else 'none')
+                plt.show()
+        else:
+            raise NotImplementedError
 
     def get_params(self, deep=True):
         out = super(GLM, self).get_params(deep=deep)
