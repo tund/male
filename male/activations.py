@@ -3,6 +3,9 @@ from __future__ import print_function
 from __future__ import absolute_import
 
 import numpy as np
+import tensorflow as tf
+
+from .utils.generic_utils import get_from_module
 
 EPS = np.finfo(np.float32).eps
 
@@ -24,3 +27,25 @@ def logsumone(x):
     """
     max0 = np.maximum(x, 0)
     return np.log(np.exp(-max0) + np.exp(x - max0)) + max0
+
+
+def tf_relu(x):
+    return tf.nn.relu(x)
+
+
+def tf_tanh(x):
+    return tf.tanh(x)
+
+
+def tf_sigmoid(x):
+    return tf.sigmoid(x)
+
+
+def linear(x):
+    return x
+
+
+def get(identifier):
+    if identifier is None:
+        return linear
+    return get_from_module(identifier, globals(), 'activation function')

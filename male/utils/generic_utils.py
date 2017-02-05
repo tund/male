@@ -3,6 +3,7 @@ from __future__ import print_function
 from __future__ import absolute_import
 
 import sys
+import six
 import time
 import copy
 import warnings
@@ -133,3 +134,27 @@ class Progbar(object):
 
     def add(self, n, values=[]):
         self.update(self.seen_so_far + n, values)
+
+
+def get_from_module(identifier, module_params, module_name,
+                    instantiate=False, kwargs=None):
+    if isinstance(identifier, six.string_types):
+        res = module_params.get(identifier)
+        if not res:
+            raise ValueError('Invalid ' + str(module_name) + ': ' +
+                             str(identifier))
+        if instantiate and not kwargs:
+            return res()
+        elif instantiate and kwargs:
+            return res(**kwargs)
+        else:
+            return res
+    elif isinstance(identifier, dict):
+        name = identifier.pop('name')
+        res = module_params.get(name)
+        if res:
+            return res(**identifier)
+        else:
+            raise ValueError('Invalid ' + str(module_name) + ': ' +
+                             str(identifier))
+    return identifier
