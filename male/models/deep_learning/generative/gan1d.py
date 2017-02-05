@@ -100,6 +100,7 @@ class GAN1D(Model):
 
                 # update discriminator
                 x = self.data.sample(self.batch_size)
+                x.sort()
                 z = self.generator.stratified_sample(self.batch_size)
                 d_loss, _ = sess.run([self.d_loss_, self.d_opt_],
                                      feed_dict={self.x_: np.reshape(x, [self.batch_size, 1]),
