@@ -46,6 +46,8 @@ class GAN1D(Model):
     def _init(self):
         super(GAN1D, self)._init()
 
+        tf.set_random_seed(self.random_state)
+
         self.last_loglik_ = 0.0
         self.g_avg_hist_ = {'count': 0, 'hist': []}
 
