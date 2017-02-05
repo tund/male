@@ -2,6 +2,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
+import copy
 import numpy as np
 import tensorflow as tf
 
@@ -46,6 +47,7 @@ class GAN1D(Model):
         super(GAN1D, self)._init()
 
         self.last_loglik_ = 0.0
+        self.g_avg_hist_ = {'count': 0, 'hist': []}
 
         if self.data is None:
             self.data = Gaussian1D()
@@ -134,6 +136,14 @@ class GAN1D(Model):
             outs['loglik'] = self.last_loglik_
         return outs
 
+    def _update_avg_hist(self, hist):
+        c = self.g_avg_hist_['count']
+        if c == 0:
+            self.g_avg_hist_['hist'] = hist
+        else:
+            self.g_avg_hist_['hist'] = (self.g_avg_hist_['hist'] * c + hist) / (c + 1)
+        self.g_avg_hist_['count'] += 1
+
     def generate(self, num_samples=10000, sess=None):
         close_session = False
         sess = tf.get_default_session() if sess is None else sess
@@ -187,10 +197,15 @@ class GAN1D(Model):
         return db, pd, pg
 
     def disp_params(self, param, **kwargs):
-        if param == 'distribution':
+        if param == 'distribution' or param == 'avg_distribution':
             sess = tf.get_default_session()
 
             db, pd, pg = self._samples(sess)
+
+            if param == 'avg_distribution':
+                self._update_avg_hist(pg)
+                pg = self.g_avg_hist_['hist']
+
             db_x = np.linspace(self.generator.low, self.generator.high, len(db))
             p_x = np.linspace(self.generator.low, self.generator.high, len(pd))
 
@@ -198,8 +213,8 @@ class GAN1D(Model):
                 ax = kwargs['ax']
                 ax.plot(db_x, db, label='decision boundary', linewidth=4)
                 ax.set_ylim(0, 1)
-                plt.plot(p_x, pd, label='real data', linewidth=4)
-                plt.plot(p_x, pg, label='generated data', linewidth=4)
+                ax.plot(p_x, pd, label='real data', linewidth=4)
+                ax.plot(p_x, pg, label='generated data', linewidth=4)
             else:
                 f, ax = plt.subplots(1)
                 ax.plot(db_x, db, label='decision boundary', linewidth=4)
@@ -251,5 +266,6 @@ class GAN1D(Model):
 
     def get_all_params(self, deep=True):
         out = super(GAN1D, self).get_all_params(deep=deep)
-        out.update({'last_loglik_': self.last_loglik_})
+        out.update({'last_loglik_': self.last_loglik_,
+                    'g_avg_hist_': copy.deepcopy(self.g_avg_hist_)})
         return out
