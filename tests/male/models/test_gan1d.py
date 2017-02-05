@@ -14,13 +14,20 @@ from male.models.deep_learning.generative import GAN1D
 
 
 def test1():
-    loss_display = Display(layout=(1, 1),
+    loss_display = Display(layout=(2, 1),
                            monitor=[{'metrics': ['d_loss', 'g_loss'],
                                      'type': 'line',
                                      'labels': ["discriminator loss", "generator loss"],
                                      'title': "Losses",
                                      'xlabel': "epoch",
                                      'ylabel': "loss",
+                                     },
+                                    {'metrics': ['loglik'],
+                                     'type': 'line',
+                                     'labels': ["Log-likelihood"],
+                                     'title': "Evaluation",
+                                     'xlabel': "epoch",
+                                     'ylabel': "loglik",
                                      },
                                     ])
     distribution_display = Display(layout=(1, 1),
@@ -46,7 +53,8 @@ def test1():
                   num_epochs=620,
                   hidden_size=4,
                   batch_size=12,
-                  metrics=['d_loss', 'g_loss'],
+                  loglik_freq=10,
+                  metrics=['d_loss', 'g_loss', 'loglik'],
                   callbacks=[loss_display, distribution_display],
                   verbose=1)
     model.fit()

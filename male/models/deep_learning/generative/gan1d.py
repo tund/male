@@ -7,7 +7,7 @@ import tensorflow as tf
 
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
-config.log_device_placement = True
+config.log_device_placement = False
 config.allow_soft_placement = True
 
 import matplotlib.pyplot as plt
@@ -28,20 +28,24 @@ class GAN1D(Model):
                  model_name='GAN1D',
                  data=None,
                  generator=None,
-                 discriminator_learning_rate=0.001,
-                 generator_learning_rate=0.001,
+                 loglik_freq=0,
                  hidden_size=20,
+                 generator_learning_rate=0.001,
+                 discriminator_learning_rate=0.001,
                  *args, **kwargs):
         kwargs['model_name'] = model_name
         super(GAN1D, self).__init__(**kwargs)
         self.data = data
         self.generator = generator
+        self.loglik_freq = loglik_freq
         self.discriminator_learning_rate = discriminator_learning_rate
         self.generator_learning_rate = generator_learning_rate
         self.hidden_size = hidden_size
 
     def _init(self):
         super(GAN1D, self)._init()
+
+        self.last_loglik_ = 0.0
 
         if self.data is None:
             self.data = Gaussian1D()
@@ -81,7 +85,7 @@ class GAN1D(Model):
                   do_validation=False,
                   x_valid=None, y_valid=None,
                   callbacks=None, callback_metrics=None):
-        with tf.Session() as sess:
+        with tf.Session(config=config) as sess:
             sess.run(tf.global_variables_initializer())
 
             while self.epoch_ < self.num_epochs:
@@ -114,12 +118,41 @@ class GAN1D(Model):
 
                 epoch_logs['d_loss'] = d_loss
                 epoch_logs['g_loss'] = g_loss
+                epoch_logs.update(self._on_epoch_end(sess=sess))
                 callbacks.on_epoch_end(self.epoch_, epoch_logs)
 
                 self.epoch_ += 1
                 if self.stop_training_:
                     self.epoch_ = self.stop_training_
                     break
+
+    def _on_epoch_end(self, sess=None):
+        outs = {}
+        if self.loglik_freq != 0:
+            if (self.epoch_ + 1) % self.loglik_freq == 0:
+                self.last_loglik_ = self.data.logpdf(self.generate(sess=sess))
+            outs['loglik'] = self.last_loglik_
+        return outs
+
+    def generate(self, num_samples=10000, sess=None):
+        close_session = False
+        sess = tf.get_default_session() if sess is None else sess
+        if sess is None:
+            close_session = True
+            sess = tf.Session(config=config)
+        zs = np.linspace(self.generator.low, self.generator.high, num_samples)
+        g = np.zeros([num_samples, 1])
+        batches = make_batches(num_samples, self.batch_size)
+        for batch_idx, (batch_start, batch_end) in enumerate(batches):
+            g[batch_start:batch_end] = sess.run(
+                self.g_,
+                feed_dict={
+                    self.z_: np.reshape(zs[batch_start:batch_end], [batch_end - batch_start, 1])
+                }
+            )
+        if close_session:
+            sess.close()
+        return g
 
     def _samples(self, sess, num_samples=10000, num_bins=100):
         '''
@@ -147,16 +180,7 @@ class GAN1D(Model):
         pd /= np.sum(pd)
 
         # generated samples
-        zs = np.linspace(self.generator.low, self.generator.high, num_samples)
-        g = np.zeros([num_samples, 1])
-        batches = make_batches(num_samples, self.batch_size)
-        for batch_idx, (batch_start, batch_end) in enumerate(batches):
-            g[batch_start:batch_end] = sess.run(
-                self.g_,
-                feed_dict={
-                    self.z_: np.reshape(zs[batch_start:batch_end], [batch_end - batch_start, 1])
-                }
-            )
+        g = self.generate(num_samples, sess=sess)
         pg, _ = np.histogram(g, bins=bins, density=True)
         pg /= np.sum(pg)
 
@@ -212,3 +236,20 @@ class GAN1D(Model):
 
     def _create_optimizer(self, loss, var_list, initial_learning_rate):
         return tf.train.AdamOptimizer(initial_learning_rate).minimize(loss, var_list=var_list)
+
+    def get_params(self, deep=True):
+        out = super(GAN1D, self).get_params(deep=deep)
+        out.update({
+            'data': self.data,
+            'generator': self.generator,
+            'loglik_freq': self.loglik_freq,
+            'hidden_size': self.hidden_size,
+            'generator_learning_rate': self.generator_learning_rate,
+            'discriminator_learning_rate': self.discriminator_learning_rate,
+        })
+        return out
+
+    def get_all_params(self, deep=True):
+        out = super(GAN1D, self).get_all_params(deep=deep)
+        out.update({'last_loglik_': self.last_loglik_})
+        return out
