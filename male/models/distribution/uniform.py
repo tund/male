@@ -5,6 +5,15 @@ from __future__ import absolute_import
 import numpy as np
 
 
+class Uniform(object):
+    def __init__(self, low=-1.0, high=1.0):
+        self.low = low
+        self.high = high
+
+    def sample(self, size):
+        return np.random.uniform(self.low, self.high, size)
+
+
 class Uniform1D(object):
     def __init__(self, low=-1.0, high=1.0):
         self.low = low
