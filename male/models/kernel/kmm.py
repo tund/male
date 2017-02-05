@@ -396,7 +396,7 @@ class KMM(RRF):
 
                     for batch_idx, (batch_start, batch_end) in enumerate(batches):
                         batch_logs = {'batch': batch_idx,
-                                      'size': batch_end - batch_start + 1}
+                                      'size': batch_end - batch_start}
                         callbacks.on_batch_begin(batch_idx, batch_logs)
 
                         x_batch = x[batch_start:batch_end]
@@ -419,7 +419,7 @@ class KMM(RRF):
 
                     for batch_idx, (batch_start, batch_end) in enumerate(batches):
                         batch_logs = {'batch': batch_idx,
-                                      'size': batch_end - batch_start + 1}
+                                      'size': batch_end - batch_start}
                         callbacks.on_batch_begin(batch_idx, batch_logs)
 
                         x_batch = x[batch_start:batch_end]
