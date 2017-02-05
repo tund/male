@@ -66,7 +66,7 @@ class GAN1D(Model):
         #
         # Here we create two copies of the discriminator network (that share parameters),
         # as you cannot use the same network with different inputs in TensorFlow.
-        with tf.variable_scope('disc') as scope:
+        with tf.variable_scope('discriminator') as scope:
             self.x_ = tf.placeholder(tf.float32, shape=[None, 1])
             self.d1_ = self._create_discriminator(self.x_, self.hidden_size)
             scope.reuse_variables()
@@ -77,8 +77,8 @@ class GAN1D(Model):
         self.d_loss_ = tf.reduce_mean(-tf.log(self.d1_) - tf.log(1 - self.d2_))
         self.g_loss_ = tf.reduce_mean(-tf.log(self.d2_))
 
-        self.d_params_ = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='disc')
-        self.g_params_ = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='gen')
+        self.d_params_ = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='discriminator')
+        self.g_params_ = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='generator')
 
         self.d_opt_ = self._create_optimizer(self.d_loss_, self.d_params_,
                                              self.discriminator_learning_rate)
