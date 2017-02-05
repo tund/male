@@ -20,7 +20,6 @@ class GMM1D(object):
         samples = np.array([])
         for i in range(len(self.pi)):
             samples = np.concatenate([samples, np.random.normal(self.mu[i], self.sigma[i], z[i])])
-        # samples.sort()
         return samples
 
     def logpdf(self, samples):
