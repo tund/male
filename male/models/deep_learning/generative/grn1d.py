@@ -60,14 +60,15 @@ class GRN1D(GAN1D):
         # Define the losses for auxiliary discriminators
         self.a_loss_ = [None] * self.num_aux_
         for i in range(self.num_aux_):
-            self.a_loss_[i] = self.aux_coeffs[i] * (tf.reduce_mean(-tf.log(self.a1_[i]))
-                                             + tf.reduce_mean(-tf.log(1 - self.a2_[i])))
+            self.a_loss_[i] = tf.reduce_mean(-tf.log(self.a1_[i]) - tf.log(1 - self.a2_[i]))
 
         self.a_params_ = [None] * self.num_aux_
         for i in range(self.num_aux_):
             self.a_params_[i] = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,
                                                   scope=('aux' + str(i + 1)))
 
+        self.g_opt_ = self._create_optimizer(self.g_loss_, self.g_params_,
+                                             self.generator_learning_rate)
         self.a_opt_ = [None] * self.num_aux_
         for i in range(self.num_aux_):
             self.a_opt_[i] = self._create_optimizer(self.a_loss_[i], self.a_params_[i],
@@ -100,6 +101,7 @@ class GRN1D(GAN1D):
                 a_loss = [0] * self.num_aux_
                 for i in range(self.num_aux_):
                     x = self.aux_discriminators[i].sample(self.aux_batch_size)
+                    x.sort()
                     z = self.generator.stratified_sample(self.aux_batch_size)
                     a_loss[i], _ = sess.run(
                         [self.a_loss_[i], self.a_opt_[i]],
@@ -118,14 +120,14 @@ class GRN1D(GAN1D):
                 batch_logs['d_loss'] = d_loss
                 batch_logs['g_loss'] = g_loss
                 for (i, l) in enumerate(a_loss):
-                    batch_logs['a_loss_' + str(i+1)] = l
+                    batch_logs['a_loss_' + str(i + 1)] = l
 
                 callbacks.on_batch_end(0, batch_logs)
 
                 epoch_logs['d_loss'] = d_loss
                 epoch_logs['g_loss'] = g_loss
                 for (i, l) in enumerate(a_loss):
-                    epoch_logs['a_loss_' + str(i+1)] = l
+                    epoch_logs['a_loss_' + str(i + 1)] = l
                 epoch_logs.update(self._on_epoch_end(sess=sess))
                 callbacks.on_epoch_end(self.epoch_, epoch_logs)
 

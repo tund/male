@@ -55,7 +55,7 @@ def test_grn1d_gaussian1d():
 
     model = GRN1D(data=Gaussian1D(mu=4.0, sigma=0.5),
                   generator=Uniform1D(low=-8, high=8.0),
-                  aux_discriminators=[Uniform1D(low=-6, high=14)],
+                  aux_discriminators=[Gaussian1D(mu=0.0, sigma=0.5)],
                   aux_coeffs=[0.5],
                   num_epochs=5000,
                   hidden_size=20,
@@ -63,7 +63,7 @@ def test_grn1d_gaussian1d():
                   aux_batch_size=10,
                   discriminator_learning_rate=0.001,
                   generator_learning_rate=0.001,
-                  aux_learning_rate=0.1,
+                  aux_learning_rate=0.001,
                   loglik_freq=10,
                   metrics=['d_loss', 'g_loss', 'a_loss_1', 'loglik'],
                   callbacks=[loss_display, distribution_display, avg_distribution_display],
@@ -74,11 +74,12 @@ def test_grn1d_gaussian1d():
 
 def test_grn1d_gmm1d():
     loss_display = Display(layout=(2, 1),
-                           monitor=[{'metrics': ['d_loss', 'g_loss', 'a_loss_1'],
+                           monitor=[{'metrics': ['d_loss', 'g_loss', 'a_loss_1', 'a_loss_2'],
                                      'type': 'line',
                                      'labels': ["discriminator loss",
                                                 "generator loss",
-                                                "auxiliary_1 loss"],
+                                                "auxiliary_1 loss",
+                                                "auxiliary_2 loss"],
                                      'title': "Losses",
                                      'xlabel': "epoch",
                                      'ylabel': "loss",
@@ -103,8 +104,8 @@ def test_grn1d_gmm1d():
 
     model = GRN1D(data=GMM1D(pi=[0.55, 0.45], mu=[1.0, 4.0], sigma=[0.2, 0.5]),
                   generator=Uniform1D(low=-8, high=8.0),
-                  aux_discriminators=[Uniform1D(low=-6, high=14)],
-                  aux_coeffs=[0.5],
+                  aux_discriminators=[Gaussian1D(mu=0.0, sigma=0.1), Gaussian1D(mu=6.0, sigma=0.5)],
+                  aux_coeffs=[0.5, 0.5],
                   num_epochs=5000,
                   hidden_size=20,
                   batch_size=12,
@@ -113,7 +114,7 @@ def test_grn1d_gmm1d():
                   generator_learning_rate=0.001,
                   aux_learning_rate=0.001,
                   loglik_freq=10,
-                  metrics=['d_loss', 'g_loss', 'a_loss_1', 'loglik'],
+                  metrics=['d_loss', 'g_loss', 'a_loss_1', 'a_loss_2', 'loglik'],
                   callbacks=[loss_display, distribution_display],
                   random_state=42,
                   verbose=1)
@@ -180,6 +181,6 @@ def test_grn1d_inversegaussian1d():
 
 if __name__ == '__main__':
     # pytest.main([__file__])
-    test_grn1d_gaussian1d()
-    # test_grn1d_gmm1d()
+    # test_grn1d_gaussian1d()
+    test_grn1d_gmm1d()
     # test_grn1d_inversegaussian1d()
