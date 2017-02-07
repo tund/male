@@ -31,6 +31,7 @@ class GAN1D(Model):
                  generator=None,
                  loglik_freq=0,
                  hidden_size=20,
+                 minibatch_discriminator=False,
                  generator_learning_rate=0.001,
                  discriminator_learning_rate=0.001,
                  *args, **kwargs):
@@ -39,6 +40,9 @@ class GAN1D(Model):
         self.data = data
         self.generator = generator
         self.loglik_freq = loglik_freq
+        # can use a higher learning rate when not using the minibatch discriminator (MBD) layer
+        # e.g., learning rate = 0.005 with MBD, = 0.03 without MBD
+        self.minibatch_discriminator = minibatch_discriminator
         self.discriminator_learning_rate = discriminator_learning_rate
         self.generator_learning_rate = generator_learning_rate
         self.hidden_size = hidden_size
@@ -240,6 +244,15 @@ class GAN1D(Model):
             b = tf.get_variable('b', [output_dim], initializer=const)
             return tf.matmul(input, w) + b
 
+    def _create_minibatch_layer(self, input, num_kernels=5, kernel_dim=3, scope='minibatch'):
+        x = self._create_linear_layer(input, num_kernels * kernel_dim, scope=scope, stddev=0.02)
+        activation = tf.reshape(x, (-1, num_kernels, kernel_dim))
+        diffs = (tf.expand_dims(activation, 3)
+                 - tf.expand_dims(tf.transpose(activation, [1, 2, 0]), 0))
+        abs_diffs = tf.reduce_sum(tf.abs(diffs), 2)
+        minibatch_features = tf.reduce_sum(tf.exp(-abs_diffs), 2)
+        return tf.concat(1, [input, minibatch_features])
+
     def _create_generator(self, input, h_dim):
         hidden = tf.nn.softplus(self._create_linear_layer(input, h_dim, 'g_hidden'))
         out = self._create_linear_layer(hidden, 1, 'g_out')
@@ -248,7 +261,14 @@ class GAN1D(Model):
     def _create_discriminator(self, input, h_dim):
         hidden1 = tf.tanh(self._create_linear_layer(input, h_dim * 2, 'd_hidden1'))
         hidden2 = tf.tanh(self._create_linear_layer(hidden1, h_dim * 2, 'd_hidden2'))
-        hidden3 = tf.tanh(self._create_linear_layer(hidden2, h_dim * 2, scope='d_hidden3'))
+
+        # without the minibatch layer, the discriminator needs an additional layer
+        # to have enough capacity to separate the two distributions correctly
+        if self.minibatch_discriminator:
+            hidden3 = self._create_minibatch_layer(hidden2, scope='d_minibatch')
+        else:
+            hidden3 = tf.tanh(self._create_linear_layer(hidden2, h_dim * 2, scope='d_hidden3'))
+
         out = tf.sigmoid(self._create_linear_layer(hidden3, 1, scope='d_out'))
         return out
 
@@ -262,6 +282,7 @@ class GAN1D(Model):
             'generator': self.generator,
             'loglik_freq': self.loglik_freq,
             'hidden_size': self.hidden_size,
+            'minibatch_discriminator': self.minibatch_discriminator,
             'generator_learning_rate': self.generator_learning_rate,
             'discriminator_learning_rate': self.discriminator_learning_rate,
         })

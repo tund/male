@@ -54,6 +54,7 @@ def test_gan1d_gaussian1d():
                   num_epochs=5000,
                   hidden_size=20,
                   batch_size=12,
+                  minibatch_discriminator=True,
                   loglik_freq=10,
                   metrics=['d_loss', 'g_loss', 'loglik'],
                   callbacks=[loss_display, distribution_display, avg_distribution_display],
