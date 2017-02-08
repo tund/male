@@ -3,7 +3,11 @@ from __future__ import print_function
 from __future__ import absolute_import
 
 import numpy as np
-import tensorflow as tf
+
+try:
+    import tensorflow as tf
+except ImportError:  # no tensorflow module
+    tf = None
 
 from .utils.generic_utils import get_from_module
 
