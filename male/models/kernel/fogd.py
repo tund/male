@@ -144,31 +144,39 @@ class FOGD(KSGD):
         if x.ndim < 2:
             x = x.copy()[..., np.newaxis]
 
-        phi = self._get_phi(x)
-        wx = phi.dot(self.w_)
-
-        if self.task == 'classification':
-            if self.num_classes_ == 2:
-                return self._decode_labels(np.uint8(wx >= 0))
+        y = np.ones(x.shape[0])
+        batches = make_batches(x.shape[0], self.batch_size)
+        for batch_idx, (batch_start, batch_end) in enumerate(batches):
+            x_batch = x[batch_start:batch_end]
+            phi = self._get_phi(x_batch)
+            wx = phi.dot(self.w_)
+            if self.task == 'classification':
+                if self.num_classes_ == 2:
+                    y[batch_start:batch_end] = self._decode_labels(np.uint8(wx >= 0))
+                else:
+                    y[batch_start:batch_end] = self._decode_labels(np.argmax(wx, axis=1))
             else:
-                return self._decode_labels(np.argmax(wx, axis=1))
-        else:
-            return wx
+                y[batch_start:batch_end] = wx
+        return y
 
     def _predict(self, x):
         if x.ndim < 2:
             x = x.copy()[..., np.newaxis]
 
-        phi = self._get_phi(x)
-        wx = phi.dot(self.w_)
-
-        if self.task == 'classification':
-            if self.num_classes_ == 2:
-                return np.uint8(wx >= 0)
+        y = np.ones(x.shape[0])
+        batches = make_batches(x.shape[0], self.batch_size)
+        for batch_idx, (batch_start, batch_end) in enumerate(batches):
+            x_batch = x[batch_start:batch_end]
+            phi = self._get_phi(x_batch)
+            wx = phi.dot(self.w_)
+            if self.task == 'classification':
+                if self.num_classes_ == 2:
+                    y[batch_start:batch_end] = np.uint8(wx >= 0)
+                else:
+                    y[batch_start:batch_end] = np.argmax(wx, axis=1)
             else:
-                return np.argmax(wx, axis=1)
-        else:
-            return wx
+                y[batch_start:batch_end] = wx
+        return y
 
     def score(self, x, y, sample_weight=None):
         if self.mode == 'online':
