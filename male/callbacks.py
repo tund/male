@@ -236,30 +236,31 @@ class Display(Callback):
             plt.ion()
 
     def on_epoch_end(self, epoch, logs={}):
-        if ((epoch+1) % self.freq == 0) and (self.monitor is not None):
-            for i in range(len(self.monitor)):
-                u, v = np.unravel_index(i, self.layout, order='C')
-                self.axs[u, v].clear()
-                self.draw(self.axs[u, v], **self.monitor[i])
-                for (j, value) in enumerate(self.monitor[i]['metrics']):
-                    if value in self.model.history_.history:
-                        self.disp(self.axs[u, v], j,
-                                  np.array(self.model.history_.epoch) + 1,
-                                  self.model.history_.history[value],
-                                  label=self.monitor[i]['labels'][j] if 'labels' in self.monitor[
-                                      i] else value,
-                                  **self.monitor[i]
-                                  )
-                    else:
-                        self.model.disp_params(param=value,
-                                               epoch=epoch + 1,
-                                               ax=self.axs[u, v],
-                                               **self.monitor[i])
+        if not self.model.stop_training_:
+            if ((epoch+1) % self.freq == 0) and (self.monitor is not None):
+                for i in range(len(self.monitor)):
+                    u, v = np.unravel_index(i, self.layout, order='C')
+                    self.axs[u, v].clear()
+                    self.draw(self.axs[u, v], **self.monitor[i])
+                    for (j, value) in enumerate(self.monitor[i]['metrics']):
+                        if value in self.model.history_.history:
+                            self.disp(self.axs[u, v], j,
+                                      np.array(self.model.history_.epoch) + 1,
+                                      self.model.history_.history[value],
+                                      label=self.monitor[i]['labels'][j] if 'labels' in self.monitor[
+                                          i] else value,
+                                      **self.monitor[i]
+                                      )
+                        else:
+                            self.model.disp_params(param=value,
+                                                   epoch=epoch + 1,
+                                                   ax=self.axs[u, v],
+                                                   **self.monitor[i])
 
-                if self.axs[u, v].get_legend() is None:
-                    self.axs[u, v].legend(fontsize=24, numpoints=1)
-            plt.pause(0.0001)
-            self.fig.tight_layout()
+                    if self.axs[u, v].get_legend() is None:
+                        self.axs[u, v].legend(fontsize=24, numpoints=1)
+                plt.pause(0.0001)
+                self.fig.tight_layout()
 
     def disp(self, ax, id, x, y, type, label, *args, **kwargs):
         if type == 'line':
