@@ -24,15 +24,19 @@ class KMM(RRF):
                  num_nested_epochs=5,
                  num_kernels=4,
                  temperature=1.0,
+                 adam_update=True,
                  learning_rate_mu=0.0,
                  learning_rate_alpha=0.1,
+                 alternative_update=False,
                  *args, **kwargs):
         kwargs['model_name'] = model_name
         super(KMM, self).__init__(**kwargs)
         self.num_kernels = num_kernels
         self.temperature = temperature
+        self.adam_update = adam_update
         self.learning_rate_mu = learning_rate_mu
         self.num_nested_epochs = num_nested_epochs
+        self.alternative_update = alternative_update
         self.learning_rate_alpha = learning_rate_alpha
 
     def _init(self):
@@ -298,8 +302,8 @@ class KMM(RRF):
         omega = kwargs['omega'] if 'omega' in kwargs else self._get_omega(**kwargs)
         phi = np.zeros([x.shape[0], 2 * self.D])  # (N,2D)
         xo = x.dot(omega)
-        phi[:, :self.D] = np.cos(xo)
-        phi[:, self.D:] = np.sin(xo)
+        phi[:, :self.D] = np.cos(xo) / np.sqrt(self.D)
+        phi[:, self.D:] = np.sin(xo) / np.sqrt(self.D)
         return phi
 
     def _fit_loop(self, x, y,
@@ -308,6 +312,7 @@ class KMM(RRF):
                   callbacks=None, callback_metrics=None):
         c = 0
         c_alpha = 0
+        c_w = 0
         s_w, t_w = np.zeros(self.w_.shape), np.zeros(self.w_.shape)
         s_mu, t_mu = np.zeros(self.mu_.shape), np.zeros(self.mu_.shape)
         s_gamma, t_gamma = np.zeros(self.gamma_.shape), np.zeros(self.gamma_.shape)
@@ -337,26 +342,27 @@ class KMM(RRF):
                 dw, dmu, dgamma, dalpha = self.get_grad_all(x[[t]], y[[t]], phi=phi, wx=wx)
 
                 # update parameters
-                # self.w_ -= self.learning_rate * dw
-                # self.mu_ -= self.learning_rate_mu * dmu
-                # self.gamma_ -= self.learning_rate_gamma * dgamma
-                # self.alpha_ -= self.learning_rate_alpha * dalpha
-                # self.z_ = self._get_z()
+                if not self.adam_update:
+                    self.w_ -= self.learning_rate * dw
+                    self.mu_ -= self.learning_rate_mu * dmu
+                    self.gamma_ -= self.learning_rate_gamma * dgamma
+                    self.alpha_ -= self.learning_rate_alpha * dalpha
+                else:
+                    # adam update
+                    c += 1
+                    dw, s_w, t_w = self._get_adam_update(
+                        c, s_w, t_w, dw, self.learning_rate)
+                    self.w_ -= dw
+                    dmu, s_mu, t_mu = self._get_adam_update(
+                        c, s_mu, t_mu, dmu, self.learning_rate_mu)
+                    self.mu_ -= dmu
+                    dgamma, s_gamma, t_gamma = self._get_adam_update(
+                        c, s_gamma, t_gamma, dgamma, self.learning_rate_gamma)
+                    self.gamma_ -= dgamma
+                    dalpha, s_alpha, t_alpha = self._get_adam_update(
+                        c, s_alpha, t_alpha, dalpha, self.learning_rate_alpha)
+                    self.alpha_ -= dalpha
 
-                # adam update
-                c += 1
-                dw, s_w, t_w = self._get_adam_update(
-                    c, s_w, t_w, dw, self.learning_rate)
-                self.w_ -= dw
-                dmu, s_mu, t_mu = self._get_adam_update(
-                    c, s_mu, t_mu, dmu, self.learning_rate_mu)
-                self.mu_ -= dmu
-                dgamma, s_gamma, t_gamma = self._get_adam_update(
-                    c, s_gamma, t_gamma, dgamma, self.learning_rate_gamma)
-                self.gamma_ -= dgamma
-                dalpha, s_alpha, t_alpha = self._get_adam_update(
-                    c, s_alpha, t_alpha, dalpha, self.learning_rate_alpha)
-                self.alpha_ -= dalpha
                 self.z_ = self._get_z()
 
             self.mistake_ = mistake / x.shape[0]
@@ -368,98 +374,156 @@ class KMM(RRF):
                 epoch_logs = {}
                 callbacks.on_epoch_begin(self.epoch_)
 
-                if self.num_nested_epochs > 0:
+                if self.alternative_update:
+                    for batch_idx, (batch_start, batch_end) in enumerate(batches):
+                        batch_logs = {'batch': batch_idx,
+                                      'size': batch_end - batch_start}
+                        callbacks.on_batch_begin(batch_idx, batch_logs)
 
-                    for i in range(self.num_nested_epochs):
-                        for batch_idx, (batch_start, batch_end) in enumerate(batches):
-                            x_batch = x[batch_start:batch_end]
-                            y_batch = y[batch_start:batch_end]
+                        x_batch = x[batch_start:batch_end]
+                        y_batch = y[batch_start:batch_end]
 
-                            dw, dmu, dgamma = self.get_grad(x_batch, y_batch)
+                        _, dmu, dgamma, dalpha = self.get_grad_all(x_batch, y_batch)
 
-                            # update
-                            # self.w_ -= self.learning_rate * dw
-                            # self.mu_ -= self.learning_rate_mu * dmu
-                            # self.gamma_ -= self.learning_rate_gamma * dgamma
-
+                        if not self.adam_update:
+                            self.mu_ -= self.learning_rate_mu * dmu
+                            self.gamma_ -= self.learning_rate_gamma * dgamma
+                            self.alpha_ -= self.learning_rate_alpha * dalpha
+                        else:
                             # adam update
                             c += 1
-                            dw, s_w, t_w = self._get_adam_update(
-                                c, s_w, t_w, dw, self.learning_rate)
-                            self.w_ -= dw
                             dmu, s_mu, t_mu = self._get_adam_update(
                                 c, s_mu, t_mu, dmu, self.learning_rate_mu)
                             self.mu_ -= dmu
                             dgamma, s_gamma, t_gamma = self._get_adam_update(
                                 c, s_gamma, t_gamma, dgamma, self.learning_rate_gamma)
                             self.gamma_ -= dgamma
+                            dalpha, s_alpha, t_alpha = self._get_adam_update(
+                                c, s_alpha, t_alpha, dalpha, self.learning_rate_alpha)
+                            self.alpha_ -= dalpha
 
-                    for batch_idx, (batch_start, batch_end) in enumerate(batches):
-                        batch_logs = {'batch': batch_idx,
-                                      'size': batch_end - batch_start}
-                        callbacks.on_batch_begin(batch_idx, batch_logs)
+                        for i in range(self.num_nested_epochs):
+                            dw, _, _ = self.get_grad(x_batch, y_batch)
 
-                        x_batch = x[batch_start:batch_end]
-                        y_batch = y[batch_start:batch_end]
-
-                        dalpha = self.get_grad_alpha(x_batch, y_batch)
-                        c_alpha += 1
-                        dalpha, s_alpha, t_alpha = self._get_adam_update(
-                            c_alpha, s_alpha, t_alpha, dalpha, self.learning_rate_alpha)
-                        self.alpha_ -= dalpha
-                        self.z_ = self._get_z()
-
-                        outs = self._on_batch_end(x_batch, y_batch)
-                        for l, o in zip(self.metrics, outs):
-                            batch_logs[l] = o
-
-                        callbacks.on_batch_end(batch_idx, batch_logs)
-
-                else:  # num_nested_epochs = 0
-
-                    for batch_idx, (batch_start, batch_end) in enumerate(batches):
-                        batch_logs = {'batch': batch_idx,
-                                      'size': batch_end - batch_start}
-                        callbacks.on_batch_begin(batch_idx, batch_logs)
-
-                        x_batch = x[batch_start:batch_end]
-                        y_batch = y[batch_start:batch_end]
-
-                        dw, dmu, dgamma, dalpha = self.get_grad_all(x_batch, y_batch)
-
-                        # update
-                        # self.w_ -= self.learning_rate * dw
-                        # self.mu_ -= self.learning_rate_mu * dmu
-                        # self.gamma_ -= self.learning_rate_gamma * dgamma
-                        # self.alpha_ -= self.learning_rate_alpha * dalpha
-
-                        # adam update
-                        c += 1
-                        dw, s_w, t_w = self._get_adam_update(
-                            c, s_w, t_w, dw, self.learning_rate)
-                        self.w_ -= dw
-                        dmu, s_mu, t_mu = self._get_adam_update(
-                            c, s_mu, t_mu, dmu, self.learning_rate_mu)
-                        self.mu_ -= dmu
-                        dgamma, s_gamma, t_gamma = self._get_adam_update(
-                            c, s_gamma, t_gamma, dgamma, self.learning_rate_gamma)
-                        self.gamma_ -= dgamma
-                        dalpha, s_alpha, t_alpha = self._get_adam_update(
-                            c, s_alpha, t_alpha, dalpha, self.learning_rate_alpha)
-                        self.alpha_ -= dalpha
-                        self.z_ = self._get_z()
+                            if not self.adam_update:
+                                self.w_ -= self.learning_rate * dw
+                            else:
+                                # adam update
+                                c_w += 1
+                                dw, s_w, t_w = self._get_adam_update(
+                                    c_w, s_w, t_w, dw, self.learning_rate)
+                                self.w_ -= dw
 
                         outs = self._on_batch_end(x_batch, y_batch)
                         for l, o in zip(self.metrics, outs):
                             batch_logs[l] = o
 
                         callbacks.on_batch_end(batch_idx, batch_logs)
+
+                else:  # if not self.alternative_update:
+                    if self.num_nested_epochs > 0:
+
+                        for i in range(self.num_nested_epochs):
+                            for batch_idx, (batch_start, batch_end) in enumerate(batches):
+                                x_batch = x[batch_start:batch_end]
+                                y_batch = y[batch_start:batch_end]
+
+                                dw, dmu, dgamma = self.get_grad(x_batch, y_batch)
+
+                                if not self.adam_update:
+                                    self.w_ -= self.learning_rate * dw
+                                    self.mu_ -= self.learning_rate_mu * dmu
+                                    self.gamma_ -= self.learning_rate_gamma * dgamma
+                                else:
+                                    # adam update
+                                    c += 1
+                                    dw, s_w, t_w = self._get_adam_update(
+                                        c, s_w, t_w, dw, self.learning_rate)
+                                    self.w_ -= dw
+                                    dmu, s_mu, t_mu = self._get_adam_update(
+                                        c, s_mu, t_mu, dmu, self.learning_rate_mu)
+                                    self.mu_ -= dmu
+                                    dgamma, s_gamma, t_gamma = self._get_adam_update(
+                                        c, s_gamma, t_gamma, dgamma, self.learning_rate_gamma)
+                                    self.gamma_ -= dgamma
+
+                        for batch_idx, (batch_start, batch_end) in enumerate(batches):
+                            batch_logs = {'batch': batch_idx,
+                                          'size': batch_end - batch_start}
+                            callbacks.on_batch_begin(batch_idx, batch_logs)
+
+                            x_batch = x[batch_start:batch_end]
+                            y_batch = y[batch_start:batch_end]
+
+                            dalpha = self.get_grad_alpha(x_batch, y_batch)
+
+                            if not self.adam_update:
+                                self.alpha_ -= self.learning_rate_alpha * dalpha
+                            else:
+                                c_alpha += 1
+                                dalpha, s_alpha, t_alpha = self._get_adam_update(
+                                    c_alpha, s_alpha, t_alpha, dalpha, self.learning_rate_alpha)
+                                self.alpha_ -= dalpha
+
+                            self.z_ = self._get_z()
+
+                            outs = self._on_batch_end(x_batch, y_batch)
+                            for l, o in zip(self.metrics, outs):
+                                batch_logs[l] = o
+
+                            callbacks.on_batch_end(batch_idx, batch_logs)
+
+                    else:  # num_nested_epochs = 0
+
+                        for batch_idx, (batch_start, batch_end) in enumerate(batches):
+                            batch_logs = {'batch': batch_idx,
+                                          'size': batch_end - batch_start}
+                            callbacks.on_batch_begin(batch_idx, batch_logs)
+
+                            x_batch = x[batch_start:batch_end]
+                            y_batch = y[batch_start:batch_end]
+
+                            dw, dmu, dgamma, dalpha = self.get_grad_all(x_batch, y_batch)
+
+                            if not self.adam_update:
+                                self.w_ -= self.learning_rate * dw
+                                self.mu_ -= self.learning_rate_mu * dmu
+                                self.gamma_ -= self.learning_rate_gamma * dgamma
+                                self.alpha_ -= self.learning_rate_alpha * dalpha
+                            else:
+                                # adam update
+                                c += 1
+                                dw, s_w, t_w = self._get_adam_update(
+                                    c, s_w, t_w, dw, self.learning_rate)
+                                self.w_ -= dw
+                                dmu, s_mu, t_mu = self._get_adam_update(
+                                    c, s_mu, t_mu, dmu, self.learning_rate_mu)
+                                self.mu_ -= dmu
+                                dgamma, s_gamma, t_gamma = self._get_adam_update(
+                                    c, s_gamma, t_gamma, dgamma, self.learning_rate_gamma)
+                                self.gamma_ -= dgamma
+                                dalpha, s_alpha, t_alpha = self._get_adam_update(
+                                    c, s_alpha, t_alpha, dalpha, self.learning_rate_alpha)
+                                self.alpha_ -= dalpha
+
+                            self.z_ = self._get_z()
+
+                            outs = self._on_batch_end(x_batch, y_batch)
+                            for l, o in zip(self.metrics, outs):
+                                batch_logs[l] = o
+
+                            callbacks.on_batch_end(batch_idx, batch_logs)
+
+                    # end of (if self.num_nested_epochs > 0:)
+
+                # end of (if self.alternative_update:)
 
                 if do_validation:
                     outs = self._on_batch_end(x_valid, self._transform_labels(y_valid))
                     for l, o in zip(self.metrics, outs):
                         epoch_logs['val_' + l] = o
 
+                epoch_logs.update({'mu': self.mu_[0, 0], 'gamma': np.exp(self.gamma_[0][0])})
                 callbacks.on_epoch_end(self.epoch_, epoch_logs)
 
                 self.epoch_ += 1
@@ -537,6 +601,23 @@ class KMM(RRF):
             self.alpha_ -= self.learning_rate_alpha * dalpha
 
         print("diff = %.8f" % (s / x.shape[0]))
+        return s
+
+    def disp_params(self, param, **kwargs):
+        if param == 'syndata':
+            t, kt, approx_kt = kwargs['t'], kwargs['kt'], kwargs['approx_kt']
+            ax = kwargs['ax']
+            ax.plot(t, kt, 'r--', linewidth=3, label='True')
+            ax.plot(t, approx_kt, 'c-.', linewidth=3, label='Distro')
+            # ax.set_ylim(-0.5, 1)
+
+            xx = t
+            yy = np.zeros(xx.shape)
+            phi_xxx = self._get_phi(xx[:, np.newaxis])
+            phi_yyy = self._get_phi(yy[:, np.newaxis])
+            approx_ktt = np.sum(phi_xxx * phi_yyy, axis=1)
+            ax.plot(t, approx_ktt, 'b-', linewidth=3, label='KMM')
+
 
     def get_params(self, deep=True):
         out = super(KMM, self).get_params(deep=deep)
@@ -544,7 +625,9 @@ class KMM(RRF):
             'num_kernels': self.num_kernels,
             'num_nested_epochs': self.num_nested_epochs,
             'temperature': self.temperature,
+            'adam_update': self.adam_update,
             'learning_rate_mu': self.learning_rate_mu,
+            'alternative_update': self.alternative_update,
             'learning_rate_alpha': self.learning_rate_alpha,
         })
         return out

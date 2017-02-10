@@ -19,6 +19,10 @@ from male.callbacks import Display
 from male.callbacks import EarlyStopping
 from male.callbacks import ModelCheckpoint
 
+import matplotlib.pyplot as plt
+
+plt.style.use('ggplot')
+
 
 def test_kmm_check_grad():
     # <editor-fold desc="Binary classification using ONE kernel">
@@ -1019,6 +1023,197 @@ def test_kmm_syn2d():
                        zero_based=False)
 
 
+def test_kmm_syndata2():
+    np.random.seed(6789)
+
+    M = 1000  # number of samples
+    D = 250  # number of random features (random feature dimension)
+    x = 4 * np.random.randn(M)
+    w = np.random.randn(2 * D)  # weights (\beta in BaNK paper)
+
+    # <editor-fold desc="Example of 3 kernels with \mu different from 0">
+    z = np.argmax(np.random.multinomial(1, [0.5, 0.25, 0.25], size=D), axis=1)
+    o = np.hstack([np.pi / 2 + 0.5 * np.random.randn(D, 1), 0.25 * np.random.randn(D, 1),
+                   np.pi + (1 / 3) * np.random.randn(D, 1)])
+    omega = o[range(D), z]
+    t = np.linspace(-7, 7, M)
+    kt = (0.5 * np.exp(-0.125 * t * t) * np.cos(np.pi * t / 2) + 0.25 * np.exp(-(1 / 32) * t * t)
+          + 0.25 * np.exp(-(1 / 18) * t * t) * np.cos(2 * np.pi * t / 2))
+    # </editor-fold>
+
+    # <editor-fold desc="Example of 3 kernels with \mu = 0">
+    # z = np.argmax(np.random.multinomial(1, [0.5, 0.25, 0.25], size=D), axis=1)
+    # o = np.hstack([0.5 * np.random.randn(D, 1), 0.25 * np.random.randn(D, 1),
+    #                (1 / 3) * np.random.randn(D, 1)])
+    # omega = o[range(D), z]
+    # t = np.linspace(-7, 7, M)
+    # kt = (0.5 * np.exp(-0.125 * t * t) + 0.25 * np.exp(-(1 / 32) * t * t)
+    #       + 0.25 * np.exp(-(1 / 18) * t * t))
+    # </editor-fold>
+
+    phi = np.hstack([np.cos(np.outer(x, omega)) / np.sqrt(D),
+                     np.sin(np.outer(x, omega)) / np.sqrt(D)])
+    y = phi.dot(w) + np.random.randn(M)
+
+    xx = t
+    yy = np.zeros(xx.shape)
+    phi_xx = np.hstack([np.cos(np.outer(xx, omega)) / np.sqrt(D),
+                        np.sin(np.outer(xx, omega)) / np.sqrt(D)])
+    phi_yy = np.hstack([np.cos(np.outer(yy, omega)) / np.sqrt(D),
+                        np.sin(np.outer(yy, omega)) / np.sqrt(D)])
+    approx_kt = np.sum(phi_xx * phi_yy, axis=1)
+
+    loss_display = Display(layout=(2, 1),
+                           monitor=[{'metrics': ['err'],
+                                     'type': 'line',
+                                     'labels': ["training error"],
+                                     'title': "Learning errors",
+                                     'xlabel': "epoch",
+                                     'ylabel': "error",
+                                     },
+                                    {'metrics': ['mu', 'gamma'],
+                                     'type': 'line',
+                                     'title': "Learning errors",
+                                     'xlabel': "epoch",
+                                     'ylabel': "error",
+                                     },
+                                    ])
+
+    display = Display(layout=(1, 1),
+                      monitor=[{'metrics': ['syndata'],
+                                'type': 'line',
+                                'labels': ["Synthetic data"],
+                                'title': "Synthetic data",
+                                'xlabel': "t",
+                                'ylabel': "k",
+                                't': t,
+                                'kt': kt,
+                                'approx_kt': approx_kt,
+                                },
+                               ])
+
+    # <editor-fold desc="1 kernel">
+    # c = KMM(model_name="syndata2_kmm_l2",
+    #         save_dir=os.path.join(HOME, "rmodel/pycs"),
+    #         mode='batch', loss='l2', num_kernels=1, num_epochs=50,
+    #         batch_size=100, lbd=0.0, learning_rate=0.1, learning_rate_mu=0.05,
+    #         learning_rate_gamma=0.001, learning_rate_alpha=0.01,
+    #         temperature=1.0, decay_rate=0.95, D=D, gamma=0.5, random_state=6789)
+    # c.fit(x, y)
+    # print("pi = {}".format(c.get_pi()))
+    # print("mu = {}".format(c.mu_.T))
+    # print("sigma = {}".format(np.exp(c.gamma_.T)))
+    # print("alpha = {}".format(c.alpha_))
+    #
+    # phi_xxx = c.get_phi(xx[:, np.newaxis])
+    # phi_yyy = c.get_phi(yy[:, np.newaxis])
+    # approx_ktt = np.sum(phi_xxx * phi_yyy, axis=1)
+    # plt.plot(t, approx_ktt, 'g:', linewidth=3, label='KMM-1')
+    # </editor-fold>
+
+    # <editor-fold desc="2 kernels">
+    # c = KMM(model_name="syndata2_kmm_l2",
+    #         save_dir=os.path.join(HOME, "rmodel/pycs"),
+    #         mode='batch', loss='l2', num_kernels=2, num_epochs=50,
+    #         batch_size=100, lbd=0.0, learning_rate=0.1, learning_rate_mu=0.05,
+    #         learning_rate_gamma=0.001, learning_rate_alpha=0.01,
+    #         temperature=1.0, decay_rate=0.95, D=D, gamma=0.5, random_state=6789)
+    # c.fit(x, y)
+    # print("pi = {}".format(c.get_pi()))
+    # print("mu = {}".format(c.mu_.T))
+    # print("sigma = {}".format(np.exp(c.gamma_.T)))
+    # print("alpha = {}".format(c.alpha_))
+    #
+    # phi_xxx = c.get_phi(xx[:, np.newaxis])
+    # phi_yyy = c.get_phi(yy[:, np.newaxis])
+    # approx_ktt = np.sum(phi_xxx * phi_yyy, axis=1)
+    # plt.plot(t, approx_ktt, 'y--', linewidth=3, label='KMM-2')
+    # </editor-fold>
+
+    # 3 kernels
+    c = KMM(model_name="syndata2_kmm_l2",
+            D=D,
+            lbd=0.0,
+            loss='l2',
+            gamma=2.0,
+            mode='batch',
+            num_kernels=3,
+            num_epochs=500,
+            batch_size=100,
+            temperature=0.05,
+            alternative_update=False,
+            num_nested_epochs=0,
+            adam_update=True,
+            learning_rate=0.001,
+            learning_rate_mu=0.001,
+            learning_rate_gamma=0.001,
+            learning_rate_alpha=0.001,
+            metrics=['loss', 'err'],
+            callbacks=[display, loss_display],
+            random_state=6789,
+            verbose=1)
+
+    c.fit(x, y)
+
+    print("pi = {}".format(c._get_pi()))
+    print("mu = {}".format(c.mu_.T))
+    print("sigma = {}".format(np.exp(c.gamma_.T)))
+    print("alpha = {}".format(c.alpha_))
+
+    # phi_xxx = c._get_phi(xx[:, np.newaxis])
+    # phi_yyy = c._get_phi(yy[:, np.newaxis])
+    # approx_ktt = np.sum(phi_xxx * phi_yyy, axis=1)
+    # plt.plot(t, approx_ktt, 'b-', linewidth=3, label='KMM-3')
+
+    # <editor-fold desc="Best">
+    # c = KMM(model_name="syndata2_kmm_l2",
+    #         save_dir="C:/Users/tund/rmodel/pycs",
+    #         mode='batch', loss='l2', num_kernels=3, num_epochs=100, num_nested_epochs=100,
+    #         batch_size=100, lbd=0.0, learning_rate=0.1, learning_rate_mu=0.05,
+    #         learning_rate_gamma=0.001, learning_rate_alpha=0.01,
+    #         temperature=1.0, D=D, gamma=0.5, random_state=6789)
+    # </editor-fold>
+
+    # <editor-fold desc="4 kernels">
+    # c = KMM(model_name="syndata2_kmm_l2",
+    #         save_dir=os.path.join(HOME, "rmodel/pycs"),
+    #         mode='batch', loss='l2', num_kernels=4, num_epochs=50,
+    #         batch_size=100, lbd=0.0, learning_rate=0.1, learning_rate_mu=0.05,
+    #         learning_rate_gamma=0.001, learning_rate_alpha=0.01,
+    #         temperature=1.0, decay_rate=0.95, D=D, gamma=0.5, random_state=6789)
+    # c.fit(x, y)
+    # print("pi = {}".format(c.get_pi()))
+    # print("mu = {}".format(c.mu_.T))
+    # print("sigma = {}".format(np.exp(c.gamma_.T)))
+    # print("alpha = {}".format(c.alpha_))
+    #
+    # phi_xxx = c.get_phi(xx[:, np.newaxis])
+    # phi_yyy = c.get_phi(yy[:, np.newaxis])
+    # approx_ktt = np.sum(phi_xxx * phi_yyy, axis=1)
+    # plt.plot(t, approx_ktt, 'm:', linewidth=3, label='KMM-4')
+    # </editor-fold>
+
+    # plt.xlabel('t')
+    # plt.ylabel('k')
+    # plt.legend()
+    # plt.show()
+    # plt.savefig("C:/Users/tund/Dropbox/sharing/DASCIMAL-CORE/Publications/2017-ICML-NonparamKernel/figs/syndata_approx.pdf",
+    #             format='pdf', bbox_inches='tight')
+    # plt.close()
+
+    # Show synthetic data
+    # y_pred = c.predict(x)
+    # plt.figure()
+    # plt.scatter(x, y_pred)
+    # plt.xlabel('x')
+    # plt.ylabel('y_pred')
+    # plt.show()
+    # plt.savefig("C:/Users/tund/Dropbox/sharing/DASCIMAL-CORE/Publications/2017-ICML-NonparamKernel/figs/syndata_xy.pdf", format='pdf', bbox_inches='tight')
+    # plt.close()
+    # print("RMSE = %.4f" % np.sqrt(-c.score(x, y)))
+    # plt.show()
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
     # test_kmm_check_grad()
@@ -1031,3 +1226,4 @@ if __name__ == '__main__':
     # test_kmm_mnist_cv_disp()
     # test_kmm_pima()
     # test_kmm_syn2d()
+    # test_kmm_syndata2()
