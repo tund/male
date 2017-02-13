@@ -286,7 +286,7 @@ def test_kmm_check_grad():
                 gamma=0.125,
                 mode='batch',
                 loss='eps_insensitive',
-                temperature=0.1,
+                temperature=1.0,
                 num_kernels=num_kernels,
                 learning_rate=0.001,
                 learning_rate_mu=0.001,

@@ -183,7 +183,7 @@ class KMM(RRF):
                 dphi = wxy * w  # (N,2D)
                 domega = self._get_domega(x, phi)  # (N,2D,d) (gradient of \omega)
             elif self.loss == 'l2':
-                wxy = (wx - y)[:, np.newaxis]
+                wxy = (wx - y)[:, np.neRwaxis]
                 dw += (wxy * phi).mean(axis=0)
                 dphi = wxy * w  # (N,2D)
                 domega = self._get_domega(x, phi)  # (N,2D,d) (gradient of \omega)
@@ -206,6 +206,61 @@ class KMM(RRF):
             dalpha = self._get_dalpha(domega, dphi, z, mu, gamma) / n  # (M,)
 
         return dw, dmu, dgamma, dalpha
+
+    def get_grad_mu_gamma_alpha(self, x, y, *args, **kwargs):
+        n = x.shape[0]  # batch size
+        z = kwargs['z'] if 'z' in kwargs else self.z_  # (D,)
+        w = kwargs['w'] if 'w' in kwargs else self.w_  # (2D,C)
+        mu = kwargs['mu'] if 'mu' in kwargs else self.mu_  # (M,d)
+        gamma = kwargs['gamma'] if 'gamma' in kwargs else self.gamma_  # (M,d)
+        alpha = kwargs['alpha'] if 'alpha' in kwargs else self.alpha_  # (M,)
+
+        phi = kwargs['phi'] if 'phi' in kwargs else self._get_phi(x, **kwargs)  # (N,2D)
+        wx = kwargs['wx'] if 'wx' in kwargs else phi.dot(w)  # (N,C)
+
+        if self.num_classes_ > 2:
+            wxy, t = self._get_wxy(wx, y)
+            if self.loss == 'hinge':
+                dphi = -w[:, y[wxy < 1]].T + w[:, t[wxy < 1]].T  # (N,2D)
+                domega = self._get_domega(x[wxy < 1], phi[wxy < 1])  # (N,2D,d) (gradient of \omega)
+            else:  # logit loss
+                c = np.exp(-wxy - np.logaddexp(0, -wxy))[:, np.newaxis]
+                dphi = -c * (w[:, y].T - w[:, t].T)  # (N,2D)
+                domega = self._get_domega(x, phi)  # (N,2D,d) (gradient of \omega)
+            dmu = self._get_dmu(domega, dphi, z) / n  # (M,d)
+            dgamma = self._get_dgamma(gamma, domega, dphi, z) / n  # (M,d)
+            dalpha = self._get_dalpha(domega, dphi, z, mu, gamma) / n  # (M,)
+        else:
+            if self.loss == 'hinge':
+                wxy = y * wx
+                # compute gradients of \mu
+                dphi = -y[wxy < 1, np.newaxis] * w  # (N,2D) (gradient of \Phi(x))
+                domega = self._get_domega(x[wxy < 1], phi[wxy < 1])  # (N,2D,d) (gradient of \omega)
+            elif self.loss == 'l1':
+                wxy = np.sign(wx - y)[:, np.newaxis]
+                dphi = wxy * w  # (N,2D)
+                domega = self._get_domega(x, phi)  # (N,2D,d) (gradient of \omega)
+            elif self.loss == 'l2':
+                wxy = (wx - y)[:, np.neRwaxis]
+                dphi = wxy * w  # (N,2D)
+                domega = self._get_domega(x, phi)  # (N,2D,d) (gradient of \omega)
+            elif self.loss == 'logit':
+                wxy = y * wx
+                c = (-y * np.exp(-wxy - np.logaddexp(0, -wxy)))[:, np.newaxis]
+                dphi = c * w  # (N,2D)
+                domega = self._get_domega(x, phi)  # (N,2D,d) (gradient of \omega)
+            elif self.loss == 'eps_insensitive':
+                wxy = np.abs(y - wx) > self.eps
+                c = np.sign(wx - y)[:, np.newaxis]
+                d = c * phi
+                dphi = c * w  # (N,2D)
+                domega = self._get_domega(x[wxy], phi[wxy])  # (N,2D,d) (gradient of \omega)
+
+            dmu = self._get_dmu(domega, dphi, z) / n  # (M,d)
+            dgamma = self._get_dgamma(gamma, domega, dphi, z) / n  # (M,d)
+            dalpha = self._get_dalpha(domega, dphi, z, mu, gamma) / n  # (M,)
+
+        return dmu, dgamma, dalpha
 
     def get_grad_alpha(self, x, y, *args, **kwargs):
         n = x.shape[0]  # batch size
@@ -261,6 +316,47 @@ class KMM(RRF):
 
         return dalpha
 
+    def _get_dw(self, x, y, *args, **kwargs):
+        n = x.shape[0]  # batch size
+        w = kwargs['w'] if 'w' in kwargs else self.w_  # (2D,C)
+
+        phi = kwargs['phi'] if 'phi' in kwargs else self._get_phi(x, **kwargs)  # (N,2D)
+        wx = kwargs['wx'] if 'wx' in kwargs else phi.dot(w)  # (N,C)
+
+        dw = self.lbd * w  # (2D,C)
+
+        if self.num_classes_ > 2:
+            wxy, t = self._get_wxy(wx, y)
+            if self.loss == 'hinge':
+                d = (wxy[:, np.newaxis] < 1) * phi  # (N,2D)
+            else:  # logit loss
+                c = np.exp(-wxy - np.logaddexp(0, -wxy))[:, np.newaxis]
+                d = c * phi
+            for i in range(self.num_classes_):
+                dw[:, i] += -d[y == i].sum(axis=0) / n
+                dw[:, i] += d[t == i].sum(axis=0) / n
+        else:
+            if self.loss == 'hinge':
+                wxy = y * wx
+                dw += np.sum(-y[wxy < 1, np.newaxis] * phi[wxy < 1], axis=0) / n
+            elif self.loss == 'l1':
+                wxy = np.sign(wx - y)[:, np.newaxis]
+                dw += (wxy * phi).mean(axis=0)
+            elif self.loss == 'l2':
+                wxy = (wx - y)[:, np.newaxis]
+                dw += (wxy * phi).mean(axis=0)
+            elif self.loss == 'logit':
+                wxy = y * wx
+                c = (-y * np.exp(-wxy - np.logaddexp(0, -wxy)))[:, np.newaxis]
+                dw += np.mean(c * phi, axis=0)
+            elif self.loss == 'eps_insensitive':
+                wxy = np.abs(y - wx) > self.eps
+                c = np.sign(wx - y)[:, np.newaxis]
+                d = c * phi
+                dw += d[wxy].sum(axis=0) / n
+
+        return dw
+
     def _get_domega(self, x, phi):
         n = x.shape[0]  # batch size
         domega = np.zeros([n, 2 * self.D, self.num_features_])  # (N,2D,d)
@@ -308,35 +404,68 @@ class KMM(RRF):
         phi[:, self.D:] = np.sin(xo)
         return phi
 
-    def _fit_loop(self, x, y,
-                  do_validation=False,
-                  x_valid=None, y_valid=None,
-                  callbacks=None, callback_metrics=None):
+    def _fit_online(self, x, y):
         c = 0
-        c_alpha = 0
         c_w = 0
         s_w, t_w = np.zeros(self.w_.shape), np.zeros(self.w_.shape)
         s_mu, t_mu = np.zeros(self.mu_.shape), np.zeros(self.mu_.shape)
         s_gamma, t_gamma = np.zeros(self.gamma_.shape), np.zeros(self.gamma_.shape)
         s_alpha, t_alpha = np.zeros(self.alpha_.shape), np.zeros(self.alpha_.shape)
 
-        if self.mode == 'online':
-            y0 = self._decode_labels(y)
-            mistake = 0.0
+        y0 = self._decode_labels(y)
+        mistake = 0.0
 
-            for t in range(x.shape[0]):
-                phi = self._get_phi(x[[t]])
+        for t in range(x.shape[0]):
+            phi = self._get_phi(x[[t]])
 
-                wx = phi.dot(self.w_)  # (x,)
-                if self.task == 'classification':
-                    if self.num_classes_ == 2:
-                        y_pred = self._decode_labels(np.uint8(wx >= 0))[0]
-                    else:
-                        y_pred = self._decode_labels(np.argmax(wx))
-                    mistake += (y_pred != y0[t])
+            wx = phi.dot(self.w_)  # (x,)
+            if self.task == 'classification':
+                if self.num_classes_ == 2:
+                    y_pred = self._decode_labels(np.uint8(wx >= 0))[0]
                 else:
-                    mistake += (wx[0] - y0[t]) ** 2
+                    y_pred = self._decode_labels(np.argmax(wx))
+                mistake += (y_pred != y0[t])
+            else:
+                mistake += (wx[0] - y0[t]) ** 2
 
+            if self.alternative_update:
+                dmu, dgamma, dalpha = self.get_grad_mu_gamma_alpha(x[[t]], y[[t]],
+                                                                   phi=phi, wx=wx)
+                if not self.adam_update:
+                    s_mu = self.momentum * s_mu + self.learning_rate_mu * dmu
+                    self.mu_ -= s_mu
+                    s_gamma = self.momentum * s_gamma + self.learning_rate_gamma * dgamma
+                    self.gamma_ -= s_gamma
+                    s_alpha = self.momentum * s_alpha + self.learning_rate_alpha * dalpha
+                    self.alpha_ -= s_alpha
+                else:
+                    # adam update
+                    c += 1
+                    dmu, s_mu, t_mu = self._get_adam_update(
+                        c, s_mu, t_mu, dmu, self.learning_rate_mu)
+                    self.mu_ -= dmu
+                    dgamma, s_gamma, t_gamma = self._get_adam_update(
+                        c, s_gamma, t_gamma, dgamma, self.learning_rate_gamma)
+                    self.gamma_ -= dgamma
+                    dalpha, s_alpha, t_alpha = self._get_adam_update(
+                        c, s_alpha, t_alpha, dalpha, self.learning_rate_alpha)
+                    self.alpha_ -= dalpha
+                self.z_ = self._get_z()
+
+                for i in range(self.num_nested_epochs):
+                    dw = self._get_dw(x[[t]], y[[t]])
+
+                    if not self.adam_update:
+                        s_w = self.momentum * s_w + self.learning_rate * dw
+                        self.w_ -= s_w
+                    else:
+                        # adam update
+                        c_w += 1
+                        dw, s_w, t_w = self._get_adam_update(
+                            c_w, s_w, t_w, dw, self.learning_rate)
+                        self.w_ -= dw
+
+            else:  # if not self.alternative_update:
                 # compute gradients
                 # dw, dmu, dgamma = self.get_grad(x[[t]], y[[t]], phi=phi, wx=wx)
                 # dalpha = self.get_grad_alpha(x[[t]], y[[t]], phi=phi, wx=wx)
@@ -364,12 +493,26 @@ class KMM(RRF):
                     dalpha, s_alpha, t_alpha = self._get_adam_update(
                         c, s_alpha, t_alpha, dalpha, self.learning_rate_alpha)
                     self.alpha_ -= dalpha
-
                 self.z_ = self._get_z()
 
-            self.mistake_ = mistake / x.shape[0]
+        self.mistake_ = mistake / x.shape[0]
 
+    def _fit_loop(self, x, y,
+                  do_validation=False,
+                  x_valid=None, y_valid=None,
+                  callbacks=None, callback_metrics=None):
+
+        if self.mode == 'online':
+            self._fit_online(x, y)
         else:  # batch mode
+            c = 0
+            c_alpha = 0
+            c_w = 0
+            s_w, t_w = np.zeros(self.w_.shape), np.zeros(self.w_.shape)
+            s_mu, t_mu = np.zeros(self.mu_.shape), np.zeros(self.mu_.shape)
+            s_gamma, t_gamma = np.zeros(self.gamma_.shape), np.zeros(self.gamma_.shape)
+            s_alpha, t_alpha = np.zeros(self.alpha_.shape), np.zeros(self.alpha_.shape)
+
             batches = make_batches(x.shape[0], self.batch_size)
 
             while self.epoch_ < self.num_epochs:
@@ -385,7 +528,7 @@ class KMM(RRF):
                         x_batch = x[batch_start:batch_end]
                         y_batch = y[batch_start:batch_end]
 
-                        _, dmu, dgamma, dalpha = self.get_grad_all(x_batch, y_batch)
+                        dmu, dgamma, dalpha = self.get_grad_mu_gamma_alpha(x_batch, y_batch)
 
                         if not self.adam_update:
                             s_mu = self.momentum * s_mu + self.learning_rate_mu * dmu
@@ -406,8 +549,7 @@ class KMM(RRF):
                             dalpha, s_alpha, t_alpha = self._get_adam_update(
                                 c, s_alpha, t_alpha, dalpha, self.learning_rate_alpha)
                             self.alpha_ -= dalpha
-
-                            self.z_ = self._get_z()
+                        self.z_ = self._get_z()
 
                     for i in range(self.num_nested_epochs):
                         for batch_idx, (batch_start, batch_end) in enumerate(batches):
@@ -419,7 +561,7 @@ class KMM(RRF):
                             x_batch = x[batch_start:batch_end]
                             y_batch = y[batch_start:batch_end]
 
-                            dw, _, _ = self.get_grad(x_batch, y_batch)
+                            dw = self._get_dw(x_batch, y_batch)
 
                             if not self.adam_update:
                                 s_w = self.momentum * s_w + self.learning_rate * dw
@@ -635,7 +777,6 @@ class KMM(RRF):
             approx_ktt = np.sum(phi_xxx * phi_yyy, axis=1)
             ax.plot(t, approx_ktt, 'b-', linewidth=3, label='KMM')
 
-
     def get_params(self, deep=True):
         out = super(KMM, self).get_params(deep=deep)
         out.update({
@@ -662,6 +803,9 @@ class KMM(RRF):
 
 
 class KMM0(KMM):
+    """Kernel Mixture Models optimized for not learning mean parameter (\mu)
+    """
+
     def _fit_loop(self, x, y,
                   do_validation=False,
                   x_valid=None, y_valid=None,
