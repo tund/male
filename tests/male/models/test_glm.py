@@ -428,7 +428,7 @@ def test_glm_mnist_cv():
     x = np.vstack([x_train, x_test])
     y = np.concatenate([y_train, y_test])
 
-    early_stopping = EarlyStopping(monitor='val_loss', patience=2)
+    early_stopping = EarlyStopping(monitor='val_loss', patience=2, verbose=1)
     filepath = os.path.join(HOME, "rmodel/male/glm/mnist_{epoch:04d}_{val_loss:.6f}.pkl")
     checkpoint = ModelCheckpoint(filepath,
                                  mode='min',
@@ -493,11 +493,11 @@ def test_glm_mnist_cv():
 
 
 if __name__ == '__main__':
-    # pytest.main([__file__])
+    pytest.main([__file__])
     # test_glm_check_grad()
     # test_glm_mnist_logit()
     # test_glm_mnist_softmax()
     # test_glm_mnist_logit_gridsearch()
     # test_glm_mnist_softmax_gridsearch()
     # test_glm_regression_gridsearch()
-    test_glm_mnist_cv()
+    # test_glm_mnist_cv()

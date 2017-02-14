@@ -1215,8 +1215,8 @@ def test_kmm_syndata2():
 
 
 if __name__ == '__main__':
-    # pytest.main([__file__])
-    test_kmm_check_grad()
+    pytest.main([__file__])
+    # test_kmm_check_grad()
     # test_kmm_mnist_bin()
     # test_kmm_mnist_softmax()
     # test_kmm_mnist_softmax_gridsearch()

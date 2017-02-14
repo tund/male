@@ -160,6 +160,9 @@ class Model(BaseEstimator, ClassifierMixin,
     def _fit_loop(self, x, y, *args, **kwargs):
         pass
 
+    def _on_epoch_begin(self):
+        pass
+
     def _on_batch_end(self, x, y=None):
         outs = []
         for m in self.metrics:
@@ -173,6 +176,11 @@ class Model(BaseEstimator, ClassifierMixin,
                 else:
                     outs += [-self.score(x, self._decode_labels(y))]
         return outs
+
+    def _on_epoch_end(self):
+        self.epoch_ += 1
+        if self.stop_training_:
+            self.epoch_ = self.stop_training_
 
     def check_grad(self, x, y=None):
         """Check gradients of the model using data x and label y if available

@@ -24,6 +24,8 @@ class KMM(RRF):
                  gamma=(0.5, 1.0, 2, 4),
                  num_kernels=4,
                  temperature=1.0,
+                 anneal_rate=0.95,
+                 min_temperature=0.5,
                  momentum=0.0,
                  adam_update=True,
                  sampling_gumbel=True,
@@ -37,6 +39,8 @@ class KMM(RRF):
         self.gamma = gamma if isinstance(gamma, tuple) else (gamma,)
         self.num_kernels = num_kernels
         self.temperature = temperature
+        self.anneal_rate = anneal_rate
+        self.min_temperature = min_temperature
         self.adam_update = adam_update
         self.momentum = momentum
         self.sampling_gumbel = sampling_gumbel
@@ -58,7 +62,7 @@ class KMM(RRF):
         super(KMM, self)._init_params(x)
         # restore the \gamma for KMM
         self.gamma = gamma0
-        self.alpha_ = np.zeros(self.num_kernels)  # (M,)
+        self.alpha_ = np.log(1 / self.num_kernels) * np.ones(self.num_kernels)  # (M,)
         self.gumbel_ = self.random_state_.gumbel(0.0, 1.0, size=(self.D, self.num_kernels))  # (D,M)
         self.mu_ = np.zeros([self.num_kernels, self.num_features_])  # (M,d)
         self.z_ = self._get_z()
@@ -536,7 +540,7 @@ class KMM(RRF):
 
             batches = make_batches(x.shape[0], self.batch_size)
 
-            while self.epoch_ < self.num_epochs:
+            while (self.epoch_ < self.num_epochs) and (not self.stop_training_):
                 epoch_logs = {}
                 callbacks.on_epoch_begin(self.epoch_)
 
@@ -572,16 +576,17 @@ class KMM(RRF):
                             self.alpha_ -= dalpha
                         self._update_z()
 
-                        dw = self._get_dw(x_batch, y_batch)
-                        if not self.adam_update:
-                            s_w = self.momentum * s_w + self.learning_rate * dw
-                            self.w_ -= s_w
-                        else:
-                            # adam update
-                            c_w += 1
-                            dw, s_w, t_w = self._get_adam_update(
-                                c_w, s_w, t_w, dw, self.learning_rate)
-                            self.w_ -= dw
+                        for i in range(self.num_nested_epochs):
+                            dw = self._get_dw(x_batch, y_batch)
+                            if not self.adam_update:
+                                s_w = self.momentum * s_w + self.learning_rate * dw
+                                self.w_ -= s_w
+                            else:
+                                # adam update
+                                c_w += 1
+                                dw, s_w, t_w = self._get_adam_update(
+                                    c_w, s_w, t_w, dw, self.learning_rate)
+                                self.w_ -= dw
 
                         outs = self._on_batch_end(x_batch, y_batch)
                         for l, o in zip(self.metrics, outs):
@@ -704,11 +709,11 @@ class KMM(RRF):
 
                 epoch_logs.update({'mu': self.mu_[0, 0], 'gamma': np.exp(self.gamma_[0][0])})
                 callbacks.on_epoch_end(self.epoch_, epoch_logs)
+                self._on_epoch_end()
 
-                self.epoch_ += 1
-                if self.stop_training_:
-                    self.epoch_ = self.stop_training_
-                    break
+    def _on_epoch_end(self):
+        super(KMM, self)._on_epoch_end()
+        self.temperature = max(self.min_temperature, self.temperature * self.anneal_rate)
 
     def _get_adam_update(self, c, s, t, d, lr):
         beta1 = 0.9
@@ -803,7 +808,9 @@ class KMM(RRF):
             'gamma': copy.deepcopy(self.gamma),
             'num_kernels': self.num_kernels,
             'num_nested_epochs': self.num_nested_epochs,
+            'anneal_rate': self.anneal_rate,
             'temperature': self.temperature,
+            'min_temperature': self.min_temperature,
             'adam_update': self.adam_update,
             'momentum': self.momentum,
             'sampling_gumbel': self.sampling_gumbel,

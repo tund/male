@@ -160,7 +160,7 @@ class RRF(FOGD):
 
         else:  # batch setting
             batches = make_batches(x.shape[0], self.batch_size)
-            while self.epoch_ < self.num_epochs:
+            while (self.epoch_ < self.num_epochs) and (not self.stop_training_):
                 epoch_logs = {}
                 callbacks.on_epoch_begin(self.epoch_)
 
@@ -189,11 +189,7 @@ class RRF(FOGD):
                         epoch_logs['val_' + l] = o
 
                 callbacks.on_epoch_end(self.epoch_, epoch_logs)
-
-                self.epoch_ += 1
-                if self.stop_training_:
-                    self.epoch_ = self.stop_training_
-                    break
+                self._on_epoch_end()
 
     def _get_phi(self, x, **kwargs):
         gamma = kwargs['gamma'] if 'gamma' in kwargs else self.gamma_
