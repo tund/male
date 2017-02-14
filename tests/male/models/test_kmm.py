@@ -77,7 +77,7 @@ def test_kmm_check_grad():
     model = KMM(model_name="checkgrad_kmm_hinge",
                 D=4,
                 lbd=0.01,
-                gamma=0.125,
+                gamma=(0.125, 1.0),
                 mode='batch',
                 loss='hinge',
                 temperature=0.1,
@@ -92,7 +92,7 @@ def test_kmm_check_grad():
     model = KMM(model_name="checkgrad_kmm_logit",
                 D=4,
                 lbd=0.01,
-                gamma=0.125,
+                gamma=(0.125, 1.0),
                 mode='batch',
                 loss='logit',
                 temperature=0.1,
@@ -157,7 +157,7 @@ def test_kmm_check_grad():
     model = KMM(model_name="checkgrad_kmm_hinge",
                 D=4,
                 lbd=0.01,
-                gamma=0.125,
+                gamma=(0.125, 1.0),
                 mode='batch',
                 loss='hinge',
                 temperature=0.1,
@@ -172,7 +172,7 @@ def test_kmm_check_grad():
     model = KMM(model_name="checkgrad_kmm_logit",
                 D=4,
                 lbd=0.01,
-                gamma=0.125,
+                gamma=(0.125, 1.0),
                 mode='batch',
                 loss='logit',
                 temperature=0.1,
@@ -251,7 +251,7 @@ def test_kmm_check_grad():
     model = KMM(model_name="checkgrad_kmm_l1",
                 D=4,
                 lbd=0.01,
-                gamma=0.125,
+                gamma=(0.125, 1.0),
                 mode='batch',
                 loss='l1',
                 temperature=0.1,
@@ -267,7 +267,7 @@ def test_kmm_check_grad():
     model = KMM(model_name="checkgrad_kmm_l2",
                 D=4,
                 lbd=0.01,
-                gamma=0.125,
+                gamma=(0.125, 1.0),
                 mode='batch',
                 loss='l2',
                 temperature=0.1,
@@ -1135,7 +1135,7 @@ def test_kmm_syndata2():
             D=D,
             lbd=0.0,
             loss='l2',
-            gamma=2.0,
+            gamma=(0.1, 1.0, 2.0),
             mode='batch',
             num_kernels=3,
             num_epochs=500,
@@ -1215,8 +1215,8 @@ def test_kmm_syndata2():
 
 
 if __name__ == '__main__':
-    pytest.main([__file__])
-    # test_kmm_check_grad()
+    # pytest.main([__file__])
+    test_kmm_check_grad()
     # test_kmm_mnist_bin()
     # test_kmm_mnist_softmax()
     # test_kmm_mnist_softmax_gridsearch()

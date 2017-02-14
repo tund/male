@@ -21,6 +21,7 @@ class KMM(RRF):
 
     def __init__(self,
                  model_name="KMM",
+                 gamma=(0.5, 1.0, 2, 4),
                  num_kernels=4,
                  temperature=1.0,
                  momentum=0.0,
@@ -33,6 +34,7 @@ class KMM(RRF):
                  *args, **kwargs):
         kwargs['model_name'] = model_name
         super(KMM, self).__init__(**kwargs)
+        self.gamma = gamma if isinstance(gamma, tuple) else (gamma,)
         self.num_kernels = num_kernels
         self.temperature = temperature
         self.adam_update = adam_update
@@ -50,13 +52,18 @@ class KMM(RRF):
         self.gumbel_ = None
 
     def _init_params(self, x):
+        # temporarily place \gamma for initialization of FOGD and RRF
+        gamma0 = self.gamma
+        self.gamma = 1.0
         super(KMM, self)._init_params(x)
+        # restore the \gamma for KMM
+        self.gamma = gamma0
         self.alpha_ = np.zeros(self.num_kernels)  # (M,)
         self.gumbel_ = self.random_state_.gumbel(0.0, 1.0, size=(self.D, self.num_kernels))  # (D,M)
         self.mu_ = np.zeros([self.num_kernels, self.num_features_])  # (M,d)
         self.z_ = self._get_z()
         # self.gamma -> \sigma initial value
-        self.gamma_ = (np.log(self.gamma)
+        self.gamma_ = (np.log(self.gamma)[:, np.newaxis]
                        * np.ones([self.num_kernels, self.num_features_]))  # (M,d)
 
     def _get_pi(self, **kwargs):
@@ -793,6 +800,7 @@ class KMM(RRF):
     def get_params(self, deep=True):
         out = super(KMM, self).get_params(deep=deep)
         out.update({
+            'gamma': copy.deepcopy(self.gamma),
             'num_kernels': self.num_kernels,
             'num_nested_epochs': self.num_nested_epochs,
             'temperature': self.temperature,
