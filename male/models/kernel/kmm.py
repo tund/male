@@ -183,7 +183,7 @@ class KMM(RRF):
                 dphi = wxy * w  # (N,2D)
                 domega = self._get_domega(x, phi)  # (N,2D,d) (gradient of \omega)
             elif self.loss == 'l2':
-                wxy = (wx - y)[:, np.neRwaxis]
+                wxy = (wx - y)[:, np.newaxis]
                 dw += (wxy * phi).mean(axis=0)
                 dphi = wxy * w  # (N,2D)
                 domega = self._get_domega(x, phi)  # (N,2D,d) (gradient of \omega)
@@ -241,7 +241,7 @@ class KMM(RRF):
                 dphi = wxy * w  # (N,2D)
                 domega = self._get_domega(x, phi)  # (N,2D,d) (gradient of \omega)
             elif self.loss == 'l2':
-                wxy = (wx - y)[:, np.neRwaxis]
+                wxy = (wx - y)[:, np.newaxis]
                 dphi = wxy * w  # (N,2D)
                 domega = self._get_domega(x, phi)  # (N,2D,d) (gradient of \omega)
             elif self.loss == 'logit':
@@ -474,10 +474,16 @@ class KMM(RRF):
 
                 # update parameters
                 if not self.adam_update:
-                    self.w_ -= self.learning_rate * dw
-                    self.mu_ -= self.learning_rate_mu * dmu
-                    self.gamma_ -= self.learning_rate_gamma * dgamma
-                    self.alpha_ -= self.learning_rate_alpha * dalpha
+                    s_w = self.momentum * s_w + self.learning_rate * dw
+                    self.w_ -= s_w
+                    s_mu = self.momentum * s_mu + self.learning_rate_mu * dmu
+                    self.mu_ -= s_mu
+                    s_gamma = self.momentum * s_gamma \
+                              + self.learning_rate_gamma * dgamma
+                    self.gamma_ -= s_gamma
+                    s_alpha = self.momentum * s_alpha \
+                              + self.learning_rate_alpha * dalpha
+                    self.alpha_ -= s_alpha
                 else:
                     # adam update
                     c += 1
@@ -551,33 +557,21 @@ class KMM(RRF):
                             self.alpha_ -= dalpha
                         self.z_ = self._get_z()
 
-                    for i in range(self.num_nested_epochs):
-                        for batch_idx, (batch_start, batch_end) in enumerate(batches):
-                            if i == self.num_nested_epochs - 1:
-                                batch_logs = {'batch': batch_idx,
-                                              'size': batch_end - batch_start}
-                                callbacks.on_batch_begin(batch_idx, batch_logs)
+                        dw = self._get_dw(x_batch, y_batch)
+                        if not self.adam_update:
+                            s_w = self.momentum * s_w + self.learning_rate * dw
+                            self.w_ -= s_w
+                        else:
+                            # adam update
+                            c_w += 1
+                            dw, s_w, t_w = self._get_adam_update(
+                                c_w, s_w, t_w, dw, self.learning_rate)
+                            self.w_ -= dw
 
-                            x_batch = x[batch_start:batch_end]
-                            y_batch = y[batch_start:batch_end]
-
-                            dw = self._get_dw(x_batch, y_batch)
-
-                            if not self.adam_update:
-                                s_w = self.momentum * s_w + self.learning_rate * dw
-                                self.w_ -= s_w
-                            else:
-                                # adam update
-                                c_w += 1
-                                dw, s_w, t_w = self._get_adam_update(
-                                    c_w, s_w, t_w, dw, self.learning_rate)
-                                self.w_ -= dw
-
-                            if i == self.num_nested_epochs - 1:
-                                outs = self._on_batch_end(x_batch, y_batch)
-                                for l, o in zip(self.metrics, outs):
-                                    batch_logs[l] = o
-                                callbacks.on_batch_end(batch_idx, batch_logs)
+                        outs = self._on_batch_end(x_batch, y_batch)
+                        for l, o in zip(self.metrics, outs):
+                            batch_logs[l] = o
+                        callbacks.on_batch_end(batch_idx, batch_logs)
 
                 else:  # if not self.alternative_update:
                     if self.num_nested_epochs > 0:
@@ -590,9 +584,13 @@ class KMM(RRF):
                                 dw, dmu, dgamma = self.get_grad(x_batch, y_batch)
 
                                 if not self.adam_update:
-                                    self.w_ -= self.learning_rate * dw
-                                    self.mu_ -= self.learning_rate_mu * dmu
-                                    self.gamma_ -= self.learning_rate_gamma * dgamma
+                                    s_w = self.momentum * s_w + self.learning_rate * dw
+                                    self.w_ -= s_w
+                                    s_mu = self.momentum * s_mu + self.learning_rate_mu * dmu
+                                    self.mu_ -= s_mu
+                                    s_gamma = self.momentum * s_gamma \
+                                              + self.learning_rate_gamma * dgamma
+                                    self.gamma_ -= s_gamma
                                 else:
                                     # adam update
                                     c += 1
@@ -617,7 +615,9 @@ class KMM(RRF):
                             dalpha = self.get_grad_alpha(x_batch, y_batch)
 
                             if not self.adam_update:
-                                self.alpha_ -= self.learning_rate_alpha * dalpha
+                                s_alpha = self.momentum * s_alpha \
+                                          + self.learning_rate_alpha * dalpha
+                                self.alpha_ -= s_alpha
                             else:
                                 c_alpha += 1
                                 dalpha, s_alpha, t_alpha = self._get_adam_update(
@@ -632,7 +632,7 @@ class KMM(RRF):
 
                             callbacks.on_batch_end(batch_idx, batch_logs)
 
-                    else:  # num_nested_epochs = 0
+                    else:  # self.num_nested_epochs = 0
 
                         for batch_idx, (batch_start, batch_end) in enumerate(batches):
                             batch_logs = {'batch': batch_idx,
@@ -645,10 +645,16 @@ class KMM(RRF):
                             dw, dmu, dgamma, dalpha = self.get_grad_all(x_batch, y_batch)
 
                             if not self.adam_update:
-                                self.w_ -= self.learning_rate * dw
-                                self.mu_ -= self.learning_rate_mu * dmu
-                                self.gamma_ -= self.learning_rate_gamma * dgamma
-                                self.alpha_ -= self.learning_rate_alpha * dalpha
+                                s_w = self.momentum * s_w + self.learning_rate * dw
+                                self.w_ -= s_w
+                                s_mu = self.momentum * s_mu + self.learning_rate_mu * dmu
+                                self.mu_ -= s_mu
+                                s_gamma = self.momentum * s_gamma \
+                                          + self.learning_rate_gamma * dgamma
+                                self.gamma_ -= s_gamma
+                                s_alpha = self.momentum * s_alpha \
+                                          + self.learning_rate_alpha * dalpha
+                                self.alpha_ -= s_alpha
                             else:
                                 # adam update
                                 c += 1
@@ -673,7 +679,7 @@ class KMM(RRF):
 
                             callbacks.on_batch_end(batch_idx, batch_logs)
 
-                    # end of (if self.num_nested_epochs > 0:)
+                            # end of (if self.num_nested_epochs > 0:)
 
                 # end of (if self.alternative_update:)
 
@@ -774,7 +780,7 @@ class KMM(RRF):
             yy = np.zeros(xx.shape)
             phi_xxx = self._get_phi(xx[:, np.newaxis])
             phi_yyy = self._get_phi(yy[:, np.newaxis])
-            approx_ktt = np.sum(phi_xxx * phi_yyy, axis=1)
+            approx_ktt = np.sum(phi_xxx * phi_yyy / self.D, axis=1)
             ax.plot(t, approx_ktt, 'b-', linewidth=3, label='KMM')
 
     def get_params(self, deep=True):
