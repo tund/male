@@ -713,7 +713,8 @@ class KMM(RRF):
 
     def _on_epoch_end(self):
         super(KMM, self)._on_epoch_end()
-        self.temperature = max(self.min_temperature, self.temperature * self.anneal_rate)
+        if self.anneal_rate > 0.0:
+            self.temperature = max(self.min_temperature, self.temperature * self.anneal_rate)
 
     def _get_adam_update(self, c, s, t, d, lr):
         beta1 = 0.9
