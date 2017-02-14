@@ -25,6 +25,7 @@ class KMM(RRF):
                  temperature=1.0,
                  momentum=0.0,
                  adam_update=True,
+                 sampling_gumbel=True,
                  learning_rate_mu=0.0,
                  learning_rate_alpha=0.1,
                  alternative_update=False,
@@ -36,6 +37,7 @@ class KMM(RRF):
         self.temperature = temperature
         self.adam_update = adam_update
         self.momentum = momentum
+        self.sampling_gumbel = sampling_gumbel
         self.learning_rate_mu = learning_rate_mu
         self.num_nested_epochs = num_nested_epochs
         self.alternative_update = alternative_update
@@ -60,6 +62,11 @@ class KMM(RRF):
     def _get_pi(self, **kwargs):
         alpha = kwargs['alpha'] if 'alpha' in kwargs else self.alpha_
         return np.exp(alpha - logsumexp(alpha))  # include normalization
+
+    def _update_z(self):
+        if self.sampling_gumbel:
+            self.gumbel_ = self.random_state_.gumbel(0.0, 1.0, size=(self.D, self.num_kernels))
+        self.z_ = self._get_z()
 
     def _get_z(self, **kwargs):
         return self._get_z_approx(**kwargs)
@@ -450,7 +457,8 @@ class KMM(RRF):
                     dalpha, s_alpha, t_alpha = self._get_adam_update(
                         c, s_alpha, t_alpha, dalpha, self.learning_rate_alpha)
                     self.alpha_ -= dalpha
-                self.z_ = self._get_z()
+
+                self._update_z()
 
                 for i in range(self.num_nested_epochs):
                     dw = self._get_dw(x[[t]], y[[t]])
@@ -499,7 +507,7 @@ class KMM(RRF):
                     dalpha, s_alpha, t_alpha = self._get_adam_update(
                         c, s_alpha, t_alpha, dalpha, self.learning_rate_alpha)
                     self.alpha_ -= dalpha
-                self.z_ = self._get_z()
+                self._update_z()
 
         self.mistake_ = mistake / x.shape[0]
 
@@ -555,7 +563,7 @@ class KMM(RRF):
                             dalpha, s_alpha, t_alpha = self._get_adam_update(
                                 c, s_alpha, t_alpha, dalpha, self.learning_rate_alpha)
                             self.alpha_ -= dalpha
-                        self.z_ = self._get_z()
+                        self._update_z()
 
                         dw = self._get_dw(x_batch, y_batch)
                         if not self.adam_update:
@@ -623,8 +631,7 @@ class KMM(RRF):
                                 dalpha, s_alpha, t_alpha = self._get_adam_update(
                                     c_alpha, s_alpha, t_alpha, dalpha, self.learning_rate_alpha)
                                 self.alpha_ -= dalpha
-
-                            self.z_ = self._get_z()
+                            self._update_z()
 
                             outs = self._on_batch_end(x_batch, y_batch)
                             for l, o in zip(self.metrics, outs):
@@ -671,7 +678,7 @@ class KMM(RRF):
                                     c, s_alpha, t_alpha, dalpha, self.learning_rate_alpha)
                                 self.alpha_ -= dalpha
 
-                            self.z_ = self._get_z()
+                            self._update_z()
 
                             outs = self._on_batch_end(x_batch, y_batch)
                             for l, o in zip(self.metrics, outs):
@@ -791,6 +798,7 @@ class KMM(RRF):
             'temperature': self.temperature,
             'adam_update': self.adam_update,
             'momentum': self.momentum,
+            'sampling_gumbel': self.sampling_gumbel,
             'learning_rate_mu': self.learning_rate_mu,
             'alternative_update': self.alternative_update,
             'learning_rate_alpha': self.learning_rate_alpha,
@@ -840,7 +848,7 @@ class KMM0(KMM):
                 self.w_ -= self.learning_rate * dw
                 self.gamma_ -= self.learning_rate_gamma * dgamma
                 self.alpha_ -= self.learning_rate_alpha * dalpha
-                self.z_ = self._get_z()
+                self._update_z()
 
             self.mistake_ = mistake / x.shape[0]
 
@@ -889,7 +897,7 @@ class KMM0(KMM):
                         dalpha, s_alpha, t_alpha = self._get_adam_update(
                             c_alpha, s_alpha, t_alpha, dalpha, self.learning_rate_alpha)
                         self.alpha_ -= dalpha
-                        self.z_ = self._get_z()
+                        self._update_z()
 
                 else:  # num_nested_epochs = 0
 
@@ -916,7 +924,7 @@ class KMM0(KMM):
                         dalpha, s_alpha, t_alpha = self._get_adam_update(
                             c, s_alpha, t_alpha, dalpha, self.learning_rate_alpha)
                         self.alpha_ -= dalpha
-                        self.z_ = self._get_z()
+                        self._update_z()
 
                 callbacks.on_epoch_end(self.epoch_, epoch_logs)
 
