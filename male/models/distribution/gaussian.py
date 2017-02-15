@@ -7,6 +7,15 @@ from scipy.stats import norm
 from scipy.stats import multivariate_normal
 
 
+class Gaussian(object):
+    def __init__(self, mu=0.0, sigma=1.0):
+        self.mu = mu
+        self.sigma = sigma
+
+    def sample(self, size):
+        return np.random.normal(loc=self.mu, scale=self.sigma, size=size)
+
+
 class Gaussian1D(object):
     def __init__(self, mu=0.0, sigma=1.0):
         self.mu = mu
