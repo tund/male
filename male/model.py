@@ -299,7 +299,7 @@ class Model(BaseEstimator, ClassifierMixin,
                     'stop_training_': self.stop_training_,
                     'history_': self.copy_history(),
                     'label_encoder_': copy.deepcopy(self.label_encoder_),
-                    'random_state_': copy.deepcopy(self.random_state)})
+                    'random_state_': copy.deepcopy(self.random_state_)})
         return out
 
     def copy_history(self):
