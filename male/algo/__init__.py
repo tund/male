@@ -1,0 +1,1 @@
+from .wasserstein import emd
