@@ -788,20 +788,25 @@ class KMM(RRF):
         print("diff = %.8f" % (s / x.shape[0]))
         return s
 
-    def disp_params(self, param, **kwargs):
-        if param == 'syndata':
-            t, kt, approx_kt = kwargs['t'], kwargs['kt'], kwargs['approx_kt']
-            ax = kwargs['ax']
-            ax.plot(t, kt, 'r--', linewidth=3, label='True')
-            ax.plot(t, approx_kt, 'c-.', linewidth=3, label='Distro')
-            # ax.set_ylim(-0.5, 1)
+    def disp_syndata(self, **kwargs):
+        t, kt, approx_kt = kwargs['t'], kwargs['kt'], kwargs['approx_kt']
+        ax = kwargs['ax']
+        ax.plot(t, kt, 'r--', linewidth=3, label='True')
+        ax.plot(t, approx_kt, 'c-.', linewidth=3, label='Distro')
+        # ax.set_ylim(-0.5, 1)
 
-            xx = t
-            yy = np.zeros(xx.shape)
-            phi_xxx = self._get_phi(xx[:, np.newaxis])
-            phi_yyy = self._get_phi(yy[:, np.newaxis])
-            approx_ktt = np.sum(phi_xxx * phi_yyy / self.D, axis=1)
-            ax.plot(t, approx_ktt, 'b-', linewidth=3, label='KMM')
+        xx = t
+        yy = np.zeros(xx.shape)
+        phi_xxx = self._get_phi(xx[:, np.newaxis])
+        phi_yyy = self._get_phi(yy[:, np.newaxis])
+        approx_ktt = np.sum(phi_xxx * phi_yyy / self.D, axis=1)
+        ax.plot(t, approx_ktt, 'b-', linewidth=3, label='KMM')
+
+    def display(self, param, **kwargs):
+        if param == 'syndata':
+            self.disp_syndata(**kwargs)
+        else:
+            raise NotImplementedError
 
     def get_params(self, deep=True):
         out = super(KMM, self).get_params(deep=deep)

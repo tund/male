@@ -123,3 +123,22 @@ def scale_to_unit_interval(ndar, eps=1e-8):
     ndar -= ndar.min()
     ndar *= 1.0 / (ndar.max() + eps)
     return ndar
+
+
+def get_screen_resolution():
+    import matplotlib.pyplot as plt
+    plt.figure()
+    mgr = plt.get_current_fig_manager()
+    mgr.full_screen_toggle()  # primitive but works to get screen size
+    py = mgr.canvas.height()
+    px = mgr.canvas.width()
+    plt.close()
+    return px, py
+
+
+def get_figure_dpi():
+    import matplotlib.pyplot as plt
+    fig = plt.figure()
+    dpi = fig.get_dpi()
+    plt.close()
+    return dpi

@@ -7,6 +7,8 @@ import warnings
 import numpy as np
 from collections import deque
 from .utils.generic_utils import Progbar
+from .utils.disp_utils import get_figure_dpi
+from .utils.disp_utils import get_screen_resolution
 
 import matplotlib.pyplot as plt
 
@@ -211,8 +213,10 @@ class Display(Callback):
     LINESTYLE = ['-', '--', '-.', ':']
     LINE_WIDTH = 4
 
-    def __init__(self, layout=(1, 1), figsize=None, freq=1, monitor=None):
+    def __init__(self, title=None, dpi=None, layout=(1, 1), figsize=None, freq=1, monitor=None):
         super(Display, self).__init__()
+        self.title = title
+        self.dpi = dpi
         self.layout = layout
         self.figsize = figsize
         self.freq = freq
@@ -225,11 +229,17 @@ class Display(Callback):
         ax.tick_params(axis='both', which='major', labelsize=24)
 
     def on_train_begin(self, logs={}):
+        fig_width, fig_height = self.figsize if self.figsize is not None else (
+            12 * self.layout[1], 6.75 * self.layout[0])
+        if self.dpi == 'auto':
+            width, height = get_screen_resolution()
+            self.dpi = min(width * 0.5 / fig_width, height * 0.7 / fig_height)
         if self.monitor is not None:
             self.fig, self.axs = plt.subplots(
                 self.layout[0], self.layout[1], squeeze=False,
-                figsize=self.figsize if self.figsize is not None else (
-                    12 * self.layout[1], 6.75 * self.layout[0]))
+                figsize=(fig_width, fig_height), dpi=self.dpi)
+            if self.title is not None:
+                self.fig.canvas.set_window_title(self.title)
             for i in range(len(self.monitor)):
                 u, v = np.unravel_index(i, self.layout, order='C')
                 self.draw(self.axs[u, v], **self.monitor[i])
@@ -237,7 +247,7 @@ class Display(Callback):
 
     def on_epoch_end(self, epoch, logs={}):
         if not self.model.stop_training_:
-            if ((epoch+1) % self.freq == 0) and (self.monitor is not None):
+            if ((epoch + 1) % self.freq == 0) and (self.monitor is not None):
                 for i in range(len(self.monitor)):
                     u, v = np.unravel_index(i, self.layout, order='C')
                     self.axs[u, v].clear()
@@ -247,15 +257,16 @@ class Display(Callback):
                             self.disp(self.axs[u, v], j,
                                       np.array(self.model.history_.epoch) + 1,
                                       self.model.history_.history[value],
-                                      label=self.monitor[i]['labels'][j] if 'labels' in self.monitor[
-                                          i] else value,
+                                      label=self.monitor[i]['labels'][j] if 'labels' in
+                                                                            self.monitor[
+                                                                                i] else value,
                                       **self.monitor[i]
                                       )
                         else:
-                            self.model.disp_params(param=value,
-                                                   epoch=epoch + 1,
-                                                   ax=self.axs[u, v],
-                                                   **self.monitor[i])
+                            self.model.display(param=value,
+                                               epoch=epoch + 1,
+                                               ax=self.axs[u, v],
+                                               **self.monitor[i])
 
                     if self.axs[u, v].get_legend() is None:
                         self.axs[u, v].legend(fontsize=24, numpoints=1)

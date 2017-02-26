@@ -60,6 +60,7 @@ class Model(BaseEstimator, ClassifierMixin,
         self.history_ = None
         self.num_classes_ = 0
         self.label_encoder_ = None
+        self.start_time_ = 0.0
         self.train_time_ = 0.0
         self.stop_training_ = 0
         self.exception_ = False
@@ -127,17 +128,15 @@ class Model(BaseEstimator, ClassifierMixin,
             'metrics': callback_metrics,
         })
 
+        self._on_train_begin()
         callbacks.on_train_begin()
-        self.stop_training_ = 0
 
         if self.catch_exception:
             try:
-                start_time = time.time()
                 self._fit_loop(x_train, y_train,
                                do_validation=do_validation,
                                x_valid=x_valid, y_valid=y_valid,
                                callbacks=callbacks, callback_metrics=callback_metrics)
-                self.train_time_ = time.time() - start_time
             except KeyboardInterrupt:
                 sys.exit()
             except:
@@ -146,21 +145,35 @@ class Model(BaseEstimator, ClassifierMixin,
                 self.exception_ = True
                 return self
         else:
-            start_time = time.time()
             self._fit_loop(x_train, y_train,
                            do_validation=do_validation,
                            x_valid=x_valid, y_valid=y_valid,
                            callbacks=callbacks, callback_metrics=callback_metrics)
-            self.train_time_ = time.time() - start_time
 
         callbacks.on_train_end()
+        self._on_train_end()
 
         return self
 
     def _fit_loop(self, x, y, *args, **kwargs):
         pass
 
+    def _on_train_begin(self):
+        self.stop_training_ = 0
+        self.start_time_ = time.time()
+
+    def _on_train_end(self):
+        self.train_time_ = time.time() - self.start_time_
+
     def _on_epoch_begin(self):
+        pass
+
+    def _on_epoch_end(self):
+        self.epoch_ += 1
+        if self.stop_training_:
+            self.epoch_ = self.stop_training_
+
+    def _on_batch_begin(self, x, y=None):
         pass
 
     def _on_batch_end(self, x, y=None):
@@ -176,11 +189,6 @@ class Model(BaseEstimator, ClassifierMixin,
                 else:
                     outs += [-self.score(x, self._decode_labels(y))]
         return outs
-
-    def _on_epoch_end(self):
-        self.epoch_ += 1
-        if self.stop_training_:
-            self.epoch_ = self.stop_training_
 
     def check_grad(self, x, y=None):
         """Check gradients of the model using data x and label y if available
@@ -273,7 +281,7 @@ class Model(BaseEstimator, ClassifierMixin,
             setattr(self, p, value)
         return self
 
-    def disp_params(self, param, **kwargs):
+    def display(self, param, **kwargs):
         pass
 
     @abc.abstractmethod
@@ -293,6 +301,7 @@ class Model(BaseEstimator, ClassifierMixin,
     def get_all_params(self, deep=True):
         out = self.get_params(deep=deep)
         out.update({'epoch_': self.epoch_,
+                    'start_time_': self.start_time_,
                     'train_time_': self.train_time_,
                     'num_classes_': self.num_classes_,
                     'best_': self.best_,

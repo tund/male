@@ -343,7 +343,7 @@ def test_glm_mnist_softmax_gridsearch():
 
     # params = {'l1_penalty': [0.0001, 0.001, 0.01, 0.1, 0.0],
     #           'l2_penalty': [0.0001, 0.001, 0.01, 0.1, 0.0]}
-    params = {'l1_penalty': [0.0001],
+    params = {'l1_penalty': [0.0001, 0.001],
               'l2_penalty': [0.0001, 0.001]}
 
     ps = PredefinedSplit(test_fold=[-1] * x_train.shape[0] + [1] * x_test.shape[0])
@@ -435,7 +435,9 @@ def test_glm_mnist_cv():
                                  monitor='val_loss',
                                  verbose=0,
                                  save_best_only=True)
-    loss_display = Display(layout=(3, 1),
+    loss_display = Display(title="Learning curves",
+                           dpi='auto',
+                           layout=(3, 1),
                            freq=4,
                            monitor=[{'metrics': ['loss', 'val_loss'],
                                      'type': 'line',
@@ -459,7 +461,9 @@ def test_glm_mnist_cv():
                                      },
                                     ])
 
-    weight_display = Display(layout=(1, 1),
+    weight_display = Display(title="Filters",
+                             dpi='auto',
+                             layout=(1, 1),
                              figsize=(6, 15),
                              freq=10,
                              monitor=[{'metrics': ['weights'],

@@ -224,56 +224,59 @@ class GLM(Model):
     def _unroll_params(self, w):
         ww = super(GLM, self)._unroll_params(w)
         ww = tuple([ww]) if not isinstance(ww, tuple) else ww
-        idx = np.sum([i.size for i in ww])
+        idx = np.sum([i.size for i in ww], dtype=np.int32)
         w_ = w[idx:idx + self.w_.size].reshape(self.w_.shape).copy()
         idx += self.w_.size
         b_ = w[idx:idx + self.b_.size].reshape(self.b_.shape).copy()
         return ww + (w_, b_)
 
-    def disp_params(self, param, disp_dim=None, tile_shape=None,
-                    output_pixel_vals=False, **kwargs):
+    def disp_weights(self, disp_dim=None, tile_shape=None,
+                     output_pixel_vals=False, **kwargs):
+        w = self.w_.copy()
+        if w.ndim < 2:
+            w = w[..., np.newaxis]
+
+        if disp_dim is None:
+            n = int(np.sqrt(w.shape[0]))
+            disp_dim = (n, n)
+        else:
+            assert len(disp_dim) == 2
+        n = np.prod(disp_dim)
+
+        if tile_shape is None:
+            tile_shape = (w.shape[1], 1)
+        assert w.shape[1] == np.prod(tile_shape)
+
+        img = tile_raster_images(w.T, img_shape=disp_dim, tile_shape=tile_shape,
+                                 tile_spacing=(1, 1),
+                                 scale_rows_to_unit_interval=False,
+                                 output_pixel_vals=output_pixel_vals)
+
+        if 'ax' in kwargs:
+            ax = kwargs['ax']
+            _ = ax.imshow(img, aspect='auto',
+                          cmap=kwargs['color'] if 'color' in kwargs else 'Greys_r',
+                          interpolation=kwargs[
+                              'interpolation'] if 'interpolation' in kwargs else 'none')
+            ax.grid(0)
+            ax.set_xticklabels([])
+            ax.set_yticklabels([])
+            ax.set_xlabel("epoch #{}".format(kwargs['epoch']), fontsize=28)
+        else:
+            fig, ax = plt.subplots()
+            ax.set_title(kwargs['title'] if 'title' in kwargs else "Learned weights",
+                         fontsize=28)
+            ax.axis('off')
+            plt.colorbar()
+            _ = ax.imshow(img, aspect='auto',
+                          cmap=kwargs['color'] if 'color' in kwargs else 'Greys_r',
+                          interpolation=kwargs[
+                              'interpolation'] if 'interpolation' in kwargs else 'none')
+            plt.show()
+
+    def display(self, param, **kwargs):
         if param == 'weights':
-            w = self.w_.copy()
-            if w.ndim < 2:
-                w = w[..., np.newaxis]
-
-            if disp_dim is None:
-                n = int(np.sqrt(w.shape[0]))
-                disp_dim = (n, n)
-            else:
-                assert len(disp_dim) == 2
-            n = np.prod(disp_dim)
-
-            if tile_shape is None:
-                tile_shape = (w.shape[1], 1)
-            assert w.shape[1] == np.prod(tile_shape)
-
-            img = tile_raster_images(w.T, img_shape=disp_dim, tile_shape=tile_shape,
-                                     tile_spacing=(1, 1),
-                                     scale_rows_to_unit_interval=False,
-                                     output_pixel_vals=output_pixel_vals)
-
-            if 'ax' in kwargs:
-                ax = kwargs['ax']
-                _ = ax.imshow(img, aspect='auto',
-                              cmap=kwargs['color'] if 'color' in kwargs else 'Greys_r',
-                              interpolation=kwargs[
-                                  'interpolation'] if 'interpolation' in kwargs else 'none')
-                ax.grid(0)
-                ax.set_xticklabels([])
-                ax.set_yticklabels([])
-                ax.set_xlabel("epoch #{}".format(kwargs['epoch']), fontsize=28)
-            else:
-                fig, ax = plt.subplots()
-                ax.set_title(kwargs['title'] if 'title' in kwargs else "Learned weights",
-                             fontsize=28)
-                ax.axis('off')
-                plt.colorbar()
-                _ = ax.imshow(img, aspect='auto',
-                              cmap=kwargs['color'] if 'color' in kwargs else 'Greys_r',
-                              interpolation=kwargs[
-                                  'interpolation'] if 'interpolation' in kwargs else 'none')
-                plt.show()
+            self.disp_weights(**kwargs)
         else:
             raise NotImplementedError
 
