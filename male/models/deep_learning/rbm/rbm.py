@@ -336,7 +336,7 @@ class RBM(Model):
         for m in self.metrics:
             if m == 'recon_err':
                 outs.update({m: np.sum(self.get_reconstruction_error(
-                    x, rdata=kwargs['rdata'] if 'rdata' in kwargs else None)) / x.shape[1]})
+                    x, rdata=kwargs['rdata'] if 'rdata' in kwargs else None)) / x.size})
             if m == 'free_energy':
                 outs.update({m: self.get_free_energy(x).mean()})
             if m == 'recon_loglik':
