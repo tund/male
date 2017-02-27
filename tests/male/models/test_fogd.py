@@ -455,6 +455,7 @@ def test_fogd_syn2d_cv():
                                  save_best_only=True)
 
     display = Display(layout=(3, 1),
+                      dpi='auto',
                       monitor=[{'metrics': ['loss', 'val_loss'],
                                 'type': 'line',
                                 'labels': ["training loss", "validation loss"],

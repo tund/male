@@ -204,16 +204,13 @@ class RBM(Model):
                 self.v_ += self.vgrad_inc_
                 self.w_ += self.wgrad_inc_
 
-                outs = self._on_batch_end(x_batch, rdata=vprob)
-                for l, o in zip(self.metrics, outs):
-                    batch_logs[l] = o
-
+                batch_logs.update(self._on_batch_end(x_batch, rdata=vprob))
                 callbacks.on_batch_end(batch_idx, batch_logs)
 
             if do_validation:
                 outs = self._on_batch_end(x_valid)
-                for l, o in zip(self.metrics, outs):
-                    epoch_logs['val_' + l] = o
+                for key, value in outs.items():
+                    epoch_logs['val_' + key] = value
 
             callbacks.on_epoch_end(self.epoch_, epoch_logs)
             self._on_epoch_end()
@@ -335,19 +332,17 @@ class RBM(Model):
         return self._get_visible_prob(hprob)
 
     def _on_batch_end(self, x, y=None, **kwargs):
-        super(RBM, self)._on_batch_end(x)
-        outs = []
+        outs = super(RBM, self)._on_batch_end(x, y=y)
         for m in self.metrics:
             if m == 'recon_err':
-                outs += [np.sum(
-                    self.get_reconstruction_error(
-                        x, rdata=kwargs['rdata'] if 'rdata' in kwargs else None)) / x.shape[1]]
+                outs.update({m: np.sum(self.get_reconstruction_error(
+                    x, rdata=kwargs['rdata'] if 'rdata' in kwargs else None)) / x.shape[1]})
             if m == 'free_energy':
-                outs += [self.get_free_energy(x).mean()]
+                outs.update({m: self.get_free_energy(x).mean()})
             if m == 'recon_loglik':
-                outs += [self.get_reconstruction_loglik(x).mean()]
+                outs.update({m: self.get_reconstruction_loglik(x).mean()})
             if m == 'loglik_csl':
-                outs += [self.get_loglik(x, method='csl').mean()]
+                outs.update({m: self.get_loglik(x, method='csl').mean()})
         return outs
 
     def _on_epoch_end(self):

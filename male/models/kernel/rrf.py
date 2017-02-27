@@ -177,16 +177,13 @@ class RRF(FOGD):
                     self.w_ -= self.learning_rate * dw
                     self.gamma_ -= self.learning_rate_gamma * dgamma
 
-                    outs = self._on_batch_end(x_batch, y_batch)
-                    for l, o in zip(self.metrics, outs):
-                        batch_logs[l] = o
-
+                    batch_logs.update(self._on_batch_end(x_batch, y_batch))
                     callbacks.on_batch_end(batch_idx, batch_logs)
 
                 if do_validation:
                     outs = self._on_batch_end(x_valid, self._transform_labels(y_valid))
-                    for l, o in zip(self.metrics, outs):
-                        epoch_logs['val_' + l] = o
+                    for key, value in outs.items():
+                        epoch_logs['val_' + key] = value
 
                 callbacks.on_epoch_end(self.epoch_, epoch_logs)
                 self._on_epoch_end()

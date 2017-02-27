@@ -177,17 +177,17 @@ class Model(BaseEstimator, ClassifierMixin,
         pass
 
     def _on_batch_end(self, x, y=None):
-        outs = []
+        outs = {}
         for m in self.metrics:
             if m == 'loss':
-                outs += [self.get_loss(x, y)]
+                outs.update({m: self.get_loss(x, y)})
             if m == 'acc':
-                outs += [self.score(x, self._decode_labels(y))]
+                outs.update({m: self.score(x, self._decode_labels(y))})
             if m == 'err':
                 if self.task == 'classification':
-                    outs += [1 - self.score(x, self._decode_labels(y))]
+                    outs.update({m: 1 - self.score(x, self._decode_labels(y))})
                 else:
-                    outs += [-self.score(x, self._decode_labels(y))]
+                    outs.update({m: -self.score(x, self._decode_labels(y))})
         return outs
 
     def check_grad(self, x, y=None):

@@ -588,9 +588,7 @@ class KMM(RRF):
                                     c_w, s_w, t_w, dw, self.learning_rate)
                                 self.w_ -= dw
 
-                        outs = self._on_batch_end(x_batch, y_batch)
-                        for l, o in zip(self.metrics, outs):
-                            batch_logs[l] = o
+                        batch_logs.update(self._on_batch_end(x_batch, y_batch))
                         callbacks.on_batch_end(batch_idx, batch_logs)
 
                 else:  # if not self.alternative_update:
@@ -645,10 +643,7 @@ class KMM(RRF):
                                 self.alpha_ -= dalpha
                             self._update_z()
 
-                            outs = self._on_batch_end(x_batch, y_batch)
-                            for l, o in zip(self.metrics, outs):
-                                batch_logs[l] = o
-
+                            batch_logs.update(self._on_batch_end(x_batch, y_batch))
                             callbacks.on_batch_end(batch_idx, batch_logs)
 
                     else:  # self.num_nested_epochs = 0
@@ -692,10 +687,7 @@ class KMM(RRF):
 
                             self._update_z()
 
-                            outs = self._on_batch_end(x_batch, y_batch)
-                            for l, o in zip(self.metrics, outs):
-                                batch_logs[l] = o
-
+                            batch_logs.update(self._on_batch_end(x_batch, y_batch))
                             callbacks.on_batch_end(batch_idx, batch_logs)
 
                             # end of (if self.num_nested_epochs > 0:)
@@ -704,8 +696,8 @@ class KMM(RRF):
 
                 if do_validation:
                     outs = self._on_batch_end(x_valid, self._transform_labels(y_valid))
-                    for l, o in zip(self.metrics, outs):
-                        epoch_logs['val_' + l] = o
+                    for key, value in outs.items():
+                        epoch_logs['val_' + key] = value
 
                 epoch_logs.update({'mu': self.mu_[0, 0], 'gamma': np.exp(self.gamma_[0][0])})
                 callbacks.on_epoch_end(self.epoch_, epoch_logs)

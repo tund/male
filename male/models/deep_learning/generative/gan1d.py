@@ -117,9 +117,7 @@ class GAN1D(Model):
                 g_loss, _ = sess.run([self.g_loss_, self.g_opt_],
                                      feed_dict={self.z_: np.reshape(z, [self.batch_size, 1])})
 
-                outs = self._on_batch_end(x)
-                for l, o in zip(self.metrics, outs):
-                    batch_logs[l] = o
+                batch_logs.update(self._on_batch_end(x))
                 batch_logs['d_loss'] = d_loss
                 batch_logs['g_loss'] = g_loss
 
