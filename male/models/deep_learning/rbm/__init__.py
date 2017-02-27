@@ -1,0 +1,1 @@
+from .bbrbm import BernoulliBernoulliRBM
