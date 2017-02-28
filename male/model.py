@@ -273,6 +273,9 @@ class Model(BaseEstimator, ClassifierMixin,
                 return
         pkl.dump({'model': self}, open(file_path, 'wb'))
 
+    def load_model(self, file_path):
+        return self._load_model(file_path)
+
     def _load_model(self, file_path):
         return pkl.load(open(file_path, 'rb'))['model']
 
