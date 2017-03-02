@@ -224,8 +224,15 @@ class Display(Callback):
 
     def draw(self, ax, title, **kwargs):
         ax.set_title(title, fontsize=28)
-        ax.set_xlabel(kwargs['xlabel'] if 'xlabel' in kwargs else "", fontsize=28)
-        ax.set_ylabel(kwargs['ylabel'] if 'ylabel' in kwargs else "", fontsize=28)
+        if 'xlabel_params' in kwargs:
+            ax.set_xlabel(kwargs['xlabel'] if 'xlabel' in kwargs else "", **kwargs['xlabel_params'])
+        else:
+            ax.set_xlabel(kwargs['xlabel'] if 'xlabel' in kwargs else "", fontsize=28)
+
+        if 'ylabel_params' in kwargs:
+            ax.set_ylabel(kwargs['ylabel'] if 'ylabel' in kwargs else "", **kwargs['ylabel_params'])
+        else:
+            ax.set_ylabel(kwargs['ylabel'] if 'ylabel' in kwargs else "", fontsize=28)
         ax.tick_params(axis='both', which='major', labelsize=24)
 
     def on_train_begin(self, logs={}):
