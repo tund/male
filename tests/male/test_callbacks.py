@@ -99,5 +99,5 @@ def test_display_callbacks():
 
 
 if __name__ == '__main__':
-    # pytest.main([__file__])
-    test_display_callbacks()
+    pytest.main([__file__])
+    # test_display_callbacks()
