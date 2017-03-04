@@ -12,7 +12,7 @@ from sklearn.datasets import load_svmlight_file
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import PredefinedSplit
 
-from male import GLM
+from male.models.linear import GLM
 from male.callbacks import Display
 from male.callbacks import EarlyStopping
 from male.callbacks import ModelCheckpoint

@@ -1,7 +1,3 @@
-"""
-Generalized Linear Model
-"""
-
 from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
@@ -12,11 +8,11 @@ from scipy.optimize import minimize
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.utils.validation import check_is_fitted
 
-from .. import Model
-from ..activations import sigmoid
-from ..activations import softmax
-from ..utils.generic_utils import make_batches
-from ..utils.disp_utils import tile_raster_images
+from ... import Model
+from ...activations import sigmoid
+from ...activations import softmax
+from ...utils.generic_utils import make_batches
+from ...utils.disp_utils import tile_raster_images
 
 import matplotlib.pyplot as plt
 
@@ -294,6 +290,7 @@ class GLM(Model):
 
     def get_all_params(self, deep=True):
         out = super(GLM, self).get_all_params(deep=deep)
+        out.update(self.get_params(deep=deep))
         out.update({
             'w_': copy.deepcopy(self.w_),
             'b_': copy.deepcopy(self.b_),
