@@ -4,6 +4,7 @@ from os.path import expanduser
 
 from . import model
 from .model import Model
+from .tensorflow_model import TensorFlowModel
 
 HOME = expanduser("~")
 
