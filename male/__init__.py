@@ -4,7 +4,11 @@ from os.path import expanduser
 
 from . import model
 from .model import Model
-from .tensorflow_model import TensorFlowModel
+
+try:
+    from .tensorflow_model import TensorFlowModel
+except ImportError:
+    TensorFlowModel = None
 
 HOME = expanduser("~")
 

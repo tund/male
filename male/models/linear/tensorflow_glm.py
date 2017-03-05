@@ -91,28 +91,16 @@ class TensorFlowGLM(TensorFlowModel, GLM):
             self._on_epoch_end()
 
     def get_loss(self, x, y, *args, **kwargs):
-        graph = kwargs['graph'] if 'graph' in kwargs else self.tf_graph_
-        sess = self.tf_session_ if 'sess' not in kwargs else kwargs['sess']
-        close = False
-        if sess is None:
-            close = True
-            sess = tf.Session(config=tf_config, graph=graph)
-            self.tf_saver_.restore(sess, self.model_path)
+        sess = self._get_session(**kwargs)
         loss = sess.run(self.cross_entropy_, feed_dict={self.x_: x, self.y_: y})
-        if close:
+        if sess != self.tf_session_:
             sess.close()
         return loss
 
     def get_link(self, x, *args, **kwargs):
-        graph = kwargs['graph'] if 'graph' in kwargs else self.tf_graph_
-        sess = self.tf_session_ if 'sess' not in kwargs else kwargs['sess']
-        close = False
-        if sess is None:
-            close = True
-            sess = tf.Session(config=tf_config, graph=graph)
-            self.tf_saver_.restore(sess, self.model_path)
+        sess = self._get_session(**kwargs)
         link = sess.run(self.y_link_, feed_dict={self.x_: x})
-        if close:
+        if sess != self.tf_session_:
             sess.close()
         return link
 
