@@ -1,2 +1,6 @@
 from .glm import GLM
-from .tensorflow_glm import TensorFlowGLM
+
+try:
+    from .tensorflow_glm import TensorFlowGLM
+except ImportError:
+    TensorFlowGLM = None

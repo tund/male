@@ -40,6 +40,14 @@ class TensorFlowModel(Model):
         if self.random_state is not None:
             tf.set_random_seed(self.random_state)
 
+    def _get_session(self, **kwargs):
+        graph = kwargs['graph'] if 'graph' in kwargs else self.tf_graph_
+        sess = self.tf_session_ if 'sess' not in kwargs else kwargs['sess']
+        if sess is None:
+            sess = tf.Session(config=tf_config, graph=graph)
+            self.tf_saver_.restore(sess, self.model_path)
+        return sess
+
     def _build_model(self, x):
         pass
 
