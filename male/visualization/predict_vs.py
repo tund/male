@@ -41,13 +41,18 @@ def visualize_classification_prediction(estimator, x_train, y_train,
 
     img = np.zeros((n_test, 3))
     n_classes = estimator.num_classes_
-    colors = None  # Bugs
+    bg_colors = None  # Bugs
+    fore_colors = None  # Bugs
     for ci in xrange(n_classes):
-        img[y_test_zidx == ci, :] = colors[ci]
+        img[y_test_zidx == ci, :] = fore_colors[ci]
 
     img = img.reshape((grid_size, grid_size, 3))
 
     plt.imshow(img)
+    plt.scatter(x_train[0], x_train[1], s=5, c=bg_colors[y_train_zidx], alpha=0.5)
+
+    plt.show()
+
 
 
 
