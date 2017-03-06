@@ -43,9 +43,9 @@ class KSGD(Model):
 
     def _init_params(self, x):
         if self.num_classes_ > 2:
-            self.w_ = 0.01 * self.random_state.randn(x.shape[0], self.num_classes_)
+            self.w_ = 0.01 * self.random_state_.randn(x.shape[0], self.num_classes_)
         else:
-            self.w_ = 0.01 * self.random_state.randn(x.shape[0])
+            self.w_ = 0.01 * self.random_state_.randn(x.shape[0])
 
     def _get_wx(self, t, x):
         if t == 0:
