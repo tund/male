@@ -3,12 +3,11 @@ from __future__ import print_function
 from __future__ import absolute_import
 
 from sklearn.datasets import load_svmlight_file
-from sklearn import metrics
 
 import numpy as np
 
 from male.models.kernel import KSGD
-from male.visualization.predict_vs import *
+from male.utils.disp_utils import visualize_classification_prediction
 
 data_dir = 'C:/Data/2d/'
 data_name = 'train.scale.txt'
