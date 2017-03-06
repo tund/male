@@ -10,9 +10,13 @@ from male.model import Model
 
 
 def visualize_classification_prediction(estimator, x_train, y_train,
-                                        grid_size=500, left=None, right=None, top=None, bottom=None):
+                                        grid_size=500, marker_size = 10,
+                                        left=None, right=None, top=None, bottom=None):
     if x_train.shape[1] > 2:
         print('Support only 2D datasets')
+        return
+    if len(np.unique(y_train)) > 5:
+        print('Not support for n_classes > 5')
         return
 
     # fit training set to model
@@ -34,8 +38,15 @@ def visualize_classification_prediction(estimator, x_train, y_train,
     x_axis_v, y_axis_v = np.meshgrid(x_axis, y_axis)
     x_test = np.vstack((x_axis_v.ravel(), y_axis_v.ravel()))
     x_test = x_test.T
-    print(x_test.shape)
+    x_scale = (right-left) / grid_size
+    y_scale = (top - bottom) / grid_size
+    # print(left,right)
+    # print(top, bottom)
+    # print(x_scale)
+    # print(y_scale)
+    # print(x_test.shape)
 
+    print('Drawing ...')
     n_test = x_test.shape[0]
     y_test = estimator.predict(x_test)
     y_test_zidx = estimator.label_encoder_.inverse_transform(y_test.astype(int))
@@ -43,22 +54,26 @@ def visualize_classification_prediction(estimator, x_train, y_train,
 
     img = np.zeros((n_test, 3))
     n_classes = estimator.num_classes_
-    bg_colors_hex = np.array(["#00FFFF", "#00FFFF", "#FFFF66"]) # Bugs
-    fore_colors_hex = ["#0000FF", "#00FF00", "#FF0066"]  # Bugs
+    bg_colors_hex = np.array(["#A6CEE3", "#B2DF8A", "#FB9A99", "#FDBF6F", "#CAB2D6"]) # Bugs
+    fore_colors_hex = np.array(["#1F78B4", "#33A02C", "#E31A1C",  "#FF7F00", "#6A3D9A"])  # Bugs
     converter = ColorConverter()
 
-    fore_colors = np.zeros((len(fore_colors_hex), 3))
+    bg_colors = np.zeros((len(bg_colors_hex), 3))
     for ci in xrange(len(fore_colors_hex)):
-        fore_colors[ci, :] = converter.to_rgb(fore_colors_hex[ci])
+        bg_colors[ci, :] = converter.to_rgb(bg_colors_hex[ci])
 
     for ci in xrange(n_classes):
-        img[y_test_zidx == ci, :] = fore_colors[ci]
+        img[y_test_zidx == ci, :] = bg_colors[ci]
 
     img = img.reshape((grid_size, grid_size, 3))
 
     plt.imshow(img)
-    plt.scatter(x_train[:, 0], x_train[:,1], s=5, c=bg_colors_hex[y_train_zidx.astype(int)], alpha=0.5)
+    plt.scatter((x_train[:, 0] - left) / x_scale, (x_train[:, 1] - bottom)/ y_scale,
+                s=marker_size, color=fore_colors_hex[y_train_zidx.astype(int)])
 
+    axes = plt.gca()
+    axes.set_xlim([0, grid_size])
+    axes.set_ylim([0, grid_size])
     plt.show()
 
 

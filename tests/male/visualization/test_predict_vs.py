@@ -13,6 +13,7 @@ from male.visualization.predict_vs import *
 data_dir = 'C:/Data/2d/'
 data_name = 'train.scale.txt'
 n_features = 2
+# NOTE: SGD have some bugs with binary datasets
 
 file_name = data_dir + data_name
 
