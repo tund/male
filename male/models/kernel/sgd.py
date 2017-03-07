@@ -139,8 +139,8 @@ class KSGD(Model):
 
     def _decode_labels(self, y):
         yy = y.copy()
-        # if self.num_classes_ == 2:
-        #     yy[yy == -1] = 0
+        if self.num_classes_ == 2:
+            yy[yy == -1] = 0
         return super(KSGD, self)._decode_labels(yy)
 
     def _transform_labels(self, y):
@@ -156,7 +156,7 @@ class KSGD(Model):
             wx = self._get_wx(len(self.w_), x[i])
             if self.task == 'classification':
                 if self.num_classes_ == 2:
-                    y[i] = self._decode_labels(np.uint8(wx[0] >= 0))
+                    y[i] = self._decode_labels(np.uint8(wx >= 0))
                 else:
                     y[i] = self._decode_labels(np.argmax(wx))
             else:

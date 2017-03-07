@@ -36,7 +36,7 @@ def test_sgd_svmguide1_bin():
                    gamma=2,
                    kernel='gaussian',
                    loss='hinge',
-                   batch_size=1,
+                   batch_size=10,
                    avg_weight=False)
 
     learner.fit(x_train, y_train)
@@ -49,5 +49,5 @@ def test_sgd_svmguide1_bin():
 
 
 if __name__ == '__main__':
-    pytest.main([__file__])
-    # test_sgd_svmguide1_bin()
+    # pytest.main([__file__])
+    test_sgd_svmguide1_bin()
