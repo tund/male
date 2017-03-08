@@ -30,9 +30,9 @@ def test_sgd_visualization_2d():
 
     x_train = x_train.toarray()
 
-    display = Display(dpi='auto', freq=10,
+    display = Display(freq=10,
                       monitor=[{'metrics': ['predict'],
-                                'title': "Prediction",
+                                'title': "Learning losses",
                                 'xlabel': "X1",
                                 'ylabel': "X2",
                                 'grid_size': 100,
