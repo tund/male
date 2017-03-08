@@ -506,3 +506,5 @@ class EarlyStopping(Callback):
     def on_train_end(self, logs={}):
         if self.stopped_epoch > 0 and self.verbose > 0:
             print('Epoch %05d: early stopping' % (self.stopped_epoch))
+
+

@@ -146,20 +146,21 @@ def get_figure_dpi():
     return dpi
 
 
-def visualize_classification_prediction(estimator, x_train, y_train,
-                                        grid_size=500, marker_size = 10,
-                                        left=None, right=None, top=None, bottom=None):
+def visualize_classification_prediction(estimator, x_train, y_train, **kwargs):
     if x_train.shape[1] > 2:
         print('Support only 2D datasets')
         return
     if len(np.unique(y_train)) > 5:
         print('Not support for n_classes > 5')
         return
+    grid_size = 500 if 'grid_size' not in kwargs else kwargs['grid_size']
+    marker_size = 500 if 'marker_size' not in kwargs else kwargs['marker_size']
+    top = None if 'top' not in kwargs else kwargs['top']
+    bottom = None if 'bottom' not in kwargs else kwargs['bottom']
+    left = None if 'left' not in kwargs else kwargs['left']
+    right = None if 'right' not in kwargs else kwargs['right']
 
-    # fit training set to model
-    print('Training ...')
-    estimator.fit(x_train, y_train)
-    print('Finished training')
+    epoch = kwargs['epoch']
 
     if left is None:
         left = np.min(x_train, axis=0)[0]
@@ -177,13 +178,8 @@ def visualize_classification_prediction(estimator, x_train, y_train,
     x_test = x_test.T
     x_scale = (right-left) / grid_size
     y_scale = (top - bottom) / grid_size
-    # print(left,right)
-    # print(top, bottom)
-    # print(x_scale)
-    # print(y_scale)
-    # print(x_test.shape)
 
-    print('Drawing ...')
+    print('Drawing at epoch {}...'.format(epoch))
     n_test = x_test.shape[0]
     y_test = estimator.predict(x_test)
     y_test_zidx = estimator.label_encoder_.inverse_transform(y_test.astype(int))
@@ -196,10 +192,10 @@ def visualize_classification_prediction(estimator, x_train, y_train,
     converter = ColorConverter()
 
     bg_colors = np.zeros((len(bg_colors_hex), 3))
-    for ci in xrange(len(fore_colors_hex)):
+    for ci in range(len(fore_colors_hex)):
         bg_colors[ci, :] = converter.to_rgb(bg_colors_hex[ci])
 
-    for ci in xrange(n_classes):
+    for ci in range(n_classes):
         img[y_test_zidx == ci, :] = bg_colors[ci]
 
     img = img.reshape((grid_size, grid_size, 3))
@@ -211,4 +207,6 @@ def visualize_classification_prediction(estimator, x_train, y_train,
     axes = plt.gca()
     axes.set_xlim([0, grid_size])
     axes.set_ylim([0, grid_size])
+    # plt.legend()
+    kwargs['ax'] = axes
     plt.show()

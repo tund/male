@@ -6,6 +6,7 @@ import copy
 import numpy as np
 
 from ... import Model
+from ...utils.disp_utils import visualize_classification_prediction
 
 
 class KSGD(Model):
@@ -114,7 +115,10 @@ class KSGD(Model):
             w_avg = np.zeros(self.w_.shape)
 
         self.x_ = x
+        self.y_ = y
         for t in range(n):
+            callbacks.on_epoch_begin(self.epoch_)
+
             alpha_t, z = self.get_grad(t, x[t], y[t])  # compute \alpha_t
             self.w_ *= (1.0 * t) / (t + 1)
             if self.num_classes_ > 2:
@@ -126,6 +130,9 @@ class KSGD(Model):
 
             if self.avg_weight:
                 w_avg += self.w_
+
+            self.epoch_ += 1
+            callbacks.on_epoch_end(self.epoch_)
 
         if self.avg_weight:
             self.w_ = w_avg / n
@@ -162,6 +169,15 @@ class KSGD(Model):
             else:
                 y[i] = wx[0]
         return y
+
+    def display_prediction(self, **kwargs):
+        visualize_classification_prediction(self, self.x_, self.y_, **kwargs)
+
+    def display(self, param, **kwargs):
+        if param == 'predict':
+            self.display_prediction(**kwargs)
+        else:
+            raise NotImplementedError
 
     def get_params(self, deep=True):
         out = super(KSGD, self).get_params(deep=deep)
