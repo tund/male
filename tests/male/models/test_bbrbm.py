@@ -87,6 +87,19 @@ def test_bbrbm_mnist():
                                        },
                                       ])
 
+    hidden_display = Display(title="Hidden Activations",
+                             # dpi='auto',
+                             dpi=None,
+                             layout=(1, 1),
+                             figsize=(8, 8),
+                             freq=1,
+                             monitor=[{'metrics': ['hidden_activations'],
+                                       'title': "Hidden Activations",
+                                       'type': 'img',
+                                       'data': x_train[:1000],
+                                       },
+                                      ])
+
     model = BernoulliBernoulliRBM(
         num_hidden=500,
         num_visible=784,
@@ -96,7 +109,7 @@ def test_bbrbm_mnist():
         weight_cost=2e-4,
         random_state=6789,
         metrics=['recon_err', 'free_energy', 'recon_loglik'],
-        callbacks=[learning_display, filter_display],
+        callbacks=[learning_display, filter_display, hidden_display],
         cv=[-1] * x_train.shape[0] + [0] * x_test.shape[0],
         verbose=1)
 

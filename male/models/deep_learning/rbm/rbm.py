@@ -99,7 +99,8 @@ class RBM(Model):
         try:
             self.learning_rate_decay = DECAY_METHOD[self.learning_rate_decay]
         except KeyError:
-            raise ValueError("Learning rate decay method %s is not supported." % self.learning_rate_decay)
+            raise ValueError("Learning rate decay method %s is not supported."
+                             % self.learning_rate_decay)
         try:
             self.momentum_method = MOMENTUM_METHOD[self.momentum_method]
         except KeyError:
@@ -195,10 +196,13 @@ class RBM(Model):
                 neg_hgrad, neg_vgrad, neg_wgrad = self._get_negative_grad(vprob, hprob)
 
                 # update params
-                self.hgrad_inc_ = self.momentum_ * self.hgrad_inc_ + self.learning_rate * (pos_hgrad - neg_hgrad)
-                self.vgrad_inc_ = self.momentum_ * self.vgrad_inc_ + self.learning_rate * (pos_vgrad - neg_vgrad)
+                self.hgrad_inc_ = self.momentum_ * self.hgrad_inc_ \
+                                  + self.learning_rate * (pos_hgrad - neg_hgrad)
+                self.vgrad_inc_ = self.momentum_ * self.vgrad_inc_ \
+                                  + self.learning_rate * (pos_vgrad - neg_vgrad)
                 self.wgrad_inc_ = self.momentum_ * self.wgrad_inc_ \
-                                  + self.learning_rate * (pos_wgrad - neg_wgrad - self.weight_cost * self.w_)
+                                  + self.learning_rate * (pos_wgrad - neg_wgrad
+                                                          - self.weight_cost * self.w_)
 
                 self.h_ += self.hgrad_inc_
                 self.v_ += self.vgrad_inc_
@@ -351,7 +355,8 @@ class RBM(Model):
         # adjust learning rate
         if self.learning_rate_decay == DECAY_METHOD['linear']:
             self.learning_rate = (self.learning_rate0_
-                                  - self.learning_rate_decay_rate * self.learning_rate0_ / self.num_epochs)
+                                  - self.learning_rate_decay_rate * self.learning_rate0_
+                                  / self.num_epochs)
         elif self.learning_rate_decay == DECAY_METHOD['div_sqrt']:
             self.learning_rate = self.learning_rate0_ / np.sqrt(self.epoch_)
         elif self.learning_rate_decay == DECAY_METHOD['exp']:
@@ -376,8 +381,10 @@ class RBM(Model):
         if filter_idx is None:
             filter_idx = np.random.permutation(self.num_hidden)[:num_filters]
         w = self.w_.T[filter_idx, :n]
-        img = tile_raster_images(w, img_shape=disp_dim, tile_shape=tile_shape, tile_spacing=(1, 1),
-                                 scale_rows_to_unit_interval=False, output_pixel_vals=output_pixel_vals)
+        img = tile_raster_images(w, img_shape=disp_dim,
+                                 tile_shape=tile_shape, tile_spacing=(1, 1),
+                                 scale_rows_to_unit_interval=False,
+                                 output_pixel_vals=output_pixel_vals)
 
         if 'ax' in kwargs:
             ax = kwargs['ax']
@@ -401,9 +408,36 @@ class RBM(Model):
                               'interpolation'] if 'interpolation' in kwargs else 'none')
             plt.show()
 
+    def disp_hidden_activations(self, data=None, **kwargs):
+        hpost = self._get_hidden_prob(data)
+        if 'ax' in kwargs:
+            ax = kwargs['ax']
+            cax = ax.imshow(hpost, vmin=0.0, vmax=1.0, aspect='auto',
+                            cmap=kwargs['color'] if 'color' in kwargs else 'jet',
+                            interpolation=kwargs[
+                                'interpolation'] if 'interpolation' in kwargs else 'none'
+                            )
+            ax.grid(0)
+            ax.set_xticklabels([])
+            ax.set_xlabel("epoch #{}".format(kwargs['epoch']), fontsize=28)
+            # ax.get_figure().colorbar(cax)
+        else:
+            fig, ax = plt.subplots()
+            ax.set_title(kwargs['title'] if 'title' in kwargs else "Receptive fields",
+                         fontsize=28)
+            _ = ax.imshow(hpost, aspect='auto',
+                          cmap=kwargs['color'] if 'color' in kwargs else 'jet',
+                          interpolation=kwargs[
+                              'interpolation'] if 'interpolation' in kwargs else 'none')
+            ax.set_xticklabels([])
+            plt.colorbar()
+            plt.show()
+
     def display(self, param, **kwargs):
         if param == 'filters':
             self.disp_filters(**kwargs)
+        elif param == 'hidden_activations':
+            self.disp_hidden_activations(**kwargs)
         else:
             raise NotImplementedError
 
