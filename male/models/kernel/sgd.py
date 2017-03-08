@@ -53,9 +53,14 @@ class KSGD(Model):
         else:
             if self.kernel == 'gaussian':
                 xx = (self.x_[:t, :] - x)
-                return np.sum(
-                    self.w_[:t, :] * np.exp(-self.gamma * np.sum(xx * xx, axis=1, keepdims=True)),
-                    axis=0)
+                if self.num_classes_ > 2:
+                    return np.sum(
+                        self.w_[:t] * np.exp(-self.gamma * np.sum(xx * xx, axis=1, keepdims=True)),
+                        axis=0)
+                else:
+                    return np.sum(
+                        self.w_[:t, np.newaxis] * np.exp(-self.gamma * np.sum(xx * xx, axis=1, keepdims=True)),
+                        axis=0)
             else:
                 return [0]
 
@@ -151,7 +156,7 @@ class KSGD(Model):
             wx = self._get_wx(len(self.w_), x[i])
             if self.task == 'classification':
                 if self.num_classes_ == 2:
-                    y[i] = self._decode_labels(np.uint8(wx[0] >= 0))
+                    y[i] = self._decode_labels(np.uint8(wx >= 0))
                 else:
                     y[i] = self._decode_labels(np.argmax(wx))
             else:
