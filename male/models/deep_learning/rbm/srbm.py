@@ -49,10 +49,11 @@ class SupervisedRBM(BernoulliBernoulliRBM):
     def _init_params(self, x):
         super(SupervisedRBM, self)._init_params(x)
 
-        self.yw_ = self.w_init * np.random.randn(self.num_hidden, self.num_classes_)  # [K,C]
-        self.yb_ = np.zeros([1, self.num_classes_])  # [1,C]
-        self.ywgrad_inc_ = np.zeros([self.num_hidden, self.num_classes_])  # [K,C]
-        self.ybgrad_inc_ = np.zeros([1, self.num_classes_])  # [1,C]
+        c = self.num_classes_ if self.task == 'classification' else 1
+        self.yw_ = self.w_init * np.random.randn(self.num_hidden, c)  # [K,C]
+        self.yb_ = np.zeros([1, c])  # [1,C]
+        self.ywgrad_inc_ = np.zeros([self.num_hidden, c])  # [K,C]
+        self.ybgrad_inc_ = np.zeros([1, c])  # [1,C]
         # variational parameters for posterior p(h|v,y) inference, where
         # mu[i] = p(h[i]=1|v,y)
         self.mu_ = np.random.rand(self.batch_size, self.num_hidden)  # [BS,K]
@@ -107,7 +108,7 @@ class SupervisedRBM(BernoulliBernoulliRBM):
                                          axis=0, keepdims=True)
                 else:
                     pos_ybgrad = np.mean(y_batch, keepdims=True)
-                    pos_ywgrad = hprob.T.dot(y_batch) / batch_size
+                    pos_ywgrad = hprob.T.dot(y_batch[:, np.newaxis]) / batch_size
                     neg_ybgrad = np.mean(hprob.dot(self.yw_) + self.yb_, keepdims=True)
                     neg_ywgrad = hprob.T.dot(hprob.dot(self.yw_) + self.yb_) / batch_size
 
@@ -169,6 +170,7 @@ class SupervisedRBM(BernoulliBernoulliRBM):
                     constant_term = self.yw_[:, y.astype(np.int8)].T + x.dot(self.w_) + self.h_
                     yw_yw = self.yw_.T * self.yw_.T  # [C,K]
                     hprob = [np.random.rand(m, k), np.zeros([m, k])]  # [M, K]
+                    # looping at fixed point update
                     while diff > 1e-4 and num_iters < 30:
                         e = hprob[ii].dot(self.yw_) + self.yb_  # [M,C]
                         me = np.max(e, axis=1, keepdims=True)  # [M,1]
@@ -196,9 +198,10 @@ class SupervisedRBM(BernoulliBernoulliRBM):
                     return hprob[ii]
 
                 else:  # regression
-                    # looping at fixed point update
-                    constant_term = y.dot(self.yw_.T) + x.dot(self.w_) + self.h_
+                    # constant_term: [M,K]
+                    constant_term = np.outer(y, self.yw_) + x.dot(self.w_) + self.h_
                     hprob = [sigmoid(constant_term), np.zeros([m, k])]
+                    # looping at fixed point update
                     while diff > 1e-4 and num_iters < 100:
                         # first-order Taylor series approximation
                         if self.approx_method == APPROX_METHOD['first_order']:
@@ -228,30 +231,65 @@ class SupervisedRBM(BernoulliBernoulliRBM):
 
             else:  # Gibbs sampling
                 num_burnings = 50
-                num_samples = 100
-                hsample = (0.5 > np.random.rand(m, k)).astype(np.int)
-                phk1v = sigmoid(x.dot(self.w_) + self.h_)
-                for i in range(num_burnings + num_samples):
-                    hprob = np.zeros(m, k)
-                    for t in range(k):
-                        hsample[:, t] = 0
+                num_samples = 1
+                hsample = (0.5 > np.random.rand(m, k)).astype(np.int)  # [M,K]
+                # p(h_k = 1 | v)
+                phk1v = sigmoid(x.dot(self.w_) + self.h_)  # [M,K]
 
-                        pyhk = np.exp(hsample.dot(self.yw_[:, y.astype(np.int8)]) + self.yb_
-                                      - logsumexp(hsample.dot(self.yw_) + self.yb_,
-                                                  axis=1, keepdims=True))
-                        hprob0 = pyhk * (1.0 - phk1v[:, t])
+                if self.task == 'classification':
+                    for i in range(num_burnings + num_samples):
+                        hprob = np.zeros([m, k])  # [M,K]
+                        for t in range(k):
+                            hsample[:, t] = 0
+                            # p(y | h_k = 0, h_(-k)): [M,1]
+                            pyhk = np.exp(np.sum(hsample * self.yw_[:, y.astype(np.int8)].T,
+                                                 axis=1, keepdims=True)
+                                          + self.yb_[:, y.astype(np.int8)].T
+                                          - logsumexp(hsample.dot(self.yw_) + self.yb_,
+                                                      axis=1, keepdims=True))
+                            # p(h_k = 0 | h_(-k), v, y) = p(y | h_k = 0, h_(-k)) * p(h_k = 0 | v)
+                            # Note that p(h_k = 0 | v) = 1 - p(h_k = 1 | v)
+                            hprob0 = pyhk * (1.0 - phk1v[:, [t]])  # [M,1]
 
-                        hsample[:, t] = 1
-                        pyhk = np.exp(hsample.dot(self.yw_[:, y.astype(np.int8)]) + self.yb_
-                                      - logsumexp(hsample.dot(self.yw_) + self.yb_,
-                                                  axis=1, keepdims=True))
-                        hprob1 = pyhk * phk1v[:, t]
+                            hsample[:, t] = 1
+                            # p(y | h_k = 1, h_(-k)): [M,1]
+                            pyhk = np.exp(np.sum(hsample * self.yw_[:, y.astype(np.int8)].T,
+                                                 axis=1, keepdims=True)
+                                          + self.yb_[:, y.astype(np.int8)].T
+                                          - logsumexp(hsample.dot(self.yw_) + self.yb_,
+                                                      axis=1, keepdims=True))
+                            # p(h_k = 1 | h_(-k), v, y) = p(y | h_k = 1, h_(-k)) * p(h_k = 1 | v)
+                            hprob1 = pyhk * phk1v[:, [t]]  # [M,1]
 
-                        hprob[:, t] = hprob1 / (hprob0 + hprob1)
-                        hsample[:, t] = (hprob[:, t] > np.random.rand(m, 1)).astype(np.int)
+                            hprob[:, [t]] = hprob1 / (hprob0 + hprob1)  # [M,1]
+                            hsample[:, t] = (hprob[:, t] > np.random.rand(m)).astype(
+                                np.int)  # [M,1]
+                else:  # regression
+                    for i in range(num_burnings + num_samples):
+                        hprob = np.zeros([m, k])  # [M,K]
+                        for t in range(k):
+                            hsample[:, t] = 0
+                            # p(y | h_k = 0, h_(-k)): [M,1]
+                            pyhk = np.exp(-0.5 * (y[:, np.newaxis] ** 2)
+                                          + (hsample.dot(self.yw_) + self.yb_) * y[:, np.newaxis]
+                                          - 0.5 * (hsample.dot(self.yw_) + self.yb_) ** 2)
+                            # p(h_k = 0 | h_(-k), v, y) = p(y | h_k = 0, h_(-k)) * p(h_k = 0 | v)
+                            # Note that p(h_k = 0 | v) = 1 - p(h_k = 1 | v)
+                            hprob0 = pyhk * (1.0 - phk1v[:, [t]])  # [M,1]
 
-                    if i >= num_burnings:
-                        raise NotImplementedError
+                            hsample[:, t] = 1
+                            # p(y | h_k = 1, h_(-k)): [M,1]
+                            pyhk = np.exp(-0.5 * (y[:, np.newaxis] ** 2)
+                                          + (hsample.dot(self.yw_) + self.yb_) * y[:, np.newaxis]
+                                          - 0.5 * (hsample.dot(self.yw_) + self.yb_) ** 2)
+                            # p(h_k = 1 | h_(-k), v, y) = p(y | h_k = 1, h_(-k)) * p(h_k = 1 | v)
+                            hprob1 = pyhk * phk1v[:, [t]]  # [M,1]
+
+                            hprob[:, [t]] = hprob1 / (hprob0 + hprob1)  # [M,1]
+                            hsample[:, t] = (hprob[:, t] > np.random.rand(m)).astype(
+                                np.int)  # [M,1]
+
+                return hprob  # endif
         else:
             return sigmoid(x.dot(self.w_) + self.h_)
 
@@ -319,6 +357,27 @@ class SupervisedRBM(BernoulliBernoulliRBM):
 
     def _roll_params(self):
         return np.ravel(self.mu_)
+
+    def _encode_labels(self, y):
+        yy = super(SupervisedRBM, self)._encode_labels(y)
+        if self.task == 'regression':
+            self.label_encoder_ = StandardScaler()
+            yy = self.label_encoder_.fit_transform(yy)
+        return yy
+
+    def _decode_labels(self, y):
+        y = super(SupervisedRBM, self)._decode_labels(y)
+        if self.task == 'regression':
+            return self.label_encoder_.inverse_transform(y)
+        else:
+            return y
+
+    def _transform_labels(self, y):
+        y = super(SupervisedRBM, self)._transform_labels(y)
+        if self.task == 'regression':
+            return self.label_encoder_.transform(y)
+        else:
+            return y
 
     def predict(self, x):
         hpost = self.transform(x)
