@@ -380,11 +380,7 @@ class SupervisedRBM(BernoulliBernoulliRBM):
             return y
 
     def predict(self, x):
-        hpost = self.transform(x)
-        if self.task == 'classification':
-            return self._decode_labels(np.argmax(softmax(hpost.dot(self.yw_) + self.yb_), axis=1))
-        else:
-            return hpost.dot(self.yw_) + self.yb_
+        return self._decode_labels(self._predict(x))
 
     def _predict(self, x):
         hpost = self.transform(x)

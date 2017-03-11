@@ -148,8 +148,8 @@ def test_srbm_mnist():
 
 def test_srbm_mnist_regression():
     from male import HOME
-    from sklearn.metrics import accuracy_score
-    from sklearn.neighbors import KNeighborsClassifier
+    from sklearn.svm import SVR
+    from sklearn.metrics import mean_squared_error
 
     x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"),
                                           n_features=784)
@@ -266,9 +266,17 @@ def test_srbm_mnist_regression():
     print("Test loss = %.4f" % model.get_loss(x_test, y_test))
 
     print("=========== Predicted by sRBM ============")
-    print("Train error = {0:>1.4f}\tTest error = {1:>1.4f}".format(
+    print("Train RMSE = {0:>1.4f}\tTest RMSE = {1:>1.4f}".format(
         -model.score(x_train, y_train),
         -model.score(x_test, y_test)))
+
+    # fit a Support Vector Regressor
+    s = SVR()
+    s.fit(x_train, y_train)
+    print("=========== Predicted by Support Vector Regressor ============")
+    print("Train RMSE = {0:>1.4f}\tTest RMSE = {1:>1.4f}".format(
+        np.sqrt(mean_squared_error(y_train, s.predict(x_train))),
+        np.sqrt(mean_squared_error(y_test, s.predict(x_test)))))
 
 
 def test_srbm_diabetes_regression():
