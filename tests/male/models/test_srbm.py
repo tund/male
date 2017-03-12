@@ -11,6 +11,151 @@ from male.callbacks import Display
 from male.callbacks import EarlyStopping
 from male.callbacks import ModelCheckpoint
 from male.models.deep_learning.rbm import SupervisedRBM
+from male.models.deep_learning.rbm.rbm import INFERENCE_ENGINE
+from male.models.deep_learning.rbm.srbm import APPROX_METHOD
+
+
+def test_srbm_hidden_posterior_approximation():
+    np.random.seed(4444)
+    num_data = 10
+    num_features = 4
+    num_hidden = 3
+
+    # Classification
+    x = np.random.rand(num_data, num_features)
+    y = np.random.randint(0, 3, num_data)
+    model = SupervisedRBM(
+        task='classification',
+        num_hidden=num_hidden,
+        num_visible=num_features,
+        batch_size=4,
+        num_epochs=0,
+        learning_rate=0.01,
+        momentum_method='sudden',
+        weight_cost=0.0,
+        inference_engine='variational_inference',
+        approx_method='first_order',
+        random_state=6789,
+        verbose=1)
+    model.fit(x, y)
+    model.inference_engine = INFERENCE_ENGINE['variational_inference']
+    model.approx_method = APPROX_METHOD['first_order']
+    h_vi_1st = model._get_hidden_prob(x, y=y)
+    model.inference_engine = INFERENCE_ENGINE['variational_inference']
+    model.approx_method = APPROX_METHOD['second_order']
+    h_vi_2nd = model._get_hidden_prob(x, y=y)
+    model.inference_engine = INFERENCE_ENGINE['gibbs']
+    h_gibbs = model._get_hidden_prob(x, y=y)
+    import matplotlib.pyplot as plt
+    fig, axes = plt.subplots(1, 3)
+    cax = [None] * 3
+    cax[0] = axes[0].imshow(np.abs(h_vi_1st - h_vi_2nd),
+                         aspect='auto', interpolation='None', cmap='jet')
+    axes[0].set_title("VI_1st vs VI_2nd", fontsize=24)
+    cax[1] = axes[1].imshow(np.abs(h_vi_1st - h_gibbs),
+                         aspect='auto', interpolation='None', cmap='jet')
+    axes[1].set_title("VI_1st vs Gibbs", fontsize=24)
+    cax[2] = axes[2].imshow(np.abs(h_gibbs - h_vi_2nd),
+                         aspect='auto', interpolation='None', cmap='jet')
+    axes[2].set_title("VI_2nd vs Gibbs", fontsize=24)
+    for i in range(3):
+        cb = fig.colorbar(cax[i], ax=axes[i])
+        cb.ax.tick_params(labelsize=20)
+
+    h_true = np.random.rand(num_data, num_hidden)
+    v = model._get_visible_prob(h_true)
+    y = model._get_label_from_hidden(h_true)
+    model.inference_engine = INFERENCE_ENGINE['variational_inference']
+    model.approx_method = APPROX_METHOD['first_order']
+    h_vi_1st = model._get_hidden_prob(v, y=y)
+    model.inference_engine = INFERENCE_ENGINE['variational_inference']
+    model.approx_method = APPROX_METHOD['second_order']
+    h_vi_2nd = model._get_hidden_prob(v, y=y)
+    model.inference_engine = INFERENCE_ENGINE['gibbs']
+    h_gibbs = model._get_hidden_prob(v, y=y)
+    fig, axes = plt.subplots(1, 3)
+    cax = [None] * 3
+    cax[0] = axes[0].imshow(np.abs(h_vi_1st - h_true),
+                            aspect='auto', interpolation='None', cmap='jet')
+    axes[0].set_title("VI_1st vs True", fontsize=24)
+    cax[1] = axes[1].imshow(np.abs(h_vi_2nd - h_true),
+                            aspect='auto', interpolation='None', cmap='jet')
+    axes[1].set_title("VI_2nd vs True", fontsize=24)
+    cax[2] = axes[2].imshow(np.abs(h_gibbs - h_true),
+                            aspect='auto', interpolation='None', cmap='jet')
+    axes[2].set_title("Gibbs vs True", fontsize=24)
+    for i in range(3):
+        cb = fig.colorbar(cax[i], ax=axes[i])
+        cb.ax.tick_params(labelsize=20)
+
+    # Regression
+    x = np.random.rand(num_data, num_features)
+    y = np.random.randn(num_data)
+    model = SupervisedRBM(
+        task='regression',
+        num_hidden=num_hidden,
+        num_visible=num_features,
+        batch_size=4,
+        num_epochs=0,
+        learning_rate=0.01,
+        momentum_method='sudden',
+        weight_cost=0.0,
+        inference_engine='variational_inference',
+        approx_method='first_order',
+        random_state=6789,
+        verbose=1)
+    model.fit(x, y)
+    model.inference_engine = INFERENCE_ENGINE['variational_inference']
+    model.approx_method = APPROX_METHOD['first_order']
+    h_vi_1st = model._get_hidden_prob(x, y=y)
+    model.inference_engine = INFERENCE_ENGINE['variational_inference']
+    model.approx_method = APPROX_METHOD['second_order']
+    h_vi_2nd = model._get_hidden_prob(x, y=y)
+    model.inference_engine = INFERENCE_ENGINE['gibbs']
+    h_gibbs = model._get_hidden_prob(x, y=y)
+    import matplotlib.pyplot as plt
+    fig, axes = plt.subplots(1, 3)
+    cax = [None] * 3
+    cax[0] = axes[0].imshow(np.abs(h_vi_1st - h_vi_2nd),
+                         aspect='auto', interpolation='None', cmap='jet')
+    axes[0].set_title("VI_1st vs VI_2nd", fontsize=24)
+    cax[1] = axes[1].imshow(np.abs(h_vi_1st - h_gibbs),
+                         aspect='auto', interpolation='None', cmap='jet')
+    axes[1].set_title("VI_1st vs Gibbs", fontsize=24)
+    cax[2] = axes[2].imshow(np.abs(h_gibbs - h_vi_2nd),
+                         aspect='auto', interpolation='None', cmap='jet')
+    axes[2].set_title("VI_2nd vs Gibbs", fontsize=24)
+    for i in range(3):
+        cb = fig.colorbar(cax[i], ax=axes[i])
+        cb.ax.tick_params(labelsize=20)
+
+    h_true = np.random.rand(num_data, num_hidden)
+    v = model._get_visible_prob(h_true)
+    y = model._get_label_from_hidden(h_true).ravel()
+    model.inference_engine = INFERENCE_ENGINE['variational_inference']
+    model.approx_method = APPROX_METHOD['first_order']
+    h_vi_1st = model._get_hidden_prob(v, y=y)
+    model.inference_engine = INFERENCE_ENGINE['variational_inference']
+    model.approx_method = APPROX_METHOD['second_order']
+    h_vi_2nd = model._get_hidden_prob(v, y=y)
+    model.inference_engine = INFERENCE_ENGINE['gibbs']
+    h_gibbs = model._get_hidden_prob(v, y=y)
+    fig, axes = plt.subplots(1, 3)
+    cax = [None] * 3
+    cax[0] = axes[0].imshow(np.abs(h_vi_1st - h_true),
+                            aspect='auto', interpolation='None', cmap='jet')
+    axes[0].set_title("VI_1st vs True", fontsize=24)
+    cax[1] = axes[1].imshow(np.abs(h_vi_2nd - h_true),
+                            aspect='auto', interpolation='None', cmap='jet')
+    axes[1].set_title("VI_2nd vs True", fontsize=24)
+    cax[2] = axes[2].imshow(np.abs(h_gibbs - h_true),
+                            aspect='auto', interpolation='None', cmap='jet')
+    axes[2].set_title("Gibbs vs True", fontsize=24)
+    for i in range(3):
+        cb = fig.colorbar(cax[i], ax=axes[i])
+        cb.ax.tick_params(labelsize=20)
+
+    plt.show()
 
 
 def test_srbm_mnist():
@@ -464,6 +609,7 @@ def test_srbm_mnist_gridsearch():
 
 if __name__ == '__main__':
     pytest.main([__file__])
+    # test_srbm_hidden_posterior_approximation()
     # test_srbm_mnist()
     # test_srbm_mnist_regression()
     # test_srbm_diabetes_regression()
