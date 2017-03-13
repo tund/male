@@ -120,17 +120,17 @@ def test_ssrbm_mnist():
                                  verbose=0,
                                  save_best_only=True)
     model = SemiSupervisedRBM(
-        num_hidden=500,
+        num_hidden=6000,
         num_visible=784,
-        batch_size=100,
+        batch_size=1000,
         num_epochs=1000,
-        learning_rate=0.01,
+        learning_rate=0.1,
         w_init=0.1,
         momentum_method='sudden',
         weight_cost=0.0,
         inference_engine='variational_inference',
         # inference_engine='gibbs',
-        approx_method='second_order',
+        approx_method='first_order',
         random_state=6789,
         metrics=['recon_err', 'loss', 'err'],
         callbacks=[filter_display, learning_display,
@@ -485,9 +485,9 @@ def test_srbm_mnist_gridsearch():
 
 
 if __name__ == '__main__':
-    # pytest.main([__file__])
+    pytest.main([__file__])
     # test_ssrbm_mnist()
-    test_srbm_mnist_regression()
+    # test_srbm_mnist_regression()
     # test_srbm_diabetes_regression()
     # test_srbm_mnist_gridsearch()
     # test_srbm_load_to_continue_training()

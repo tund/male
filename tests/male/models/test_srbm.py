@@ -64,7 +64,7 @@ def test_srbm_hidden_posterior_approximation():
 
     h_true = np.random.rand(num_data, num_hidden)
     v = model._get_visible_prob(h_true)
-    y = model._get_label_from_hidden(h_true)
+    y = model._predict_from_hidden(h_true)
     model.inference_engine = INFERENCE_ENGINE['variational_inference']
     model.approx_method = APPROX_METHOD['first_order']
     h_vi_1st = model._get_hidden_prob(v, y=y)
@@ -131,7 +131,7 @@ def test_srbm_hidden_posterior_approximation():
 
     h_true = np.random.rand(num_data, num_hidden)
     v = model._get_visible_prob(h_true)
-    y = model._get_label_from_hidden(h_true).ravel()
+    y = model._predict_from_hidden(h_true).ravel()
     model.inference_engine = INFERENCE_ENGINE['variational_inference']
     model.approx_method = APPROX_METHOD['first_order']
     h_vi_1st = model._get_hidden_prob(v, y=y)

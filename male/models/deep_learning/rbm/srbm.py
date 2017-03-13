@@ -294,9 +294,15 @@ class SupervisedRBM(BernoulliBernoulliRBM):
         else:
             return sigmoid(x.dot(self.w_) + self.h_)
 
-    def _get_label_from_hidden(self, hidden):
+    def _predict_from_hidden(self, hidden):
         if self.task == 'classification':
             return np.argmax(softmax(hidden.dot(self.yw_) + self.yb_), axis=1)
+        else:
+            return hidden.dot(self.yw_) + self.yb_
+
+    def _predict_proba_from_hidden(self, hidden):
+        if self.task == 'classification':
+            return softmax(hidden.dot(self.yw_) + self.yb_)
         else:
             return hidden.dot(self.yw_) + self.yb_
 

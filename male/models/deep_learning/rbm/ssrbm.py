@@ -72,7 +72,8 @@ class SemiSupervisedRBM(SupervisedRBM):
                 hprob = np.zeros([batch_size, k])
                 hprob[idx1] = self._get_hidden_prob(x_batch[idx1], y=y_batch[idx1])
                 hprob[idx0] = self._get_hidden_prob(x_batch[idx0])
-                y_batch[idx0] = self._get_label_from_hidden(hprob[idx0])
+                y_pred = self._predict_proba_from_hidden(hprob[idx0])
+                y_batch[idx0] = self._predict_from_hidden(hprob[idx0])
 
                 # sparsity
                 if self.sparse_weight > 0:
@@ -87,12 +88,16 @@ class SemiSupervisedRBM(SupervisedRBM):
 
                 # gradients for the label
                 if self.task == 'classification':
-                    pos_ybgrad = np.zeros([1, c])
-                    pos_ywgrad = np.zeros([k, c])
+                    # gradients from imputed labels
+                    pos_ybgrad = np.sum(y_pred, axis=0, keepdims=True)
+                    pos_ywgrad = hprob[idx0].T.dot(y_pred)
+                    # gradients from true labels
                     for i in range(c):
-                        idx = (y_batch == i)
-                        pos_ywgrad[:, i] += np.sum(hprob[idx].T, axis=1) / batch_size
-                        pos_ybgrad[0, i] = np.sum(np.double(idx)) / batch_size
+                        idx = (y_batch[idx1] == i)
+                        pos_ywgrad[:, i] += np.sum(hprob[idx1][idx].T, axis=1)
+                        pos_ybgrad[0, i] += np.sum(np.double(idx))
+                    pos_ybgrad /= batch_size
+                    pos_ywgrad /= batch_size
                     neg_ywgrad = hprob.T.dot(softmax(hprob.dot(self.yw_) + self.yb_)) / batch_size
                     neg_ybgrad = np.mean(softmax(hprob.dot(self.yw_) + self.yb_),
                                          axis=0, keepdims=True)
@@ -150,7 +155,7 @@ class SemiSupervisedRBM(SupervisedRBM):
         if self.task == 'classification':
             y_pred = self.predict_proba(x)
             y_pred = np.clip(y_pred, EPSILON, 1 - EPSILON)
-            return np.mean(-np.log(y_pred[:, y]))
+            return np.mean(-np.log(y_pred[range(len(y)), y]))
         else:  # regression
             y_pred = self._predict(x)
             return np.sqrt(mean_squared_error(y, y_pred))
