@@ -48,84 +48,92 @@ class TensorFlowRBM(TensorFlowModel, RBM):
     def _init(self):
         super(TensorFlowRBM, self)._init()
         with self.tf_graph_.as_default():
-            self.learning_rate_ = tf.get_variable(
-                "learning_rate", shape=[1],
+            self.tf_learning_rate_ = tf.get_variable(
+                "learning_rate", shape=[],
                 initializer=tf.constant_initializer(self.learning_rate))
-            self.momentum_ = tf.get_variable(
-                "momentum", shape=[1],
+            self.tf_momentum_ = tf.get_variable(
+                "momentum", shape=[],
                 initializer=tf.constant_initializer(self.initial_momentum))
 
     def _init_params(self, x):
         # initialize parameters
-        k, n = self.num_hidden, self.num_visible
-        self.h_ = tf.get_variable("hidden_bias", shape=[1, k],
-                                  initializer=tf.random_normal_initializer(stddev=self.h_init))
-        self.v_ = tf.get_variable("visible_bias", shape=[1, n],
-                                  initializer=tf.random_normal_initializer(stddev=self.v_init))
-        self.w_ = tf.get_variable("weight", shape=[n, k],
-                                  initializer=tf.random_normal_initializer(stddev=self.w_init))
-        self.hgrad_inc_ = tf.get_variable("hidden_grad_inc", shape=[1, k],
-                                          initializer=tf.constant_initializer(0.0))
-        self.vgrad_inc_ = tf.get_variable("visible_grad_inc", shape=[1, n],
-                                          initializer=tf.constant_initializer(0.0))
-        self.wgrad_inc_ = tf.get_variable("weight_grad_inc", shape=[n, k],
-                                          initializer=tf.constant_initializer(0.0))
+        self.tf_h_ = tf.get_variable("hidden_bias", shape=[1, self.num_hidden],
+                                     initializer=tf.random_normal_initializer(stddev=self.h_init))
+        self.tf_v_ = tf.get_variable("visible_bias", shape=[1, self.num_visible],
+                                     initializer=tf.random_normal_initializer(stddev=self.v_init))
+        self.tf_w_ = tf.get_variable("weight", shape=[self.num_visible, self.num_hidden],
+                                     initializer=tf.random_normal_initializer(stddev=self.w_init))
+        self.tf_hgrad_inc_ = tf.get_variable("hidden_grad_inc", shape=[1, self.num_hidden],
+                                             initializer=tf.constant_initializer(0.0))
+        self.tf_vgrad_inc_ = tf.get_variable("visible_grad_inc", shape=[1, self.num_visible],
+                                             initializer=tf.constant_initializer(0.0))
+        self.tf_wgrad_inc_ = tf.get_variable("weight_grad_inc",
+                                             shape=[self.num_visible, self.num_hidden],
+                                             initializer=tf.constant_initializer(0.0))
 
     def _build_model(self, x):
-        self.x_ = tf.placeholder(tf.float32, shape=[None, self.num_visible], name="data")
+        self.tf_x_ = tf.placeholder(tf.float32, shape=[None, self.num_visible], name="data")
 
-        self.hidden_prob_ = self._get_hidden_prob(self.x_)
-        self.reconstruction_ = self._create_reconstruction(self.x_)
-        self.reconstruction_error_ = self._create_reconstruction_error(self.x_,
-                                                                       rdata=self.reconstruction_)
-        self.free_energy_ = self._create_free_energy(self.x_)
+        self.tf_epoch_ = tf.placeholder(tf.float32, shape=[], name="epoch")
+        # self.hidden_prob_ = self._get_hidden_prob(self.tf_x_)
+        self.tf_hidden_prob_ = self._create_hidden_prob(self.tf_x_)
+        self.tf_reconstruction_ = self._create_reconstruction(self.tf_x_)
+        self.tf_reconstruction_error_ = self._create_reconstruction_error(self.tf_x_,
+                                                                          tf_rdata=self.tf_reconstruction_)
+        self.tf_free_energy_ = self._create_free_energy(self.tf_x_)
 
-        self.reconstruction_loglik_ = self._create_reconstruction_loglik(self.x_,
-                                                                         rdata=self.reconstruction_)
+        self.tf_reconstruction_loglik_ = self._create_reconstruction_loglik(self.tf_x_,
+                                                                            tf_rdata=self.tf_reconstruction_)
 
-        pos_hgrad, pos_vgrad, pos_wgrad = self._initialize_grad()
+        tf_pos_hgrad, tf_pos_vgrad, tf_pos_wgrad = self._initialize_grad()
 
-        prev_hprob = tf.get_variable("previous_hidden_prob",
-                                     shape=[self.batch_size, self.num_hidden],
-                                     initializer=tf.constant_initializer(0.0))
+        tf_prev_hprob = tf.get_variable("previous_hidden_prob",
+                                        shape=[self.batch_size, self.num_hidden],
+                                        initializer=tf.constant_initializer(0.0))
 
         # ======= clamp phase ========
-        hprob = self._get_hidden_prob(self.x_)
+        # hprob = self._get_hidden_prob(self.x_)
+        tf_hprob = self._create_hidden_prob(self.tf_x_)
 
         # sparsity
         if self.sparse_weight > 0:
-            hg, wg, prev_hprob = self._hidden_sparsity(self.x_, prev_hprob, hprob)
-            pos_hgrad += hg
-            pos_wgrad += wg
+            tf_hg, tf_wg, tf_prev_hprob = self._create_hidden_sparsity(self.tf_x_, tf_prev_hprob,
+                                                                       tf_hprob)
+            tf_pos_hgrad += tf_hg
+            tf_pos_wgrad += tf_wg
 
-        hg, vg, wg = self._get_positive_grad(self.x_, hprob)
-        pos_hgrad += hg
-        pos_vgrad += vg
-        pos_wgrad += wg
+        tf_hg, tf_vg, tf_wg = self._create_positive_grad(self.tf_x_, tf_hprob)
+        tf_pos_hgrad += tf_hg
+        tf_pos_vgrad += tf_vg
+        tf_pos_wgrad += tf_wg
 
         # ======== free phase =========
         if self.learning_method == LEARNING_METHOD['cd']:
             for icd in range(self.num_cd - 1):
-                hsample, vprob, vsample, hprob = self._gibbs_sampling(
-                    hprob, sampling=CD_SAMPLING['hidden_visible'])
-            hsample, vprob, vsample, hprob = self._gibbs_sampling(
-                hprob, sampling=self.sampling_in_last_cd)
+                tf_hsample, tf_vprob, tf_vsample, tf_hprob = self._create_gibbs_sampling(
+                    tf_hprob, sampling=CD_SAMPLING['hidden_visible'])
+            tf_hsample, tf_vprob, tf_vsample, tf_hprob = self._create_gibbs_sampling(
+                tf_hprob, sampling=self.sampling_in_last_cd)
 
         # ======== negative phase =========
-        neg_hgrad, neg_vgrad, neg_wgrad = self._get_negative_grad(vprob, hprob)
+        tf_neg_hgrad, tf_neg_vgrad, tf_neg_wgrad = self._create_negative_grad(tf_vprob, tf_hprob)
 
-        self.hgrad_inc_ = self.momentum_ * self.hgrad_inc_ + self.learning_rate_ * (
-            pos_hgrad - neg_hgrad)
-        self.vgrad_inc_ = self.momentum_ * self.vgrad_inc_ + self.learning_rate_ * (
-            pos_vgrad - neg_vgrad)
-        self.wgrad_inc_ = self.momentum_ * self.wgrad_inc_ \
-                          + self.learning_rate_ * (
-            pos_wgrad - neg_wgrad - self.weight_cost * self.w_)
+        self.tf_hgrad_inc_ = self.tf_momentum_ * self.tf_hgrad_inc_ + self.tf_learning_rate_ * (
+            tf_pos_hgrad - tf_neg_hgrad)
+        self.tf_vgrad_inc_ = self.tf_momentum_ * self.tf_vgrad_inc_ + self.tf_learning_rate_ * (
+            tf_pos_vgrad - tf_neg_vgrad)
+        self.tf_wgrad_inc_ = self.tf_momentum_ * self.tf_wgrad_inc_ \
+                             + self.tf_learning_rate_ * (
+            tf_pos_wgrad - tf_neg_wgrad - self.weight_cost * self.tf_w_)
 
         # update params
-        self.h_update_ = self.h_.assign_add(self.hgrad_inc_)
-        self.v_update_ = self.v_.assign_add(self.vgrad_inc_)
-        self.w_update_ = self.w_.assign_add(self.wgrad_inc_)
+        self.tf_h_update_ = self.tf_h_.assign_add(self.tf_hgrad_inc_)
+        self.tf_v_update_ = self.tf_v_.assign_add(self.tf_vgrad_inc_)
+        self.tf_w_update_ = self.tf_w_.assign_add(self.tf_wgrad_inc_)
+
+        # update learning rate and momentum
+        self.tf_learning_rate_update_ = self._create_learning_rate(self.tf_epoch_)
+        self.tf_momentum_update_ = self._create_momentum(self.tf_epoch_)
 
         self.tf_session_.run(tf.global_variables_initializer())
 
@@ -176,9 +184,11 @@ class TensorFlowRBM(TensorFlowModel, RBM):
                 x_batch = x[batch_start:batch_end]
 
                 self.tf_session_.run(
-                    [self.w_update_, self.h_update_, self.v_update_],
-                    feed_dict={self.x_: x_batch})
-
+                    [self.tf_w_update_, self.tf_h_update_, self.tf_v_update_],
+                    feed_dict={self.tf_x_: x_batch})
+                # self.v_, self.h_, self.w_, self.vgrad_inc_, self.hgrad_inc_, self.wgrad_inc_ \
+                #     = self._get_params_from_tf_params()
+                self.v_, self.h_, self.w_ = self._get_params_from_tf_params()
                 batch_logs.update(self._on_batch_end(x_batch))
                 callbacks.on_batch_end(batch_idx, batch_logs)
 
@@ -190,151 +200,157 @@ class TensorFlowRBM(TensorFlowModel, RBM):
             callbacks.on_epoch_end(self.epoch_, epoch_logs)
             self._on_epoch_end()
 
-    def _gibbs_sampling(self, hprob, sampling=CD_SAMPLING['hidden_visible']):
-        if sampling == CD_SAMPLING['hidden']:
-            hsample = self._sample_hidden(hprob)
-            vprob = self._get_visible_prob(hsample)
-            vsample = tf.identity(vprob)  # copy
-            hprob = self._get_hidden_prob(vsample)
-        elif sampling == CD_SAMPLING['none']:
-            hsample = tf.identity(hprob)  # copy
-            vprob = self._get_visible_prob(hsample)
-            vsample = tf.identity(vprob)  # copy
-            hprob = self._get_hidden_prob(vsample)
-        elif sampling == CD_SAMPLING['hidden_visible']:
-            hsample = self._sample_hidden(hprob)
-            vprob = self._get_visible_prob(hsample)
-            vsample = self._sample_visible(vprob)
-            hprob = self._get_hidden_prob(vsample)
-        else:
-            hsample = tf.identity(hprob)  # copy
-            vprob = self._get_visible_prob(hsample)
-            vsample = self._sample_visible(vprob)
-            hprob = self._get_hidden_prob(vsample)
+    # def _gibbs_sampling(self, hprob, sampling=CD_SAMPLING['hidden_visible']):
 
-        return hsample, vprob, vsample, hprob
+    def _create_gibbs_sampling(self, tf_hprob, sampling=CD_SAMPLING['hidden_visible']):
+        if sampling == CD_SAMPLING['hidden']:
+            tf_hsample = self._create_sample_hidden(tf_hprob)
+            tf_vprob = self._create_visible_prob(tf_hsample)
+            tf_vsample = tf.identity(tf_vprob)  # copy
+            tf_hprob = self._create_hidden_prob(tf_vsample)
+        elif sampling == CD_SAMPLING['none']:
+            tf_hsample = tf.identity(tf_hprob)  # copy
+            tf_vprob = self._create_visible_prob(tf_hsample)
+            tf_vsample = tf.identity(tf_vprob)  # copy
+            tf_hprob = self._create_hidden_prob(tf_vsample)
+        elif sampling == CD_SAMPLING['hidden_visible']:
+            tf_hsample = self._create_sample_hidden(tf_hprob)
+            tf_vprob = self._create_visible_prob(tf_hsample)
+            tf_vsample = self._create_sample_visible(tf_vprob)
+            tf_hprob = self._create_hidden_prob(tf_vsample)
+        else:
+            tf_hsample = tf.identity(tf_hprob)  # copy
+            tf_vprob = self._create_visible_prob(tf_hsample)
+            tf_vsample = self._create_sample_visible(tf_vprob)
+            tf_hprob = self._create_hidden_prob(tf_vsample)
+
+        return tf_hsample, tf_vprob, tf_vsample, tf_hprob
 
     def _initialize_grad(self):
-        k, n = self.num_hidden, self.num_visible
-        pos_hgrad = tf.get_variable("positive_hidden_grad", shape=[1, k],
-                                    initializer=tf.constant_initializer(0.0))
-        pos_vgrad = tf.get_variable("positive_visible_grad", shape=[1, n],
-                                    initializer=tf.constant_initializer(0.0))
-        pos_wgrad = tf.get_variable("positive_weight_grad", shape=[n, k],
-                                    initializer=tf.constant_initializer(0.0))
-        return pos_hgrad, pos_vgrad, pos_wgrad
+        tf_pos_hgrad = tf.get_variable("positive_hidden_grad", shape=[1, self.num_hidden],
+                                       initializer=tf.constant_initializer(0.0))
+        tf_pos_vgrad = tf.get_variable("positive_visible_grad", shape=[1, self.num_visible],
+                                       initializer=tf.constant_initializer(0.0))
+        tf_pos_wgrad = tf.get_variable("positive_weight_grad",
+                                       shape=[self.num_visible, self.num_hidden],
+                                       initializer=tf.constant_initializer(0.0))
+        return tf_pos_hgrad, tf_pos_vgrad, tf_pos_wgrad
 
-    def _hidden_sparsity(self, x, prev_hprob, hprob):
-        if prev_hprob.get_shape() == hprob.get_shape():
-            q = self.sparse_decay * prev_hprob + (1 - self.sparse_decay) * hprob
+    def _create_hidden_sparsity(self, tf_x, tf_prev_hprob, tf_hprob):
+        if tf_prev_hprob.get_shape() == tf_hprob.get_shape():
+            q = self.sparse_decay * tf_prev_hprob + (1 - self.sparse_decay) * tf_hprob
         else:
-            q = (1 - self.sparse_decay) * hprob
-        prev_hprob = hprob
+            q = (1 - self.sparse_decay) * tf_hprob
+        tf_prev_hprob = tf_hprob
         sparse_grad = self.sparse_level - q
-        hg = self.sparse_weight * tf.reduce_mean(sparse_grad, axis=0, keep_dims=True)
-        wg = self.sparse_weight * tf.matmul(tf.transpose(x), sparse_grad) / tf.to_float(
-            tf.shape(x)[0])
-        return hg, wg, prev_hprob
+        tf_hg = self.sparse_weight * tf.reduce_mean(sparse_grad, axis=0, keep_dims=True)
+        tf_wg = self.sparse_weight * tf.matmul(tf.transpose(tf_x), sparse_grad) / tf.to_float(
+            tf.shape(tf_x)[0])
+        return tf_hg, tf_wg, tf_prev_hprob
 
-    def _get_positive_grad(self, x, hprob):
-        hg = tf.reduce_mean(hprob, axis=0, keep_dims=True)
-        vg = tf.reduce_mean(x, axis=0, keep_dims=True)
-        wg = tf.matmul(tf.transpose(x), hprob) / tf.to_float(tf.shape(x)[0])
-        return hg, vg, wg
+    # def _get_positive_grad(self, x, hprob):
+    def _create_positive_grad(self, tf_x, tf_hprob):
+        tf_hg = tf.reduce_mean(tf_hprob, axis=0, keep_dims=True)
+        tf_vg = tf.reduce_mean(tf_x, axis=0, keep_dims=True)
+        tf_wg = tf.matmul(tf.transpose(tf_x), tf_hprob) / tf.to_float(tf.shape(tf_x)[0])
+        return tf_hg, tf_vg, tf_wg
 
-    def _get_negative_grad(self, x, hprob):
-        return self._get_positive_grad(x, hprob)
+    def _create_negative_grad(self, tf_x, tf_hprob):
+        return self._create_positive_grad(tf_x, tf_hprob)
 
     @abc.abstractmethod
-    def _get_hidden_prob(self, vsample, **kwargs):
+    # def _get_hidden_prob(self, vsample, **kwargs):
+    def _create_hidden_prob(self, vsample, **kwargs):
         pass
 
     @abc.abstractmethod
-    def _sample_hidden(self, hprob):
+    # def _sample_hidden(self, hprob):
+    def _create_sample_hidden(self, tf_hprob):
         pass
 
     @abc.abstractmethod
-    def _get_visible_prob(self, hsample):
+    # def _get_visible_prob(self, hsample):
+    def _create_visible_prob(self):
         pass
 
     @abc.abstractmethod
-    def _sample_visible(self, vprob):
+    # def _sample_visible(self, vprob):
+    def _create_sample_visible(self, tf_vprob):
         pass
+
+    def _get_params_from_tf_params(self, **kwargs):
+        sess = self._get_session(**kwargs)
+        v, h, w = sess.run([self.tf_v_, self.tf_h_, self.tf_w_])
+        # vgrad_inc, hgrad_inc, wgrad_inc = sess.run([self.tf_vgrad_inc_, self.tf_hgrad_inc_,
+        #                                            self.tf_wgrad_inc_])
+
+        if sess != self.tf_session_:
+            sess.close()
+        # return v, h, w, vgrad_inc, hgrad_inc, wgrad_inc
+        return v, h, w
 
     def get_free_energy(self, x, **kwargs):
         sess = self._get_session(**kwargs)
-        fe = sess.run(self.free_energy_, feed_dict={self.x_: x})
+        fe = sess.run(self.tf_free_energy_, feed_dict={self.tf_x_: x})
         if sess != self.tf_session_:
             sess.close()
         return fe
 
-    def _create_free_energy(self, x):
+    def _create_free_energy(self, tf_x):
         pass
-
-    def get_csl(self, x, num_hidden_samples=1000, num_steps=100):
-        hprob = 0.5 * np.ones([num_hidden_samples, self.num_hidden])
-        hsample = self._sample_hidden(hprob)
-        for i in range(num_steps):
-            hsample, vprob, vsample, hprob = self._gibbs_sampling(hprob)
-        return self.get_conditional_loglik(x, hsample)
-
-    def get_conditional_loglik(self, x, hsample):
-        pass
-
-    def get_loglik(self, x, method='csl', **kwargs):
-        if method == 'csl':
-            return self.get_csl(x, **kwargs)
-        elif method == 'exact':
-            logZ = self.get_logpartition()
-            return (-self.get_free_energy(x)) - logZ
-        else:
-            raise NotImplementedError
 
     def get_logpartition(self, method='exact'):
+        print('get_logpartition is not implemented\n')
         pass
 
-    def generate_data(self, num_samples=100, num_gibbs_steps=1000,
-                      num_burnin_steps=1000, num_intervals=1000, to_use_multichain=True):
-        if to_use_multichain:
-            # hprob = np.random.rand(num_samples, self.num_hidden)
-            hprob = 0.5 * np.ones((num_samples, self.num_hidden))
-            for i in range(num_gibbs_steps + 1):
-                print(i)
-                hsample, vprob, vsample, hprob = self._gibbs_sampling(hprob)
-            return vsample
-        else:
-            return None
+    # def _create_generate_data(self, num_samples=100, num_gibbs_steps=1000,
+    #                   num_burnin_steps=1000, num_intervals=1000, to_use_multichain=True):
+    #     if to_use_multichain:
+    #         # hprob = np.random.rand(num_samples, self.num_hidden)
+    #         tf_hprob = 0.5 * tf.ones(shape=[num_samples, self.num_hidden], dtype=tf.float32)
+    #
+    #         for i in range(num_gibbs_steps + 1):
+    #             print(i)
+    #             tf_hsample, tf_vprob, tf_vsample, tf_hprob = self._create_gibbs_sampling(tf_hprob)
+    #         return tf_vsample
+    #     else:
+    #         return None
+
+
 
     def get_reconstruction_error(self, x, **kwargs):
         sess = self._get_session(**kwargs)
-        err = sess.run(self.reconstruction_error_, feed_dict={self.x_: x})
+        err = sess.run(self.tf_reconstruction_error_, feed_dict={self.tf_x_: x})
         if sess != self.tf_session_:
             sess.close()
         return err
 
-    def _create_reconstruction_error(self, x, rdata=None):
-        return tf.abs(x - self._create_reconstruction(x)) if rdata is None else tf.abs(x - rdata)
+    def _create_reconstruction_error(self, tf_x, tf_rdata=None):
+        return tf.abs(tf_x - self._create_reconstruction(tf_x)) if tf_rdata is None else tf.abs(
+            tf_x - tf_rdata)
 
     def get_reconstruction_loglik(self, x, **kwargs):
         sess = self._get_session(**kwargs)
-        err = sess.run(self.reconstruction_loglik_, feed_dict={self.x_: x})
+        err = sess.run(self.tf_reconstruction_loglik_, feed_dict={self.tf_x_: x})
         if sess != self.tf_session_:
             sess.close()
         return err
 
-    def _create_reconstruction_loglik(self, x, rdata=None):
+    def _create_reconstruction_loglik(self, tf_x, rdata=None):
         pass
 
     def get_reconstruction(self, x, **kwargs):
         sess = self._get_session(**kwargs)
-        x_recon = sess.run(self.reconstruction_, feed_dict={self.x_: x})
+        x_recon = sess.run(self.tf_reconstruction_, feed_dict={self.tf_x_: x})
         if sess != self.tf_session_:
             sess.close()
         return x_recon
 
-    def _create_reconstruction(self, x):
-        hprob = self._get_hidden_prob(x)
-        return self._get_visible_prob(hprob)
+    def _create_reconstruction(self, tf_x):
+        # hprob = self._get_hidden_prob(x)
+        # return self._get_visible_prob(hprob)
+        tf_hprob = self._create_hidden_prob(tf_x)
+        return self._create_visible_prob(tf_hprob)
 
     def _on_batch_end(self, x, y=None, **kwargs):
         outs = super(TensorFlowRBM, self)._on_batch_end(x, y=y)
@@ -350,22 +366,41 @@ class TensorFlowRBM(TensorFlowModel, RBM):
                 outs.update({m: self.get_loglik(x, method='csl').mean()})
         return outs
 
-    def _on_epoch_end(self):
-        super(TensorFlowRBM, self)._on_epoch_end()
-
+    def _create_learning_rate(self, tf_epoch):
         # adjust learning rate
         if self.learning_rate_decay == DECAY_METHOD['linear']:
-            self.learning_rate = (self.learning_rate0_
-                                  - self.learning_rate_decay_rate * self.learning_rate0_ / self.num_epochs)
+            tf_learning_rate_update = self.tf_learning_rate_.assign(self.learning_rate0_
+                                                                    - self.learning_rate_decay_rate * self.learning_rate0_ / self.num_epochs)
         elif self.learning_rate_decay == DECAY_METHOD['div_sqrt']:
-            self.learning_rate = self.learning_rate0_ / np.sqrt(self.epoch_)
+            # tf_learning_rate = self.learning_rate0_ / np.sqrt(tf_epoch)
+            tf_learning_rate_update = tf.truediv(self.learning_rate0_, tf.sqrt(tf_epoch))
         elif self.learning_rate_decay == DECAY_METHOD['exp']:
-            self.learning_rate *= self.learning_rate_decay_rate
+            tf_learning_rate_update = self.tf_learning_rate_.assign(
+                tf.mul(self.tf_learning_rate_, self.learning_rate_decay_rate))
+        else:
+            tf_learning_rate_update = None
+        return tf_learning_rate_update
 
-        # adjust momentum
+    def _create_momentum(self, tf_epoch):
         if self.momentum_method == MOMENTUM_METHOD['sudden']:
-            if self.epoch_ >= self.momentum_iteration:
-                self.momentum_ = self.final_momentum
+            tf_momentum_update = tf.cond(tf.greater_equal(tf_epoch, self.momentum_iteration),
+                                         lambda: self.tf_momentum_.assign(self.final_momentum),
+                                         lambda: self.tf_momentum_)
+        else:
+            tf_momentum_update = None
+        return tf_momentum_update
+
+    def _on_epoch_end(self):
+        super(TensorFlowRBM, self)._on_epoch_end()
+        if self.tf_learning_rate_update_ is not None:
+            self.tf_session_.run(self.tf_learning_rate_update_,
+                                 feed_dict={self.tf_epoch_: self.epoch_})
+
+        if self.tf_momentum_update_ is not None:
+            self.tf_session_.run(self.tf_momentum_update_,
+                                 feed_dict={self.tf_epoch_: self.epoch_})
+        lr, mo = self.tf_session_.run([self.tf_learning_rate_, self.tf_momentum_])
+        print('learning rate = %f momentum=%f\n' % (lr, mo))
 
     def disp_filters(self, num_filters=100, filter_idx=None, disp_dim=None,
                      tile_shape=(10, 10), output_pixel_vals=False, **kwargs):
@@ -382,7 +417,7 @@ class TensorFlowRBM(TensorFlowModel, RBM):
             filter_idx = np.random.permutation(self.num_hidden)[:num_filters]
 
         sess = self._get_session(**kwargs)
-        w = sess.run(self.w_).T[filter_idx, :n]
+        w = sess.run(self.tf_w_).T[filter_idx, :n]
         if sess != self.tf_session_:
             sess.close()
 
@@ -412,10 +447,60 @@ class TensorFlowRBM(TensorFlowModel, RBM):
                               'interpolation'] if 'interpolation' in kwargs else 'none')
             plt.show()
 
+
+    def disp_recondata(self, data=None, num_images=50, filter_idx=None, disp_dim=None,
+                     tile_shape=(10, 10), output_pixel_vals=False, **kwargs):
+        if disp_dim is None:
+            n = int(np.sqrt(self.num_visible))
+            disp_dim = (n, n)
+        else:
+            assert len(disp_dim) == 2
+        n = np.prod(disp_dim)
+
+        assert num_images*2 == np.prod(tile_shape)
+
+        if filter_idx is None:
+            filter_idx = np.random.permutation(self.num_hidden)[:num_images]
+
+        rdata = self.get_reconstruction(data)
+        img_disp = np.zeros([2*num_images, self.num_visible])
+        for i in range(num_images):
+            img_disp[2*i,:] = data[i,:]
+            img_disp[2*i + 1, :] = rdata[i, :]
+
+        img = tile_raster_images(img_disp, img_shape=disp_dim, tile_shape=tile_shape, tile_spacing=(1, 1),
+                                 scale_rows_to_unit_interval=False,
+                                 output_pixel_vals=output_pixel_vals)
+
+        if 'ax' in kwargs:
+            ax = kwargs['ax']
+            _ = ax.imshow(img, aspect='auto',
+                          cmap=kwargs['color'] if 'color' in kwargs else 'Greys_r',
+                          interpolation=kwargs[
+                              'interpolation'] if 'interpolation' in kwargs else 'none')
+            ax.grid(0)
+            ax.set_xticklabels([])
+            ax.set_yticklabels([])
+            ax.set_xlabel("epoch #{}".format(kwargs['epoch']), fontsize=28)
+        else:
+            fig, ax = plt.subplots()
+            ax.set_title(kwargs['title'] if 'title' in kwargs else "Receptive fields",
+                         fontsize=28)
+            ax.axis('off')
+            plt.colorbar()
+            _ = ax.imshow(img, aspect='auto',
+                          cmap=kwargs['color'] if 'color' in kwargs else 'Greys_r',
+                          interpolation=kwargs[
+                              'interpolation'] if 'interpolation' in kwargs else 'none')
+            plt.show()
+
     def display(self, param, **kwargs):
         if param == 'filters':
             self.disp_filters(**kwargs)
+        elif param == 'reconstruction':
+            self.disp_recondata(**kwargs)
         else:
+            print(param)
             raise NotImplementedError
 
     def get_params(self, deep=True):

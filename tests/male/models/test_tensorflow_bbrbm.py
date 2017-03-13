@@ -8,26 +8,41 @@ import numpy as np
 from sklearn.datasets import load_svmlight_file
 
 from male.callbacks import Display
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import accuracy_score
 from male.models.deep_learning.rbm import BernoulliBernoulliTensorFlowRBM
 
+from data_config import data_config
+data_info = data_config('MNIST')
+data_folder = data_info['data_folder']
+temp_folder = data_info['temp_folder']
+
+x_train, y_train = load_svmlight_file('%s/mnist' % data_folder, n_features=784)
+x_test, y_test = load_svmlight_file('%s/mnist.t' % data_folder, n_features=784)
+# num_train = 1000
+# num_test = 100
+#
+#
+# x_train = x_train[:num_train]
+# y_train = y_train[:num_train]
+# x_test = x_test[:num_test]
+# y_test = y_test[:num_test]
+
+
+x_train = x_train.toarray() / 255.0
+idx_train = np.random.permutation(x_train.shape[0])
+x_train = x_train[idx_train]
+y_train = y_train[idx_train]
+
+x_test = x_test.toarray() / 255.0
+idx_test = np.random.permutation(x_test.shape[0])
+x_test = x_test[idx_test]
+y_test = y_test[idx_test]
 
 def test_bbtfrbm_mnist():
     from male import HOME
     from sklearn.metrics import accuracy_score
     from sklearn.neighbors import KNeighborsClassifier
-
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"), n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"), n_features=784)
-
-    x_train = x_train.toarray().astype(np.float32) / 255.0
-    idx_train = np.random.permutation(x_train.shape[0])
-    x_train = x_train[idx_train]
-    y_train = y_train[idx_train]
-
-    x_test = x_test.toarray().astype(np.float32) / 255.0
-    idx_test = np.random.permutation(x_test.shape[0])
-    x_test = x_test[idx_test]
-    y_test = y_test[idx_test]
 
     x = np.vstack([x_train, x_test])
     y = np.concatenate([y_train, y_test])
@@ -91,7 +106,7 @@ def test_bbtfrbm_mnist():
         num_hidden=500,
         num_visible=784,
         batch_size=100,
-        num_epochs=2,
+        num_epochs=50,
         momentum_method='sudden',
         # sparse_weight=10.0,
         weight_cost=2e-4,
@@ -109,32 +124,22 @@ def test_bbtfrbm_mnist():
     print("Train reconstruction likelihood = %.4f" % model.get_reconstruction_loglik(x_train).mean())
     print("Test reconstruction likelihood = %.4f" % model.get_reconstruction_loglik(x_test).mean())
 
-    x_train1 = model.transform(x_train)
-    x_test1 = model.transform(x_test)
+    print("Running KNeighborsClassifier...")
+
+    x_train1 = model.transform(x_train[:num_train])
+    x_test1 = model.transform(x_test[:num_test])
 
     clf = KNeighborsClassifier(n_neighbors=1)
-    clf.fit(x_train1, y_train)
+    clf.fit(x_train1, y_train[:num_train])
 
-    print("Error = %.4f" % (1 - accuracy_score(y_test, clf.predict(x_test1))))
+    print("Error = %.4f" % (1 - accuracy_score(y_test[:num_test], clf.predict(x_test1))))
+
 
 
 def test_bbrbm_mnist_csl():
     from male import HOME
 
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"), n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"), n_features=784)
-
-    x_train = x_train.toarray() / 255.0
-    idx_train = np.random.permutation(x_train.shape[0])
-    x_train = x_train[idx_train]
-    y_train = y_train[idx_train]
-
-    x_test = x_test.toarray() / 255.0
-    idx_test = np.random.permutation(x_test.shape[0])
-    x_test = x_test[idx_test]
-    y_test = y_test[idx_test]
-
-    model = BernoulliBernoulliRBM(
+    model = BernoulliBernoulliTensorFlowRBM(
         num_hidden=500,
         num_visible=784,
         batch_size=100,
@@ -158,22 +163,9 @@ def test_bbrbm_mnist_csl():
 
 
 def test_bbrbm_mnist_generate_data():
-    from male import HOME
 
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"), n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"), n_features=784)
 
-    x_train = x_train.toarray() / 255.0
-    idx_train = np.random.permutation(x_train.shape[0])
-    x_train = x_train[idx_train]
-    y_train = y_train[idx_train]
-
-    x_test = x_test.toarray() / 255.0
-    idx_test = np.random.permutation(x_test.shape[0])
-    x_test = x_test[idx_test]
-    y_test = y_test[idx_test]
-
-    model = BernoulliBernoulliRBM(
+    model = BernoulliBernoulliTensorFlowRBM(
         num_hidden=500,
         num_visible=784,
         batch_size=100,
@@ -205,22 +197,8 @@ def test_bbrbm_mnist_generate_data():
 
 
 def test_bbrbm_mnist_logpartition():
-    from male import HOME
 
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"), n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"), n_features=784)
-
-    x_train = x_train.toarray() / 255.0
-    idx_train = np.random.permutation(x_train.shape[0])
-    x_train = x_train[idx_train]
-    y_train = y_train[idx_train]
-
-    x_test = x_test.toarray() / 255.0
-    idx_test = np.random.permutation(x_test.shape[0])
-    x_test = x_test[idx_test]
-    y_test = y_test[idx_test]
-
-    model = BernoulliBernoulliRBM(
+    model = BernoulliBernoulliTensorFlowRBM(
         num_hidden=5,
         num_visible=784,
         batch_size=100,
@@ -244,30 +222,16 @@ def test_bbrbm_mnist_logpartition():
 
 
 def test_bbrbm_mnist_gridsearch():
-    from male import HOME
     from sklearn.pipeline import Pipeline
     from sklearn.metrics import accuracy_score
     from sklearn.model_selection import GridSearchCV
     from sklearn.model_selection import PredefinedSplit
     from sklearn.neighbors import KNeighborsClassifier
 
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"), n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"), n_features=784)
-
-    x_train = x_train.toarray() / 255.0
-    idx_train = np.random.permutation(x_train.shape[0])
-    x_train = x_train[idx_train]
-    y_train = y_train[idx_train]
-
-    x_test = x_test.toarray() / 255.0
-    idx_test = np.random.permutation(x_test.shape[0])
-    x_test = x_test[idx_test]
-    y_test = y_test[idx_test]
-
     x = np.vstack([x_train, x_test])
     y = np.concatenate([y_train, y_test])
 
-    estimators = [('rbm', BernoulliBernoulliRBM(num_hidden=500,
+    estimators = [('rbm', BernoulliBernoulliTensorFlowRBM(num_hidden=500,
                                                 num_visible=784,
                                                 batch_size=100,
                                                 num_epochs=10,
@@ -290,14 +254,10 @@ def test_bbrbm_mnist_gridsearch():
 
     print("Best score {} @ params {}".format(gs.best_score_, gs.best_params_))
 
-    # [Parallel(n_jobs=-1)]: Done  27 out of  27 | elapsed:  4.3min finished
-    # Best score 0.916 @ params {'rbm__num_hidden': 50, 'rbm__batch_size': 64, 'knn__n_neighbors': 4}
-
-
 if __name__ == '__main__':
     # pytest.main([__file__])
-    test_bbtfrbm_mnist()
+    # test_bbtfrbm_mnist()
     # test_bbrbm_mnist_csl()
     # test_bbrbm_mnist_generate_data()
     # test_bbrbm_mnist_logpartition()
-    # test_bbrbm_mnist_gridsearch()
+    test_bbrbm_mnist_gridsearch()
