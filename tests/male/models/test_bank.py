@@ -17,7 +17,7 @@ data_dir = 'C:/Data/'
 
 def test_bank_2d():
     sub_folder = '2d/'
-    data_name = 'train.bin2'
+    data_name = 'train.bin'
     n_features = 2
     train_file_name = data_dir + sub_folder + data_name + '.txt'
     x_train, y_train = load_svmlight_file(train_file_name, n_features=n_features)
@@ -28,7 +28,7 @@ def test_bank_2d():
     learner = BANK(
         gamma=20,
         dim_rf=400,
-        lbd=0.01,
+        lbd=0.125,
         alpha=1.0,
         kappa=0.1,
         inner_epoch=1,
@@ -39,6 +39,8 @@ def test_bank_2d():
     learner.fit(x_train, y_train)
 
     y_train_pred = learner.predict(x_train)
+    print(np.unique(y_train))
+    print(np.unique(y_train_pred))
     print("Training error = %.4f" % (1 - metrics.accuracy_score(y_train, y_train_pred)))
     visualize_classification_prediction(learner, x_train, y_train, epoch=0, marker_size=20)
 

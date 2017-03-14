@@ -99,7 +99,7 @@ class BANK(Model):
         sig_predict = (1.0 / (1 + np.exp(-np.dot(Phi, beta))))
         return np.dot(Phi.T * sig_predict * (1 - sig_predict), Phi) + lbd * np.eye(len(beta))
 
-    def _fit_loop_v2(self, x, y,
+    def _fit_loop(self, x, y,
                   do_validation=False,
                   x_valid=None, y_valid=None,
                   callbacks=None, callback_metrics=None):
@@ -108,7 +108,7 @@ class BANK(Model):
         dim_rf = self.dim_rf
         dprime = dim_rf * 2
         dprime_ext = dprime + 1
-        scale_rf = 1.0 / np.sqrt(dim_rf)
+        scale_rf = 1.0   # / np.sqrt(dim_rf)
 
         L = self.max_loop
 
@@ -197,17 +197,9 @@ class BANK(Model):
                 nk[zdi_new] += 1
 
             # sample W & beta
-
-            # beta, lap_matrix_a = BANK.newtons_optimizer(beta,
-            #                                             BANK.get_log_f, BANK.get_grad, BANK.get_hessian,
-            #                                             (Phi, self.y_, self.lbd),
-            #                                             max_loop=100, eps=1e-15, beta=0.08)
-
             Phi_beta = np.sum(Phi * beta, axis=1)
             exp_Phi = np.exp(Phi_beta)  # (N,)
             log_py_old = -np.sum(np.log(1.0 + exp_Phi)) + np.dot(Phi_beta, self.y_)
-            loss_old = np.sum(np.log(1.0 + np.exp(-Phi_beta * self.y_)))
-            print("loss={}".format(loss_old))
 
             for di in range(dim_rf):
                 di_idx = [di, di + dim_rf]
@@ -238,7 +230,7 @@ class BANK(Model):
                                                                     (Phi[:, di_idx], self.y_, self.lbd),
                                                                     max_loop=100, eps=1e-15, beta=0.08)
 
-                Phi_beta = np.sum(Phi * beta, axis=1)
+                Phi_beta = np.sum(Phi[:, di_idx] * beta[di_idx], axis=1)
                 exp_Phi = np.exp(Phi_beta)
                 log_py = -np.sum(np.log(1.0 + exp_Phi)) + np.dot(Phi_beta, self.y_)
                 try:
@@ -257,13 +249,13 @@ class BANK(Model):
                 except FloatingPointError:
                     print("Error:{},{},{} {},{},{}".format(log_py, log_pbeta, log_lap_beta_old[di],
                                                            log_py_old, log_pbeta_old[di], log_lap_beta))
-                print("Accept 1:{},{},{} {},{},{}".format(log_py, log_pbeta, log_lap_beta_old[di],
-                                                          log_py_old, log_pbeta_old[di], log_lap_beta))
-                print("loss old={}, new={}, accept={}".format(loss_old,
-                                                   np.sum(np.log(1.0 + np.exp(-Phi_beta * self.y_))),
-                                                   accept_rate))
+                # print("Accept 1:{},{},{} {},{},{}".format(log_py, log_pbeta, log_lap_beta_old[di],
+                #                                           log_py_old, log_pbeta_old[di], log_lap_beta))
+                # print("loss old={}, new={}, accept={}".format(loss_old,
+                #                                               np.mean(self.y_ != (Phi_beta >= 0)),
+                #                                               accept_rate))
                 # print("Loss old={}, new={}, accept={}".format(-log_py_old, -log_py, accept_rate))
-                accept_rate = 1
+                # accept_rate = 1
                 if np.random.uniform() > accept_rate:
                     beta[di_idx] = beta_idx_old
                     W[di, :] = Wdi_old
@@ -273,10 +265,17 @@ class BANK(Model):
                     log_lap_beta_old[di] = log_lap_beta
                     log_pbeta_old[di] = log_pbeta
 
+            beta, lap_matrix_a = BANK.newtons_optimizer(beta,
+                                                        BANK.get_log_f, BANK.get_grad, BANK.get_hessian,
+                                                        (Phi, self.y_, self.lbd),
+                                                        max_loop=100, eps=1e-15, beta=0.8)
+            Phi_beta = np.sum(Phi * beta, axis=1)
+            print("loss={}".format(np.mean(self.y_ != (Phi_beta >= 0))))
+
         self.W_ = W
         self.beta_ = beta
 
-    def _fit_loop(self, x, y,
+    def _fit_loop_v1(self, x, y,
                      do_validation=False,
                      x_valid=None, y_valid=None,
                      callbacks=None, callback_metrics=None):
@@ -455,31 +454,31 @@ class BANK(Model):
         self.W_ = W
         self.beta_ = beta
 
-    def predict_v2(self, x):
-        dim_rf = self.dim_rf
-        dprime = dim_rf * 2
-        dprime_ext = dprime + 1
-        scale_rf = 1.0 / np.sqrt(dim_rf)
-
-        N_test = x.shape[0]
-        y = np.ones(N_test)
-
-        Wx = np.dot(self.W_, x.T).T
-        Phi = np.ones((N_test, dprime_ext))
-        Phi[:, 0:dim_rf] = np.cos(Wx)
-        Phi[:, dim_rf:dprime] = np.sin(Wx)
-        Phi *= scale_rf
-
-        py = 1.0 / (1 + np.exp(-np.sum(Phi * self.beta_, axis=1)))
-
-        y[py < 0.5] = 0
-        return y
+    # def predict(self, x):
+    #     dim_rf = self.dim_rf
+    #     dprime = dim_rf * 2
+    #     dprime_ext = dprime + 1
+    #     scale_rf = 1.0 / np.sqrt(dim_rf)
+    #
+    #     N_test = x.shape[0]
+    #     y = np.ones(N_test)
+    #
+    #     Wx = np.dot(self.W_, x.T).T
+    #     Phi = np.ones((N_test, dprime_ext))
+    #     Phi[:, 0:dim_rf] = np.cos(Wx)
+    #     Phi[:, dim_rf:dprime] = np.sin(Wx)
+    #     Phi *= scale_rf
+    #
+    #     py = 1.0 / (1 + np.exp(-np.sum(Phi * self.beta_, axis=1)))
+    #
+    #     y[py < 0.5] = 0
+    #     return y
 
     def predict(self, x):
         dim_rf = self.dim_rf
         dprime = dim_rf * 2
         dprime_ext = dprime + 1
-        scale_rf = 1.0 / np.sqrt(dim_rf)
+        scale_rf = 1.0  # / np.sqrt(dim_rf)
 
         N_test = x.shape[0]
         y = np.ones(N_test)
