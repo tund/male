@@ -17,7 +17,7 @@ data_dir = 'C:/Data/'
 
 def test_bank_2d():
     sub_folder = '2d/'
-    data_name = 'train.bin'
+    data_name = 'train.bin2'
     n_features = 2
     train_file_name = data_dir + sub_folder + data_name + '.txt'
     x_train, y_train = load_svmlight_file(train_file_name, n_features=n_features)
@@ -28,12 +28,12 @@ def test_bank_2d():
     learner = BANK(
         gamma=20,
         dim_rf=400,
-        lbd=0.001,
+        lbd=0.01,
         alpha=1.0,
         kappa=0.1,
         inner_epoch=1,
         max_loop=20,
-        batch_size=100
+        batch_size=5
     )
 
     learner.fit(x_train, y_train)
@@ -59,11 +59,11 @@ def test_bank_svmguide1():
     learner = BANK(
         gamma=20,
         dim_rf=400,
-        lbd=0.001,
+        lbd=10,
         alpha=1.0,
         kappa=0.1,
-        inner_epoch=1,
-        max_loop=20,
+        inner_epoch=2,
+        max_loop=10,
         batch_size=100
     )
 
@@ -75,5 +75,5 @@ def test_bank_svmguide1():
 
 if __name__ == '__main__':
     # pytest.main([__file__])
-    # test_bank_2d()
-    test_bank_svmguide1()
+    test_bank_2d()
+    # test_bank_svmguide1()

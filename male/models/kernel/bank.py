@@ -60,7 +60,46 @@ class BANK(Model):
         cov_new = Psi_new / (nu_new - D - 1)
         return [mu_new, cov_new]
 
-    def _fit_loop(self, x, y,
+    @staticmethod
+    def newtons_optimizer(x, obj_func, grad_func, hess_func, args, **kwargs):
+        beta = kwargs['beta']
+        max_loop = kwargs['max_loop']
+        eps = kwargs['eps']
+        obj_lst = []
+        for l in range(max_loop):
+            grad = grad_func(x, *args)
+            H = hess_func(x, *args)
+            H_inv = np.linalg.inv(H)
+            d = -np.dot(H_inv, grad.reshape((len(x), 1)))
+            d = d.reshape(len(x))
+            t = 1
+            obj_x = obj_func(x, *args)
+            while obj_func(x + t*d, *args) > obj_x + 0.5*t*np.dot(grad, d):
+                t = beta * t
+            x += t*d
+            obj_lst.append(obj_func(x, *args))
+            if (l > 1) and np.abs((obj_lst[l] - obj_lst[l-1]) / obj_lst[l]) < eps:
+                break
+        h = hess_func(x, *args)
+        return x, h
+
+    @staticmethod
+    def get_log_f(beta, Phi, y, lbd):
+        Phi_beta = np.dot(Phi, beta)
+        return -np.dot(y, Phi_beta) + np.sum(np.log(1+np.exp(Phi_beta))) + 0.5*lbd*np.sum(beta**2)
+
+    @staticmethod
+    def get_grad(beta, Phi, y, lbd):
+        sig_predict = (1.0 / (1 + np.exp(-(np.dot(Phi, beta)))))
+        grad_pen = lbd * beta
+        return np.dot(Phi.T, (sig_predict - y)) + grad_pen
+
+    @staticmethod
+    def get_hessian(beta, Phi, y, lbd):
+        sig_predict = (1.0 / (1 + np.exp(-np.dot(Phi, beta))))
+        return np.dot(Phi.T * sig_predict * (1 - sig_predict), Phi) + lbd * np.eye(len(beta))
+
+    def _fit_loop_v2(self, x, y,
                   do_validation=False,
                   x_valid=None, y_valid=None,
                   callbacks=None, callback_metrics=None):
@@ -75,8 +114,6 @@ class BANK(Model):
 
         self.x_ = x
         self.y_ = y
-        # tempt fix bug
-        self.y_[self.y_ == 0] = -1
 
         kappa0 = self.kappa
         mu0 = np.zeros(D)
@@ -116,8 +153,9 @@ class BANK(Model):
         Phi[:, dim_rf:dprime] = np.sin(Wx)
         Phi *= scale_rf
 
-        log_lap_beta_old = np.zeros(dim_rf)
+        log_lap_beta_old = np.empty(dim_rf)
         log_pbeta_old = np.zeros(dim_rf)
+        log_lap_beta_old[:] = np.nan
 
         for l in range(L):
             # print("W={}".format(W))
@@ -159,9 +197,17 @@ class BANK(Model):
                 nk[zdi_new] += 1
 
             # sample W & beta
-            exp_PhiXy = np.exp(np.sum(-Phi * beta, axis=1) * self.y_)  # (N,)
-            log_py_old = -np.sum(np.log(1.0 + exp_PhiXy))
-            print("loss={}".format(-log_py_old))
+
+            # beta, lap_matrix_a = BANK.newtons_optimizer(beta,
+            #                                             BANK.get_log_f, BANK.get_grad, BANK.get_hessian,
+            #                                             (Phi, self.y_, self.lbd),
+            #                                             max_loop=100, eps=1e-15, beta=0.08)
+
+            Phi_beta = np.sum(Phi * beta, axis=1)
+            exp_Phi = np.exp(Phi_beta)  # (N,)
+            log_py_old = -np.sum(np.log(1.0 + exp_Phi)) + np.dot(Phi_beta, self.y_)
+            loss_old = np.sum(np.log(1.0 + np.exp(-Phi_beta * self.y_)))
+            print("loss={}".format(loss_old))
 
             for di in range(dim_rf):
                 di_idx = [di, di + dim_rf]
@@ -170,12 +216,6 @@ class BANK(Model):
                     di_idx = [di, di + dim_rf, dprime]
                     n_di_idx = 3
                 log_pbeta_old[di] = stats.multivariate_normal.logpdf(beta[di_idx], np.zeros(n_di_idx), 1.0 / self.lbd)
-                lap_matrix_a = self.lbd * np.eye(n_di_idx)  # np.zeros((2, 2))
-                for n in range(N):
-                    phi_pair = Phi[n:1, di_idx]
-                    lap_matrix_a += np.dot(phi_pair.T, phi_pair) * (exp_PhiXy[n] / (exp_PhiXy[n]) ** 2)
-                log_lap_beta_old[di] = (0.5 * N * np.log(2 * np.pi)) \
-                                       + (- 0.5 * np.log(np.abs(np.linalg.det(lap_matrix_a))))
 
             for di in range(dim_rf):
                 di_idx = [di, di + dim_rf]
@@ -192,31 +232,25 @@ class BANK(Model):
                 Phi[:, di] = np.cos(Wx_di_tmp) * scale_rf
                 Phi[:, di + dim_rf] = np.sin(Wx_di_tmp) * scale_rf
 
-                T = self.inner_epoch * N
                 beta_idx_old = beta[di_idx]
-                for t in range(T):
-                    idx = np.random.randint(0, N, self.batch_size)  # (t,)
-                    PhiX_t = np.sum(Phi[idx, :] * beta, axis=1)  # (t,)
-                    PhiXy_t = PhiX_t * self.y_[idx]  # (t,)
-                    exp_minus_PhiXy_t = np.exp(-PhiXy_t)
-                    grad = self.lbd - self.y_[idx] * exp_minus_PhiXy_t / (exp_minus_PhiXy_t + 1)
-                    # beta[di_idx] *= (1.0 * t) / (t + 1)
-                    beta[di_idx] -= \
-                        (1.0 / (self.lbd * (t + 1))) * np.sum(Phi[idx, :][:, di_idx].T * grad, axis=1) / self.batch_size
+                beta[di_idx], lap_matrix_a = BANK.newtons_optimizer(beta[di_idx],
+                                                                    BANK.get_log_f, BANK.get_grad, BANK.get_hessian,
+                                                                    (Phi[:, di_idx], self.y_, self.lbd),
+                                                                    max_loop=100, eps=1e-15, beta=0.08)
 
-                exp_PhiXy = np.exp(np.sum(-Phi * beta, axis=1) * self.y_)
-                log_py = -np.sum(np.log(1.0 + exp_PhiXy))
+                Phi_beta = np.sum(Phi * beta, axis=1)
+                exp_Phi = np.exp(Phi_beta)
+                log_py = -np.sum(np.log(1.0 + exp_Phi)) + np.dot(Phi_beta, self.y_)
                 try:
                     log_pbeta = stats.multivariate_normal.logpdf(beta[di_idx], np.zeros(n_di_idx), 1.0 / self.lbd)
                 except FloatingPointError:
                     print("Error log_pbeta = {}".format(beta[di_idx]))
-                lap_matrix_a = self.lbd * np.eye(n_di_idx)  # np.zeros((2, 2))
-                for n in range(N):
-                    phi_pair = Phi[n:1, di_idx]
-                    lap_matrix_a += np.dot(phi_pair.T, phi_pair) * (exp_PhiXy[n] / (exp_PhiXy[n]) ** 2)
+
                 log_lap_beta = \
-                    (0.5 * N * np.log(2 * np.pi)) \
-                    + (- 0.5 * np.log(np.abs(np.linalg.det(lap_matrix_a))))
+                    - (- 0.5 * np.log(np.abs(np.linalg.det(lap_matrix_a))))
+                if np.isnan(log_lap_beta_old[di]):
+                    log_lap_beta_old[di] = log_lap_beta
+
                 try:
                     accept_rate = min(1, np.exp((log_py + log_pbeta + log_lap_beta_old[di]) -
                                                 (log_py_old + log_pbeta_old[di] + log_lap_beta)))
@@ -225,8 +259,11 @@ class BANK(Model):
                                                            log_py_old, log_pbeta_old[di], log_lap_beta))
                 print("Accept 1:{},{},{} {},{},{}".format(log_py, log_pbeta, log_lap_beta_old[di],
                                                           log_py_old, log_pbeta_old[di], log_lap_beta))
-                print("Loss old={}, new={}, accept={}".format(-log_py_old, -log_py, accept_rate))
-                # accept_rate = 1
+                print("loss old={}, new={}, accept={}".format(loss_old,
+                                                   np.sum(np.log(1.0 + np.exp(-Phi_beta * self.y_))),
+                                                   accept_rate))
+                # print("Loss old={}, new={}, accept={}".format(-log_py_old, -log_py, accept_rate))
+                accept_rate = 1
                 if np.random.uniform() > accept_rate:
                     beta[di_idx] = beta_idx_old
                     W[di, :] = Wdi_old
@@ -239,7 +276,7 @@ class BANK(Model):
         self.W_ = W
         self.beta_ = beta
 
-    def _fit_loop_v1(self, x, y,
+    def _fit_loop(self, x, y,
                      do_validation=False,
                      x_valid=None, y_valid=None,
                      callbacks=None, callback_metrics=None):
@@ -417,6 +454,26 @@ class BANK(Model):
 
         self.W_ = W
         self.beta_ = beta
+
+    def predict_v2(self, x):
+        dim_rf = self.dim_rf
+        dprime = dim_rf * 2
+        dprime_ext = dprime + 1
+        scale_rf = 1.0 / np.sqrt(dim_rf)
+
+        N_test = x.shape[0]
+        y = np.ones(N_test)
+
+        Wx = np.dot(self.W_, x.T).T
+        Phi = np.ones((N_test, dprime_ext))
+        Phi[:, 0:dim_rf] = np.cos(Wx)
+        Phi[:, dim_rf:dprime] = np.sin(Wx)
+        Phi *= scale_rf
+
+        py = 1.0 / (1 + np.exp(-np.sum(Phi * self.beta_, axis=1)))
+
+        y[py < 0.5] = 0
+        return y
 
     def predict(self, x):
         dim_rf = self.dim_rf
