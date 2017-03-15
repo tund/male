@@ -85,8 +85,11 @@ class BANK(Model):
 
     @staticmethod
     def get_log_f(beta, Phi, y, lbd):
-        Phi_beta = np.dot(Phi, beta)
-        return -np.dot(y, Phi_beta) + np.sum(np.log(1+np.exp(Phi_beta))) + 0.5*lbd*np.sum(beta**2)
+        try:
+            Phi_beta = np.dot(Phi, beta)
+            return -np.dot(y, Phi_beta) + np.sum(np.log(1+np.exp(Phi_beta))) + 0.5*lbd*np.sum(beta**2)
+        except Exception:
+            return 0
 
     @staticmethod
     def get_grad(beta, Phi, y, lbd):
@@ -99,7 +102,7 @@ class BANK(Model):
         sig_predict = (1.0 / (1 + np.exp(-np.dot(Phi, beta))))
         return np.dot(Phi.T * sig_predict * (1 - sig_predict), Phi) + lbd * np.eye(len(beta))
 
-    def _fit_loop(self, x, y,
+    def _fit_loop_v2(self, x, y,
                   do_validation=False,
                   x_valid=None, y_valid=None,
                   callbacks=None, callback_metrics=None):
@@ -108,7 +111,7 @@ class BANK(Model):
         dim_rf = self.dim_rf
         dprime = dim_rf * 2
         dprime_ext = dprime + 1
-        scale_rf = 1.0   # / np.sqrt(dim_rf)
+        scale_rf = 1.0 / np.sqrt(dim_rf)
 
         L = self.max_loop
 
@@ -120,7 +123,7 @@ class BANK(Model):
         nu0 = D + 3
         Psi0 = self.gamma * np.eye(D, D)
 
-        K = int(dim_rf / 10)  # as in original code
+        K = 10  # int(dim_rf / 10)  # as in original code
         Z = np.zeros(dim_rf).astype(int)
         W = np.zeros((dim_rf, D))
 
@@ -177,7 +180,7 @@ class BANK(Model):
                     pp[k] = stats.multivariate_normal. \
                         logpdf(W[di, :], mu_lst[k], cov_lst[k])
                     if pp[k] < -300:
-                        print(pp[k])
+                        print("k={}; pp={}".format(k, pp[k]))
                 pp -= np.max(pp)
 
                 for k in range(K):
@@ -188,7 +191,7 @@ class BANK(Model):
                 try:
                     pp = np.exp(pp - np.max(pp))
                     pp /= np.sum(pp)
-                    zdi_new = np.argmax(np.random.multinomial(5, pp))
+                    zdi_new = np.argmax(np.random.multinomial(1, pp))
                 except FloatingPointError:
                     print("Error pp={}".format(pp))
                     zdi_new = np.argmax(pp)
@@ -196,11 +199,12 @@ class BANK(Model):
                 Z[di] = zdi_new
                 nk[zdi_new] += 1
 
-            # sample W & beta
-            Phi_beta = np.sum(Phi * beta, axis=1)
-            exp_Phi = np.exp(Phi_beta)  # (N,)
-            log_py_old = -np.sum(np.log(1.0 + exp_Phi)) + np.dot(Phi_beta, self.y_)
+            print("nk={}".format(nk[nk > 0]))
 
+            if np.sum(np.abs(np.cos(np.dot(W, self.x_.T).T) * scale_rf - Phi[:, 0 : dim_rf])) > 1e-7:
+                print("Error Phi")
+
+            # sample W & beta
             for di in range(dim_rf):
                 di_idx = [di, di + dim_rf]
                 n_di_idx = 2
@@ -209,6 +213,7 @@ class BANK(Model):
                     n_di_idx = 3
                 log_pbeta_old[di] = stats.multivariate_normal.logpdf(beta[di_idx], np.zeros(n_di_idx), 1.0 / self.lbd)
 
+            n_accept = 0
             for di in range(dim_rf):
                 di_idx = [di, di + dim_rf]
                 n_di_idx = 2
@@ -217,18 +222,24 @@ class BANK(Model):
                     n_di_idx = 3
 
                 zdi = Z[di]
-                Wdi_old = W[di, :]
-                Phidi_old = Phi[:, di_idx]
+                Wdi_old = W[di, :].copy()
+                Phidi_old = Phi[:, di_idx].copy()
+
                 W[di, :] = np.random.multivariate_normal(mu_lst[zdi], cov_lst[zdi])
                 Wx_di_tmp = np.dot(self.x_, W[di, :].T)  # (N, 1)
                 Phi[:, di] = np.cos(Wx_di_tmp) * scale_rf
                 Phi[:, di + dim_rf] = np.sin(Wx_di_tmp) * scale_rf
 
-                beta_idx_old = beta[di_idx]
+                beta_idx_old = beta[di_idx].copy()
+
+                Phi_beta_old = np.sum(Phidi_old * beta_idx_old, axis=1)
+                exp_Phi_beta_old = np.exp(Phi_beta_old)
+                log_py_old = -np.sum(np.log(1.0 + exp_Phi_beta_old)) + np.dot(Phi_beta_old, self.y_)
+
                 beta[di_idx], lap_matrix_a = BANK.newtons_optimizer(beta[di_idx],
                                                                     BANK.get_log_f, BANK.get_grad, BANK.get_hessian,
                                                                     (Phi[:, di_idx], self.y_, self.lbd),
-                                                                    max_loop=100, eps=1e-15, beta=0.08)
+                                                                    max_loop=100, eps=1e-15, beta=0.8)
 
                 Phi_beta = np.sum(Phi[:, di_idx] * beta[di_idx], axis=1)
                 exp_Phi = np.exp(Phi_beta)
@@ -244,19 +255,20 @@ class BANK(Model):
                     log_lap_beta_old[di] = log_lap_beta
 
                 try:
-                    accept_rate = min(1, np.exp((log_py + log_pbeta + log_lap_beta_old[di]) -
+                    accept_rate = min(0, ((log_py + log_pbeta + log_lap_beta_old[di]) -
                                                 (log_py_old + log_pbeta_old[di] + log_lap_beta)))
                 except FloatingPointError:
                     print("Error:{},{},{} {},{},{}".format(log_py, log_pbeta, log_lap_beta_old[di],
                                                            log_py_old, log_pbeta_old[di], log_lap_beta))
-                # print("Accept 1:{},{},{} {},{},{}".format(log_py, log_pbeta, log_lap_beta_old[di],
-                #                                           log_py_old, log_pbeta_old[di], log_lap_beta))
+                # print("Log(accept)={}: {}, {}, {} *** {},{},{}".format(
+                #     accept_rate, log_py, log_pbeta, log_lap_beta_old[di],
+                #     log_py_old, log_pbeta_old[di], log_lap_beta))
                 # print("loss old={}, new={}, accept={}".format(loss_old,
                 #                                               np.mean(self.y_ != (Phi_beta >= 0)),
                 #                                               accept_rate))
                 # print("Loss old={}, new={}, accept={}".format(-log_py_old, -log_py, accept_rate))
                 # accept_rate = 1
-                if np.random.uniform() > accept_rate:
+                if np.log(np.random.uniform()) > accept_rate:
                     beta[di_idx] = beta_idx_old
                     W[di, :] = Wdi_old
                     Phi[:, di_idx] = Phidi_old
@@ -264,18 +276,19 @@ class BANK(Model):
                     log_py_old = log_py
                     log_lap_beta_old[di] = log_lap_beta
                     log_pbeta_old[di] = log_pbeta
+                    n_accept += 1
 
             beta, lap_matrix_a = BANK.newtons_optimizer(beta,
                                                         BANK.get_log_f, BANK.get_grad, BANK.get_hessian,
                                                         (Phi, self.y_, self.lbd),
-                                                        max_loop=100, eps=1e-15, beta=0.8)
+                                                        max_loop=100, eps=1e-7, beta=0.8)
             Phi_beta = np.sum(Phi * beta, axis=1)
-            print("loss={}".format(np.mean(self.y_ != (Phi_beta >= 0))))
+            print("err={}, accept={}".format(np.mean(self.y_ != (Phi_beta >= 0)), n_accept))
 
         self.W_ = W
         self.beta_ = beta
 
-    def _fit_loop_v1(self, x, y,
+    def _fit_loop(self, x, y,
                      do_validation=False,
                      x_valid=None, y_valid=None,
                      callbacks=None, callback_metrics=None):
@@ -400,15 +413,15 @@ class BANK(Model):
                     n_di_idx = 3
 
                 zdi = Z[di]
-                Wdi_old = W[di, :]
-                Phidi_old = Phi[:, di_idx]
+                Wdi_old = W[di, :].copy()
+                Phidi_old = Phi[:, di_idx].copy()
                 W[di, :] = np.random.multivariate_normal(mu_lst[zdi], cov_lst[zdi])
                 Wx_di_tmp = np.dot(self.x_, W[di, :].T)  # (N, 1)
                 Phi[:, di] = np.cos(Wx_di_tmp) * scale_rf
                 Phi[:, di + dim_rf] = np.sin(Wx_di_tmp) * scale_rf
 
                 T = self.inner_epoch * N
-                beta_idx_old = beta[di_idx]
+                beta_idx_old = beta[di_idx].copy()
                 for t in range(T):
                     idx = np.random.randint(0, N, self.batch_size)  # (t,)
                     PhiX_t = np.sum(Phi[idx, :] * beta, axis=1)  # (t,)
@@ -478,7 +491,7 @@ class BANK(Model):
         dim_rf = self.dim_rf
         dprime = dim_rf * 2
         dprime_ext = dprime + 1
-        scale_rf = 1.0  # / np.sqrt(dim_rf)
+        scale_rf = 1.0 / np.sqrt(dim_rf)
 
         N_test = x.shape[0]
         y = np.ones(N_test)

@@ -5,6 +5,7 @@ from __future__ import absolute_import
 import pytest
 import numpy as np
 
+
 from sklearn import metrics
 
 from sklearn.datasets import load_svmlight_file
@@ -29,8 +30,8 @@ def test_bank_2d():
         gamma=20,
         dim_rf=400,
         lbd=0.125,
-        alpha=1.0,
-        kappa=0.1,
+        alpha=50.0,
+        kappa=0.10,
         inner_epoch=1,
         max_loop=20,
         batch_size=5
@@ -59,14 +60,14 @@ def test_bank_svmguide1():
     x_test = x_test.toarray()
 
     learner = BANK(
-        gamma=20,
+        gamma=0.1,
         dim_rf=400,
-        lbd=10,
-        alpha=1.0,
+        lbd=0.125,
+        alpha=100.0,
         kappa=0.1,
-        inner_epoch=2,
-        max_loop=10,
-        batch_size=100
+        inner_epoch=1,
+        max_loop=20,
+        batch_size=5
     )
 
     learner.fit(x_train, y_train)
@@ -74,8 +75,36 @@ def test_bank_svmguide1():
     y_test_pred = learner.predict(x_test)
     print("Training error = %.4f" % (1 - metrics.accuracy_score(y_test, y_test_pred)))
 
+def test_bank_a9a():
+    sub_folder = ''
+    data_name = 'a9a'
+    n_features = 123
+    train_file_name = data_dir + sub_folder + data_name + '.txt'
+    test_file_name = data_dir + sub_folder + data_name + '_t.txt'
+
+    x_train, y_train = load_svmlight_file(train_file_name, n_features=n_features)
+    x_test, y_test = load_svmlight_file(test_file_name, n_features=n_features)
+
+    x_train = x_train.toarray()
+    x_test = x_test.toarray()
+
+    learner = BANK(
+        gamma=100,
+        dim_rf=400,
+        lbd=0.0125,
+        alpha=10.0,
+        kappa=0.1,
+        inner_epoch=1,
+        max_loop=20,
+        batch_size=5
+    )
+
+    learner.fit(x_train, y_train)
+
+    y_test_pred = learner.predict(x_test)
+    print("Training error = %.4f" % (1 - metrics.accuracy_score(y_test, y_test_pred)))
 
 if __name__ == '__main__':
     # pytest.main([__file__])
-    test_bank_2d()
-    # test_bank_svmguide1()
+    # test_bank_2d()
+    test_bank_svmguide1()
