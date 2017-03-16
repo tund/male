@@ -61,7 +61,7 @@ class GaussianInvWishart(object):
             C = np.dot(dx_bar.T, dx_bar)  # array (d,d)
         else:
             x_bar = np.zeros(self.d)
-            C = np.zeros(self.d, self.d)
+            C = np.zeros((self.d, self.d))
         x_bar_mu = (x_bar - self.mu0).reshape((self.d,1))
         self.mu = (self.lbd0 * self.mu0 + self.x_sum) / self.lbd
         self.psi_m = self.psi0_m + C + (self.lbd0 * self.n) * np.dot(x_bar_mu, x_bar_mu.T) / self.lbd
