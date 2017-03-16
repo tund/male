@@ -70,7 +70,7 @@ class GaussianInvWishart(object):
         """
         Add one item to component
         :param x: (d,)
-        :return:
+        :return: index of item in the component
         """
         self.n += 1
         self.lbd += 1
@@ -78,6 +78,7 @@ class GaussianInvWishart(object):
         self.x_sum += x
         self.x_lst.append(x)
         self.invalid = True
+        return self.n - 1  # zero-based index
 
     def del_item(self, index):
         """
