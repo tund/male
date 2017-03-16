@@ -184,6 +184,9 @@ class BANK(Model):
         log_pbeta_old = np.zeros(dim_rf)
         log_lap_beta_old[:] = np.nan
 
+        pp_mulgauss = np.zeros((K, dim_rf))
+        log_alpha = np.nan
+
         for l in range(L):
             # print("W={}".format(W))
             # sample mu, cov
@@ -193,25 +196,29 @@ class BANK(Model):
                     print("mu = {}".format(mu_lst[k]))
                     print("cov = {}".format(cov_lst[k]))
 
+            for di in range(dim_rf):
+                for k in range(K):
+                    pp_mulgauss[k, di] = stats.multivariate_normal. \
+                        logpdf(W[di, :], mu_lst[k], cov_lst[k])
+            pp_mulgauss -= np.max(pp_mulgauss, axis=0)
+
+            if np.isnan(log_alpha):
+                log_alpha = np.percentile(np.abs(pp_mulgauss[pp_mulgauss < 0]), 1)
+                print(log_alpha)
+
             # sample Z
             for di in range(dim_rf):
                 zdi = Z[di]
                 # remove
                 nk[zdi] -= 1
 
-                pp = np.zeros(K)
-                for k in range(K):
-                    pp[k] = stats.multivariate_normal. \
-                        logpdf(W[di, :], mu_lst[k], cov_lst[k])
-                    if pp[k] < -300:
-                        print("k={}; pp={}".format(k, pp[k]))
-                pp -= np.max(pp)
+                pp = pp_mulgauss[:, di]
 
                 for k in range(K):
                     if nk[k] > 0:
                         pp[k] += np.log(nk[k])
                     else:
-                        pp[k] += np.log(self.alpha)
+                        pp[k] += log_alpha
                 try:
                     pp = np.exp(pp - np.max(pp))
                     pp /= np.sum(pp)
@@ -225,7 +232,7 @@ class BANK(Model):
 
             print("nk={}".format(nk[nk > 0]))
 
-            if np.sum(np.abs(np.cos(np.dot(W, self.x_.T).T) * scale_rf - Phi[:, 0 : dim_rf])) > 1e-7:
+            if np.sum(np.abs(np.cos(np.dot(W, self.x_.T).T) * scale_rf - Phi[:, 0: dim_rf])) > 1e-7:
                 print("Error Phi")
 
             # sample W & beta
@@ -302,12 +309,13 @@ class BANK(Model):
                     log_pbeta_old[di] = log_pbeta
                     n_accept += 1
 
-            beta, lap_matrix_a = BANK.newtons_optimizer(beta,
-                                                        BANK.get_log_f, BANK.get_grad, BANK.get_hessian,
-                                                        (Phi, self.y_, self.lbd),
-                                                        max_loop=100, eps=1e-7, beta=0.8)
             Phi_beta = np.sum(Phi * beta, axis=1)
             print("err={}, accept={}".format(np.mean(self.y_ != (Phi_beta >= 0)), n_accept))
+
+        beta, lap_matrix_a = BANK.newtons_optimizer(beta,
+                                                    BANK.get_log_f, BANK.get_grad, BANK.get_hessian,
+                                                    (Phi, self.y_, self.lbd),
+                                                    max_loop=100, eps=1e-7, beta=0.8)
 
         self.W_ = W
         self.beta_ = beta
@@ -518,7 +526,7 @@ class BANK(Model):
         scale_rf = 1.0 / np.sqrt(dim_rf)
 
         N_test = x.shape[0]
-        y = np.ones(N_test)
+        y = np.ones(N_test, dtype=int)
 
         Wx = np.dot(self.W_, x.T).T
         Phi = np.ones((N_test, dprime_ext))
@@ -527,7 +535,8 @@ class BANK(Model):
         Phi *= scale_rf
 
         y[(np.sum(Phi * self.beta_, axis=1)) < 0] = 0
-        return y
+
+        return self._decode_labels(y)
 
     def get_params(self, deep=True):
         out = super(BANK, self).get_params(deep=deep)
