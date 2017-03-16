@@ -29,7 +29,7 @@ class GMM1D(object):
         p = np.zeros([samples.shape[0], len(self.pi)])
         for i in range(len(self.pi)):
             p[:, [i]] = self.pi[i] * norm.pdf(samples, loc=self.mu[i], scale=self.sigma[i])
-        return np.mean(np.log(np.sum(p, axis=1)) + epsilon())
+        return np.mean(np.log(np.sum(p, axis=1) + epsilon()))
 
 
 class GMM(object):
