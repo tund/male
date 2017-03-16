@@ -9,11 +9,6 @@ import copy
 import numpy as np
 import tensorflow as tf
 
-tf_config = tf.ConfigProto()
-tf_config.gpu_options.allow_growth = True
-tf_config.log_device_placement = False
-tf_config.allow_soft_placement = True
-
 from sklearn.utils.validation import check_is_fitted
 
 from .rbm import RBM

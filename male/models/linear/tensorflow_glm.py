@@ -5,11 +5,6 @@ from __future__ import absolute_import
 import copy
 import tensorflow as tf
 
-tf_config = tf.ConfigProto()
-tf_config.gpu_options.allow_growth = True
-tf_config.log_device_placement = False
-tf_config.allow_soft_placement = True
-
 from ..linear import GLM
 from ... import TensorFlowModel
 from ...utils.generic_utils import make_batches
@@ -105,7 +100,7 @@ class TensorFlowGLM(TensorFlowModel, GLM):
         return link
 
     def get_all_params(self, deep=True):
-        out = TensorFlowModel.get_all_params(self, deep=deep)
+        out = super(TensorFlowGLM, self).get_all_params(deep=deep)
         out.update(self.get_params(deep=deep))
         out.update({
             'w_': self.w_,

@@ -8,13 +8,9 @@ import copy
 import numpy as np
 import tensorflow as tf
 
-tf_config = tf.ConfigProto()
-tf_config.gpu_options.allow_growth = True
-tf_config.log_device_placement = False
-tf_config.allow_soft_placement = True
-
 from . import Model
 from . import callbacks as cbks
+from .backend import tensorflow_backend as tf_backend
 from .utils.io_utils import ask_to_proceed_with_overwrite
 
 
@@ -32,7 +28,8 @@ class TensorFlowModel(Model):
         super(TensorFlowModel, self)._init()
 
         self.tf_graph_ = tf.Graph()
-        self.tf_session_ = tf.Session(config=tf_config, graph=self.tf_graph_)
+        self.tf_config_ = tf_backend.get_default_config()
+        self.tf_session_ = tf.Session(config=self.tf_config_, graph=self.tf_graph_)
         self.tf_saver_ = None
         self.tf_merged_summaries_ = None
         self.tf_summary_writer_ = None
@@ -44,7 +41,7 @@ class TensorFlowModel(Model):
         graph = kwargs['graph'] if 'graph' in kwargs else self.tf_graph_
         sess = self.tf_session_ if 'sess' not in kwargs else kwargs['sess']
         if sess is None:
-            sess = tf.Session(config=tf_config, graph=graph)
+            sess = tf.Session(config=self.tf_config_, graph=graph)
             self.tf_saver_.restore(sess, self.model_path)
         return sess
 
@@ -162,6 +159,7 @@ class TensorFlowModel(Model):
         out.update(self.get_params(deep=deep))
         out.update({
             'tf_graph_': self.tf_graph_,
+            'tf_config_': self.tf_config_,
             'tf_session_': self.tf_session_,
             'tf_saver_': self.tf_saver_,
             'tf_merged_summaries_': self.tf_merged_summaries_,
