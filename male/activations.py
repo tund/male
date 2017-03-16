@@ -37,6 +37,15 @@ def tf_relu(x):
     return tf.nn.relu(x)
 
 
+def tf_lrelu(x, alpha=0.01):
+    if alpha != 0.:
+        negative_part = tf.nn.relu(-x)
+    x = tf.nn.relu(x)
+    if alpha != 0.:
+        x -= alpha * negative_part
+    return x
+
+
 def tf_tanh(x):
     return tf.tanh(x)
 

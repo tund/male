@@ -15,6 +15,8 @@ from male.models.deep_learning.generative import GAN1D
 
 def test_gan1d_gaussian1d():
     loss_display = Display(layout=(2, 1),
+                           dpi='auto',
+                           title='Loss',
                            monitor=[{'metrics': ['d_loss', 'g_loss'],
                                      'type': 'line',
                                      'labels': ["discriminator loss", "generator loss"],
@@ -31,7 +33,9 @@ def test_gan1d_gaussian1d():
                                      },
                                     ])
     distribution_display = Display(layout=(1, 1),
-                                   freq=20,
+                                   dpi='auto',
+                                   freq=10,
+                                   title='Histogram',
                                    monitor=[{'metrics': ['distribution'],
                                              'type': 'hist',
                                              'title': "Histogram of GAN1D",
@@ -40,7 +44,9 @@ def test_gan1d_gaussian1d():
                                              },
                                             ])
     avg_distribution_display = Display(layout=(1, 1),
+                                       dpi='auto',
                                        freq=10,
+                                       title='Average Histogram',
                                        monitor=[{'metrics': ['avg_distribution'],
                                                  'type': 'hist',
                                                  'title': "Averaged Histogram of GAN1D",
@@ -54,7 +60,7 @@ def test_gan1d_gaussian1d():
                   num_epochs=5000,
                   hidden_size=20,
                   batch_size=12,
-                  minibatch_discriminator=True,
+                  minibatch_discriminator=False,
                   loglik_freq=10,
                   metrics=['d_loss', 'g_loss', 'loglik'],
                   callbacks=[loss_display, distribution_display, avg_distribution_display],
@@ -65,6 +71,8 @@ def test_gan1d_gaussian1d():
 
 def test_gan1d_gmm1d():
     loss_display = Display(layout=(2, 1),
+                           dpi='auto',
+                           title='Loss',
                            monitor=[{'metrics': ['d_loss', 'g_loss'],
                                      'type': 'line',
                                      'labels': ["discriminator loss", "generator loss"],
@@ -81,7 +89,9 @@ def test_gan1d_gmm1d():
                                      },
                                     ])
     distribution_display = Display(layout=(1, 1),
+                                   dpi='auto',
                                    freq=20,
+                                   title='Histogram',
                                    monitor=[{'metrics': ['distribution'],
                                              'type': 'hist',
                                              'title': "Histogram of GAN1D",
@@ -90,7 +100,9 @@ def test_gan1d_gmm1d():
                                              },
                                             ])
     avg_distribution_display = Display(layout=(1, 1),
+                                       dpi='auto',
                                        freq=10,
+                                       title='Average Histogram',
                                        monitor=[{'metrics': ['avg_distribution'],
                                                  'type': 'hist',
                                                  'title': "Averaged Histogram of GAN1D",
@@ -112,6 +124,6 @@ def test_gan1d_gmm1d():
 
 
 if __name__ == '__main__':
-    # pytest.main([__file__])
-    test_gan1d_gaussian1d()
+    pytest.main([__file__])
+    # test_gan1d_gaussian1d()
     # test_gan1d_gmm1d()
