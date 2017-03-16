@@ -77,10 +77,11 @@ class BANK(Model):
             C = np.zeros((D, D))
         mu_new = (kappa_mu + nk * xbar) / (kappa + nk)
         nu_new = nu + nk
+        kappa_new = kappa + nk
         xbar_mu = (xbar - mu).reshape((D, 1))
         Psi_new = Psi + C + (kappa * nk / (kappa + nk)) * np.dot(xbar_mu, xbar_mu.T)
         cov_new = stats.invwishart.rvs(df=nu_new, scale=Psi_new)
-        mean_new = stats.multivariate_normal.rvs(mu_new, cov_new)
+        mean_new = stats.multivariate_normal.rvs(mu_new, cov_new / kappa_new)
         return [mean_new, cov_new]
 
     @staticmethod

@@ -27,11 +27,11 @@ def test_bank_2d():
     y_train[y_train == -1] = 0
 
     learner = BANK(
-        gamma=2000,
+        gamma=20,
         dim_rf=400,
         lbd=0.125,
         alpha=1.0,
-        kappa=0.10,
+        kappa=1.0,
         inner_epoch=1,
         max_loop=20,
         batch_size=5
@@ -107,5 +107,5 @@ def test_bank_a9a():
 
 if __name__ == '__main__':
     # pytest.main([__file__])
-    # test_bank_2d()
-    test_bank_svmguide1()
+    test_bank_2d()
+    # test_bank_svmguide1()
