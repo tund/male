@@ -27,10 +27,10 @@ def test_bank_2d():
     y_train[y_train == -1] = 0
 
     learner = BANK(
-        gamma=20,
+        gamma=2000,
         dim_rf=400,
         lbd=0.125,
-        alpha=50.0,
+        alpha=1.0,
         kappa=0.10,
         inner_epoch=1,
         max_loop=20,
@@ -66,7 +66,7 @@ def test_bank_svmguide1():
         alpha=100.0,
         kappa=0.1,
         inner_epoch=1,
-        max_loop=20,
+        max_loop=100,
         batch_size=5
     )
 
@@ -74,6 +74,7 @@ def test_bank_svmguide1():
 
     y_test_pred = learner.predict(x_test)
     print("Training error = %.4f" % (1 - metrics.accuracy_score(y_test, y_test_pred)))
+
 
 def test_bank_a9a():
     sub_folder = ''
@@ -95,7 +96,7 @@ def test_bank_a9a():
         alpha=10.0,
         kappa=0.1,
         inner_epoch=1,
-        max_loop=20,
+        max_loop=50,
         batch_size=5
     )
 

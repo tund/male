@@ -61,6 +61,29 @@ class BANK(Model):
         return [mu_new, cov_new]
 
     @staticmethod
+    def get_prior_giw_sample(D, W, kappa, mu, nu, Psi):
+        # W just contain W_di have Z_di = k
+        if len(W.shape) < 2:
+            raise Exception('wrong dimension')
+
+        nk = W.shape[0]
+        kappa_mu = kappa * mu
+        if nk > 0:
+            xbar = np.mean(W, axis=0)  # (D,)
+            W_xbar = W - xbar  # (D,nk)
+            C = np.dot(W_xbar.T, W_xbar)  # (D,D)
+        else:
+            xbar = np.zeros(D)
+            C = np.zeros((D, D))
+        mu_new = (kappa_mu + nk * xbar) / (kappa + nk)
+        nu_new = nu + nk
+        xbar_mu = (xbar - mu).reshape((D, 1))
+        Psi_new = Psi + C + (kappa * nk / (kappa + nk)) * np.dot(xbar_mu, xbar_mu.T)
+        cov_new = stats.invwishart.rvs(df=nu_new, scale=Psi_new)
+        mean_new = stats.multivariate_normal.rvs(mu_new, cov_new)
+        return [mean_new, cov_new]
+
+    @staticmethod
     def newtons_optimizer(x, obj_func, grad_func, hess_func, args, **kwargs):
         beta = kwargs['beta']
         max_loop = kwargs['max_loop']
@@ -102,7 +125,7 @@ class BANK(Model):
         sig_predict = (1.0 / (1 + np.exp(-np.dot(Phi, beta))))
         return np.dot(Phi.T * sig_predict * (1 - sig_predict), Phi) + lbd * np.eye(len(beta))
 
-    def _fit_loop_v2(self, x, y,
+    def _fit_loop(self, x, y,
                   do_validation=False,
                   x_valid=None, y_valid=None,
                   callbacks=None, callback_metrics=None):
@@ -136,7 +159,7 @@ class BANK(Model):
         for di in range(dim_rf):
             nk[Z[di]] += 1
         for k in range(K):
-            mu_lst[k], cov_lst[k] = BANK.get_prior_giw(D, W[Z == k, :], kappa0, mu0, nu0, Psi0)
+            mu_lst[k], cov_lst[k] = BANK.get_prior_giw_sample(D, W[Z == k, :], kappa0, mu0, nu0, Psi0)
 
         for di in range(dim_rf):
             W[di, :] = np.random.multivariate_normal(mu_lst[Z[di]], cov_lst[Z[di]])
@@ -288,7 +311,7 @@ class BANK(Model):
         self.W_ = W
         self.beta_ = beta
 
-    def _fit_loop(self, x, y,
+    def _fit_loop_v1(self, x, y,
                      do_validation=False,
                      x_valid=None, y_valid=None,
                      callbacks=None, callback_metrics=None):
