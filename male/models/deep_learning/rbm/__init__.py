@@ -1,4 +1,5 @@
 from .srbm import SupervisedRBM
+from .ssrbm import SemiSupervisedRBM
 from .bbrbm import BernoulliBernoulliRBM
 
 try:

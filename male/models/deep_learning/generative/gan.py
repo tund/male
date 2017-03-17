@@ -5,36 +5,33 @@ from __future__ import absolute_import
 import copy
 import numpy as np
 import tensorflow as tf
-
-config = tf.ConfigProto()
-config.gpu_options.allow_growth = True
-config.log_device_placement = False
-config.allow_soft_placement = True
-
 import matplotlib.pyplot as plt
 
 plt.style.use('ggplot')
 
-from .... import Model
+from .... import TensorFlowModel
 from .... import activations
 from ...distribution import Uniform
 from ....utils.generic_utils import make_batches
 from ....utils.disp_utils import tile_raster_images
+from ....backend.tensorflow_backend import linear, batchnorm
 
 
-class GAN(Model):
+class GAN(TensorFlowModel):
     """Generative Adversarial Nets using Multilayer Perceptrons
     """
 
     def __init__(self,
                  model_name='GAN',
                  num_x=100,
+                 discriminator_batchnorm=False,
                  num_discriminator_hiddens=(100,),
                  discriminator_act_funcs=('relu',),
                  discriminator_learning_rate=0.001,
                  num_z=20,
-                 generator_distribution=Uniform(low=0.0, high=1.0),
+                 generator_distribution=Uniform(low=(-1.0,) * 20, high=(1.0,) * 20),
                  num_generator_hiddens=(100,),
+                 generator_batchnorm=False,
                  generator_act_funcs=('relu',),
                  generator_out_func='sigmoid',
                  generator_learning_rate=0.001,
@@ -42,21 +39,20 @@ class GAN(Model):
         kwargs['model_name'] = model_name
         super(GAN, self).__init__(**kwargs)
         self.num_x = num_x
+        self.discriminator_batchnorm = discriminator_batchnorm
         self.num_discriminator_hiddens = num_discriminator_hiddens
         self.discriminator_act_funcs = discriminator_act_funcs
         self.discriminator_learning_rate = discriminator_learning_rate
         self.num_z = num_z
+        self.generator_batchnorm = generator_batchnorm
         self.generator_distribution = generator_distribution
         self.num_generator_hiddens = num_generator_hiddens
         self.generator_act_funcs = generator_act_funcs
         self.generator_out_func = generator_out_func
         self.generator_learning_rate = generator_learning_rate
+        assert self.generator_distribution.dim == self.num_z
 
-    def _init(self):
-        super(GAN, self)._init()
-
-        tf.set_random_seed(self.random_state)
-
+    def _build_model(self, x):
         with tf.variable_scope('generator'):
             self.z_ = tf.placeholder(tf.float32, shape=[None, self.num_z])
             self.g_ = self._create_generator(self.z_,
@@ -84,61 +80,51 @@ class GAN(Model):
                                              self.discriminator_learning_rate)
         self.g_opt_ = self._create_optimizer(self.g_loss_, self.g_params_,
                                              self.generator_learning_rate)
+        self.tf_session_.run(tf.global_variables_initializer())
 
     def _fit_loop(self, x, y,
                   do_validation=False,
                   x_valid=None, y_valid=None,
                   callbacks=None, callback_metrics=None):
-        with tf.Session(config=config) as sess:
-            sess.run(tf.global_variables_initializer())
+        batches = make_batches(x.shape[0], self.batch_size)
+        while (self.epoch_ < self.num_epochs) and (not self.stop_training_):
+            epoch_logs = {}
+            callbacks.on_epoch_begin(self.epoch_)
 
-            batches = make_batches(x.shape[0], self.batch_size)
-            while self.epoch_ < self.num_epochs:
-                epoch_logs = {}
-                callbacks.on_epoch_begin(self.epoch_)
+            for batch_idx, (batch_start, batch_end) in enumerate(batches):
+                batch_size = batch_end - batch_start
+                batch_logs = {'batch': batch_idx,
+                              'size': batch_size}
+                callbacks.on_batch_begin(batch_idx, batch_logs)
 
-                for batch_idx, (batch_start, batch_end) in enumerate(batches):
-                    batch_size = batch_end - batch_start
-                    batch_logs = {'batch': batch_idx,
-                                  'size': batch_size}
-                    callbacks.on_batch_begin(batch_idx, batch_logs)
+                # update discriminator
+                x_batch = x[batch_start:batch_end]
+                z = self.sample_z(batch_size)
+                d_loss, _ = self.tf_session_.run(
+                    [self.d_loss_, self.d_opt_],
+                    feed_dict={self.x_: np.reshape(x_batch, [batch_size, self.num_x]),
+                               self.z_: np.reshape(z, [batch_size, self.num_z])})
 
-                    # update discriminator
-                    x_batch = x[batch_start:batch_end]
-                    z = self.sample_z(batch_size)
-                    d_loss, _ = sess.run([self.d_loss_, self.d_opt_],
-                                         feed_dict={
-                                             self.x_: np.reshape(x_batch, [batch_size, self.num_x]),
-                                             self.z_: np.reshape(z, [batch_size, self.num_z])})
+                # update generator
+                z = self.sample_z(batch_size)
+                g_loss, _ = self.tf_session_.run(
+                    [self.g_loss_, self.g_opt_],
+                    feed_dict={self.z_: np.reshape(z, [batch_size, self.num_z])})
 
-                    # update generator
-                    z = self.sample_z(batch_size)
-                    g_loss, _ = sess.run([self.g_loss_, self.g_opt_],
-                                         feed_dict={
-                                             self.z_: np.reshape(z, [batch_size, self.num_z])})
+                batch_logs.update(self._on_batch_end(x))
+                batch_logs['d_loss'] = d_loss
+                batch_logs['g_loss'] = g_loss
 
-                    batch_logs.update(self._on_batch_end(x))
-                    batch_logs['d_loss'] = d_loss
-                    batch_logs['g_loss'] = g_loss
+                callbacks.on_batch_end(batch_idx, batch_logs)
 
-                    callbacks.on_batch_end(batch_idx, batch_logs)
-
-                callbacks.on_epoch_end(self.epoch_, epoch_logs)
-
-                self.epoch_ += 1
-                if self.stop_training_:
-                    self.epoch_ = self.stop_training_
-                    break
+            callbacks.on_epoch_end(self.epoch_, epoch_logs)
+            self._on_epoch_end()
 
     def sample_z(self, num_samples):
-        return self.generator_distribution.sample(size=[num_samples, self.num_z])
+        return self.generator_distribution.sample(num_samples)
 
-    def generate(self, num_samples=10000, sess=None):
-        close_session = False
-        sess = tf.get_default_session() if sess is None else sess
-        if sess is None:
-            close_session = True
-            sess = tf.Session(config=config)
+    def generate(self, num_samples=10000):
+        sess = self._get_session()
         z = self.sample_z(num_samples)
         x = np.zeros([num_samples, self.num_x])
         batches = make_batches(num_samples, self.batch_size)
@@ -150,32 +136,36 @@ class GAN(Model):
                                         [batch_end - batch_start, self.num_z])
                 }
             )
-        if close_session:
+        if sess != self.tf_session_:
             sess.close()
         return x
-
-    def _create_linear_layer(self, input, output_dim, scope='linear', stddev=0.01):
-        norm = tf.random_normal_initializer(stddev=stddev)
-        const = tf.constant_initializer(0.0)
-        with tf.variable_scope(scope):
-            w = tf.get_variable('w', [input.get_shape()[1], output_dim], initializer=norm)
-            b = tf.get_variable('b', [output_dim], initializer=const)
-            return tf.matmul(input, w) + b
 
     def _create_generator(self, input, num_hiddens, act_funcs, out_func):
         h = input
         for i in range(len(num_hiddens)):
-            h = activations.get('tf_' + act_funcs[i])(
-                self._create_linear_layer(h, num_hiddens[i], scope='g_hidden' + str(i + 1)))
-        out = activations.get('tf_' + out_func)(self._create_linear_layer(h, self.num_x, 'g_out'))
+            linear_layer = linear(h, num_hiddens[i], scope='g_hidden' + str(i + 1))
+            batchnorm_layer = batchnorm(linear,
+                                        is_training=True) \
+                if self.generator_batchnorm else linear_layer
+            if act_funcs[i] == 'lrelu':
+                h = activations.get('tf_' + act_funcs[i])(batchnorm_layer, alpha=0.2)
+            else:
+                h = activations.get('tf_' + act_funcs[i])(batchnorm_layer)
+        out = activations.get('tf_' + out_func)(linear(h, self.num_x, 'g_out'))
         return out
 
     def _create_discriminator(self, input, num_hiddens, act_funcs):
         h = input
         for i in range(len(num_hiddens)):
-            h = activations.get('tf_' + act_funcs[i])(
-                self._create_linear_layer(h, num_hiddens[i], scope='d_hidden' + str(i + 1)))
-        out = tf.sigmoid(self._create_linear_layer(h, 1, scope='d_out'))
+            linear_layer = linear(h, num_hiddens[i], scope='d_hidden' + str(i + 1))
+            batchnorm_layer = batchnorm(linear,
+                                        is_training=True) \
+                if self.discriminator_batchnorm else linear_layer
+            if act_funcs[i] == 'lrelu':
+                h = activations.get('tf_' + act_funcs[i])(batchnorm_layer, alpha=0.2)
+            else:
+                h = activations.get('tf_' + act_funcs[i])(batchnorm_layer)
+        out = tf.sigmoid(linear(h, 1, scope='d_out'))
         return out
 
     def _create_optimizer(self, loss, var_list, initial_learning_rate):
@@ -217,7 +207,7 @@ class GAN(Model):
                               'interpolation'] if 'interpolation' in kwargs else 'none')
             plt.show()
 
-    def disp_params(self, param, **kwargs):
+    def display(self, param, **kwargs):
         if param == 'x_samples':
             x = self.generate(num_samples=kwargs['num_samples']) if 'num_samples' in kwargs else \
                 self.generate(num_samples=100)
@@ -227,10 +217,12 @@ class GAN(Model):
         out = super(GAN, self).get_params(deep=deep)
         out.update({
             'num_x': self.num_x,
+            'discriminator_batchnorm': self.discriminator_batchnorm,
             'num_discriminator_hiddens': copy.deepcopy(self.num_discriminator_hiddens),
             'discriminator_act_funcs': copy.deepcopy(self.discriminator_act_funcs),
             'discriminator_learning_rate': self.discriminator_learning_rate,
             'num_z': self.num_z,
+            'generator_batchnorm': self.generator_batchnorm,
             'num_generator_hiddens': copy.deepcopy(self.num_generator_hiddens),
             'generator_act_funcs': copy.deepcopy(self.generator_act_funcs),
             'generator_out_func': self.generator_out_func,
@@ -240,5 +232,6 @@ class GAN(Model):
 
     def get_all_params(self, deep=True):
         out = super(GAN, self).get_all_params(deep=deep)
+        out.update(self.get_params(deep=deep))
         out.update({})
         return out

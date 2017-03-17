@@ -190,7 +190,8 @@ class SupervisedRBM(BernoulliBernoulliRBM):
                             term2 = 0.5 * (1 - 2 * hprob[ii]) * lbd.dot(yw_yw)  # [M,K]
                             term3 = (hh * lbd.dot(self.yw_.T)).dot(self.yw_.dot(dlbd_mu.T))
                             term4 = 0.5 * (1 - 2 * hprob[ii]) * lbd.dot(self.yw_.T)
-                            hprob[jj] = sigmoid(constant_term + term1 + term2 - term3 - term4)
+                            hprob[jj] = sigmoid(constant_term - db_mu
+                                                - term1 - term2 + term3 + term4)
                         diff = np.mean(np.abs(hprob[ii] - hprob[jj]))
                         ii ^= 1
                         jj ^= 1
@@ -293,6 +294,18 @@ class SupervisedRBM(BernoulliBernoulliRBM):
         else:
             return sigmoid(x.dot(self.w_) + self.h_)
 
+    def _predict_from_hidden(self, hidden):
+        if self.task == 'classification':
+            return np.argmax(softmax(hidden.dot(self.yw_) + self.yb_), axis=1)
+        else:
+            return hidden.dot(self.yw_) + self.yb_
+
+    def _predict_proba_from_hidden(self, hidden):
+        if self.task == 'classification':
+            return softmax(hidden.dot(self.yw_) + self.yb_)
+        else:
+            return hidden.dot(self.yw_) + self.yb_
+
     def get_loss(self, x, y, *args, **kwargs):
         if self.task == 'classification':
             y_pred = self.predict_proba(x)
@@ -380,11 +393,7 @@ class SupervisedRBM(BernoulliBernoulliRBM):
             return y
 
     def predict(self, x):
-        hpost = self.transform(x)
-        if self.task == 'classification':
-            return self._decode_labels(np.argmax(softmax(hpost.dot(self.yw_) + self.yb_), axis=1))
-        else:
-            return hpost.dot(self.yw_) + self.yb_
+        return self._decode_labels(self._predict(x))
 
     def _predict(self, x):
         hpost = self.transform(x)

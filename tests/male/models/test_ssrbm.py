@@ -6,159 +6,21 @@ import os
 import pytest
 import numpy as np
 from sklearn.datasets import load_svmlight_file
+from sklearn.model_selection import StratifiedShuffleSplit
 
 from male.callbacks import Display
 from male.callbacks import EarlyStopping
 from male.callbacks import ModelCheckpoint
-from male.models.deep_learning.rbm import SupervisedRBM
+from male.models.deep_learning.rbm import SemiSupervisedRBM
 from male.models.deep_learning.rbm.rbm import INFERENCE_ENGINE
 from male.models.deep_learning.rbm.srbm import APPROX_METHOD
 
-
-def test_srbm_hidden_posterior_approximation():
-    np.random.seed(4444)
-    num_data = 10
-    num_features = 4
-    num_hidden = 3
-
-    # Classification
-    x = np.random.rand(num_data, num_features)
-    y = np.random.randint(0, 3, num_data)
-    model = SupervisedRBM(
-        task='classification',
-        num_hidden=num_hidden,
-        num_visible=num_features,
-        batch_size=4,
-        num_epochs=0,
-        learning_rate=0.01,
-        momentum_method='sudden',
-        weight_cost=0.0,
-        inference_engine='variational_inference',
-        approx_method='first_order',
-        random_state=6789,
-        verbose=1)
-    model.fit(x, y)
-    model.inference_engine = INFERENCE_ENGINE['variational_inference']
-    model.approx_method = APPROX_METHOD['first_order']
-    h_vi_1st = model._get_hidden_prob(x, y=y)
-    model.inference_engine = INFERENCE_ENGINE['variational_inference']
-    model.approx_method = APPROX_METHOD['second_order']
-    h_vi_2nd = model._get_hidden_prob(x, y=y)
-    model.inference_engine = INFERENCE_ENGINE['gibbs']
-    h_gibbs = model._get_hidden_prob(x, y=y)
-    import matplotlib.pyplot as plt
-    fig, axes = plt.subplots(1, 3)
-    cax = [None] * 3
-    cax[0] = axes[0].imshow(np.abs(h_vi_1st - h_vi_2nd),
-                         aspect='auto', interpolation='None', cmap='jet')
-    axes[0].set_title("VI_1st vs VI_2nd", fontsize=24)
-    cax[1] = axes[1].imshow(np.abs(h_vi_1st - h_gibbs),
-                         aspect='auto', interpolation='None', cmap='jet')
-    axes[1].set_title("VI_1st vs Gibbs", fontsize=24)
-    cax[2] = axes[2].imshow(np.abs(h_gibbs - h_vi_2nd),
-                         aspect='auto', interpolation='None', cmap='jet')
-    axes[2].set_title("VI_2nd vs Gibbs", fontsize=24)
-    for i in range(3):
-        cb = fig.colorbar(cax[i], ax=axes[i])
-        cb.ax.tick_params(labelsize=20)
-
-    h_true = np.random.rand(num_data, num_hidden)
-    v = model._get_visible_prob(h_true)
-    y = model._predict_from_hidden(h_true)
-    model.inference_engine = INFERENCE_ENGINE['variational_inference']
-    model.approx_method = APPROX_METHOD['first_order']
-    h_vi_1st = model._get_hidden_prob(v, y=y)
-    model.inference_engine = INFERENCE_ENGINE['variational_inference']
-    model.approx_method = APPROX_METHOD['second_order']
-    h_vi_2nd = model._get_hidden_prob(v, y=y)
-    model.inference_engine = INFERENCE_ENGINE['gibbs']
-    h_gibbs = model._get_hidden_prob(v, y=y)
-    fig, axes = plt.subplots(1, 3)
-    cax = [None] * 3
-    cax[0] = axes[0].imshow(np.abs(h_vi_1st - h_true),
-                            aspect='auto', interpolation='None', cmap='jet')
-    axes[0].set_title("VI_1st vs True", fontsize=24)
-    cax[1] = axes[1].imshow(np.abs(h_vi_2nd - h_true),
-                            aspect='auto', interpolation='None', cmap='jet')
-    axes[1].set_title("VI_2nd vs True", fontsize=24)
-    cax[2] = axes[2].imshow(np.abs(h_gibbs - h_true),
-                            aspect='auto', interpolation='None', cmap='jet')
-    axes[2].set_title("Gibbs vs True", fontsize=24)
-    for i in range(3):
-        cb = fig.colorbar(cax[i], ax=axes[i])
-        cb.ax.tick_params(labelsize=20)
-
-    # Regression
-    x = np.random.rand(num_data, num_features)
-    y = np.random.randn(num_data)
-    model = SupervisedRBM(
-        task='regression',
-        num_hidden=num_hidden,
-        num_visible=num_features,
-        batch_size=4,
-        num_epochs=0,
-        learning_rate=0.01,
-        momentum_method='sudden',
-        weight_cost=0.0,
-        inference_engine='variational_inference',
-        approx_method='first_order',
-        random_state=6789,
-        verbose=1)
-    model.fit(x, y)
-    model.inference_engine = INFERENCE_ENGINE['variational_inference']
-    model.approx_method = APPROX_METHOD['first_order']
-    h_vi_1st = model._get_hidden_prob(x, y=y)
-    model.inference_engine = INFERENCE_ENGINE['variational_inference']
-    model.approx_method = APPROX_METHOD['second_order']
-    h_vi_2nd = model._get_hidden_prob(x, y=y)
-    model.inference_engine = INFERENCE_ENGINE['gibbs']
-    h_gibbs = model._get_hidden_prob(x, y=y)
-    import matplotlib.pyplot as plt
-    fig, axes = plt.subplots(1, 3)
-    cax = [None] * 3
-    cax[0] = axes[0].imshow(np.abs(h_vi_1st - h_vi_2nd),
-                         aspect='auto', interpolation='None', cmap='jet')
-    axes[0].set_title("VI_1st vs VI_2nd", fontsize=24)
-    cax[1] = axes[1].imshow(np.abs(h_vi_1st - h_gibbs),
-                         aspect='auto', interpolation='None', cmap='jet')
-    axes[1].set_title("VI_1st vs Gibbs", fontsize=24)
-    cax[2] = axes[2].imshow(np.abs(h_gibbs - h_vi_2nd),
-                         aspect='auto', interpolation='None', cmap='jet')
-    axes[2].set_title("VI_2nd vs Gibbs", fontsize=24)
-    for i in range(3):
-        cb = fig.colorbar(cax[i], ax=axes[i])
-        cb.ax.tick_params(labelsize=20)
-
-    h_true = np.random.rand(num_data, num_hidden)
-    v = model._get_visible_prob(h_true)
-    y = model._predict_from_hidden(h_true).ravel()
-    model.inference_engine = INFERENCE_ENGINE['variational_inference']
-    model.approx_method = APPROX_METHOD['first_order']
-    h_vi_1st = model._get_hidden_prob(v, y=y)
-    model.inference_engine = INFERENCE_ENGINE['variational_inference']
-    model.approx_method = APPROX_METHOD['second_order']
-    h_vi_2nd = model._get_hidden_prob(v, y=y)
-    model.inference_engine = INFERENCE_ENGINE['gibbs']
-    h_gibbs = model._get_hidden_prob(v, y=y)
-    fig, axes = plt.subplots(1, 3)
-    cax = [None] * 3
-    cax[0] = axes[0].imshow(np.abs(h_vi_1st - h_true),
-                            aspect='auto', interpolation='None', cmap='jet')
-    axes[0].set_title("VI_1st vs True", fontsize=24)
-    cax[1] = axes[1].imshow(np.abs(h_vi_2nd - h_true),
-                            aspect='auto', interpolation='None', cmap='jet')
-    axes[1].set_title("VI_2nd vs True", fontsize=24)
-    cax[2] = axes[2].imshow(np.abs(h_gibbs - h_true),
-                            aspect='auto', interpolation='None', cmap='jet')
-    axes[2].set_title("Gibbs vs True", fontsize=24)
-    for i in range(3):
-        cb = fig.colorbar(cax[i], ax=axes[i])
-        cb.ax.tick_params(labelsize=20)
-
-    plt.show()
+np.random.seed(6789)
 
 
-def test_srbm_mnist():
+def test_ssrbm_mnist():
+    num_labeled_data = 1000
+
     from male import HOME
     from sklearn.metrics import accuracy_score
     from sklearn.neighbors import KNeighborsClassifier
@@ -177,6 +39,12 @@ def test_srbm_mnist():
     idx_test = np.random.permutation(x_test.shape[0])
     x_test = x_test[idx_test]
     y_test = y_test[idx_test]
+
+    # remove some labels
+    idx_train, idx_test = next(
+        iter(StratifiedShuffleSplit(
+            n_splits=1, test_size=num_labeled_data, random_state=6789).split(x_train, y_train)))
+    y_train[idx_train] = 10 ** 8
 
     x = np.vstack([x_train, x_test])
     y = np.concatenate([y_train, y_test])
@@ -251,17 +119,18 @@ def test_srbm_mnist():
                                  monitor='val_loss',
                                  verbose=0,
                                  save_best_only=True)
-    model = SupervisedRBM(
-        num_hidden=100,
+    model = SemiSupervisedRBM(
+        num_hidden=6000,
         num_visible=784,
-        batch_size=100,
+        batch_size=1000,
         num_epochs=1000,
-        learning_rate=0.01,
+        learning_rate=0.1,
+        w_init=0.1,
         momentum_method='sudden',
         weight_cost=0.0,
         inference_engine='variational_inference',
         # inference_engine='gibbs',
-        approx_method='second_order',
+        approx_method='first_order',
         random_state=6789,
         metrics=['recon_err', 'loss', 'err'],
         callbacks=[filter_display, learning_display,
@@ -292,6 +161,8 @@ def test_srbm_mnist():
 
 
 def test_srbm_mnist_regression():
+    num_labeled_data = 1000
+
     from male import HOME
     from sklearn.svm import SVR
     from sklearn.metrics import mean_squared_error
@@ -310,6 +181,12 @@ def test_srbm_mnist_regression():
     idx_test = np.random.permutation(x_test.shape[0])
     x_test = x_test[idx_test]
     y_test = y_test[idx_test]
+
+    # remove some labels
+    idx_train, idx_test = next(
+        iter(StratifiedShuffleSplit(
+            n_splits=1, test_size=num_labeled_data, random_state=6789).split(x_train, y_train)))
+    y_train[idx_train] = 10 ** 8
 
     x = np.vstack([x_train, x_test])
     y = np.concatenate([y_train, y_test])
@@ -384,7 +261,7 @@ def test_srbm_mnist_regression():
                                  monitor='val_loss',
                                  verbose=0,
                                  save_best_only=True)
-    model = SupervisedRBM(
+    model = SemiSupervisedRBM(
         task='regression',
         num_hidden=1000,
         num_visible=784,
@@ -493,7 +370,7 @@ def test_srbm_diabetes_regression():
                                  monitor='val_loss',
                                  verbose=0,
                                  save_best_only=True)
-    model = SupervisedRBM(
+    model = SemiSupervisedRBM(
         task='regression',
         num_hidden=20,
         num_visible=10,
@@ -546,7 +423,7 @@ def test_srbm_load_to_continue_training():
     x = np.vstack([x_train, x_test])
     y = np.concatenate([y_train, y_test])
 
-    model = SupervisedRBM()
+    model = SemiSupervisedRBM()
     model = model.load_model(os.path.join(HOME, "rmodel/male/srbm/mnist_0030_0.423379.pkl"))
     model.fit(x, y)
     print("Test reconstruction error = %.4f" % model.get_reconstruction_error(x_test).mean())
@@ -582,7 +459,7 @@ def test_srbm_mnist_gridsearch():
               'learning_rate': [0.1, 0.01, 0.001],
               'weight_cost': [0.01, 0.001, 0.0001]}
 
-    model = SupervisedRBM(
+    model = SemiSupervisedRBM(
         num_hidden=10,
         num_visible=784,
         batch_size=100,
@@ -609,8 +486,7 @@ def test_srbm_mnist_gridsearch():
 
 if __name__ == '__main__':
     pytest.main([__file__])
-    # test_srbm_hidden_posterior_approximation()
-    # test_srbm_mnist()
+    # test_ssrbm_mnist()
     # test_srbm_mnist_regression()
     # test_srbm_diabetes_regression()
     # test_srbm_mnist_gridsearch()
