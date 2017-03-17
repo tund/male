@@ -11,7 +11,6 @@ import tensorflow as tf
 
 from sklearn.utils.validation import check_is_fitted
 
-from .rbm import RBM
 from ....tensorflow_model import TensorFlowModel
 from ....utils.generic_utils import make_batches
 from ....utils.disp_utils import tile_raster_images
@@ -28,20 +27,87 @@ DECAY_METHOD = {'none': 0, 'linear': 1, 'div_sqrt': 2, 'exp': 3}
 CD_SAMPLING = {'hidden_visible': 0, 'hidden': 1, 'visible': 2, 'none': 3}
 
 
-class TensorFlowRBM(TensorFlowModel, RBM):
+class TensorFlowRBM(TensorFlowModel):
     """A generic class of Restricted Boltzmann Machine using TensorFlow
     """
     __metaclass__ = abc.ABCMeta
 
     def __init__(self,
                  model_name="TensorFlowRBM",
+                 num_hidden=100,
+                 num_visible=500,
+                 # learning method
+                 learning_method='cd',
+                 num_cd=1,
+                 sampling_in_last_cd='none',
+                 num_pcd=15,
+                 # learning rates
+                 learning_rate=0.1,
+                 learning_rate_decay='none',
+                 learning_rate_decay_rate=0.0,
+                 # parameter initialization
+                 h_init=0.0, v_init=0.0, w_init=0.1,
+                 # momentum
+                 momentum_method='none',
+                 initial_momentum=0.5,
+                 final_momentum=0.9,
+                 momentum_iteration=5,
+                 # regularization
+                 weight_cost=0.0,
+                 sparse_weight=0.0,
+                 sparse_level=0.1,
+                 sparse_decay=0.9,
                  *args, **kwargs):
 
         kwargs["model_name"] = model_name
         super(TensorFlowRBM, self).__init__(**kwargs)
 
+        self.num_hidden = num_hidden
+        self.num_visible = num_visible
+
+        self.learning_method = learning_method
+        self.num_cd = num_cd
+        self.sampling_in_last_cd = sampling_in_last_cd
+        self.num_pcd = num_pcd
+
+        self.learning_rate = learning_rate
+        self.learning_rate_decay = learning_rate_decay
+        self.learning_rate_decay_rate = learning_rate_decay_rate
+
+        self.h_init, self.v_init, self.w_init = h_init, v_init, w_init
+
+        self.initial_momentum = initial_momentum
+        self.final_momentum = final_momentum
+        self.momentum_iteration = momentum_iteration
+        self.momentum_method = momentum_method
+
+        self.weight_cost = weight_cost
+        self.sparse_weight = sparse_weight
+        self.sparse_level = sparse_level
+        self.sparse_decay = sparse_decay
+
     def _init(self):
         super(TensorFlowRBM, self)._init()
+
+        try:
+            self.learning_method = LEARNING_METHOD[self.learning_method]
+        except KeyError:
+            raise ValueError("Learning method %s is not supported." % self.learning_method)
+        try:
+            self.sampling_in_last_cd = CD_SAMPLING[self.sampling_in_last_cd]
+        except KeyError:
+            raise ValueError("CD sampling %s is not supported." % self.sampling_in_last_cd)
+        try:
+            self.learning_rate_decay = DECAY_METHOD[self.learning_rate_decay]
+        except KeyError:
+            raise ValueError("Learning rate decay method %s is not supported."
+                             % self.learning_rate_decay)
+        try:
+            self.momentum_method = MOMENTUM_METHOD[self.momentum_method]
+        except KeyError:
+            raise ValueError("Momentum method %s is not supported." % self.momentum_method)
+
+        self.learning_rate0_ = self.learning_rate
         with self.tf_graph_.as_default():
             self.learning_rate_ = tf.get_variable(
                 "learning_rate", shape=[1],
