@@ -179,10 +179,10 @@ def test_glm_check_grad():
 
 
 def test_glm_mnist_logit():
-    from male import HOME
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"),
+    from male import data_dir
+    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
                                           n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"),
+    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
                                         n_features=784)
 
     idx_train = np.where(np.uint8(y_train == 0) | np.uint8(y_train == 1))[0]
@@ -497,9 +497,9 @@ def test_glm_mnist_cv():
 
 
 if __name__ == '__main__':
-    pytest.main([__file__])
+    # pytest.main([__file__])
     # test_glm_check_grad()
-    # test_glm_mnist_logit()
+    test_glm_mnist_logit()
     # test_glm_mnist_softmax()
     # test_glm_mnist_logit_gridsearch()
     # test_glm_mnist_softmax_gridsearch()
