@@ -16,27 +16,29 @@ class BANK(Model):
     def __init__(self,
                  model_name="BANK",
                  gamma=10,
-                 dim_rf=400,
-                 lbd=1.0,
+                 rf_dim=400,
+                 inner_regularization=1.0,
+                 outer_regularization=1.0,
                  alpha=1.0,
                  kappa=0.1,
-                 inner_epoch=1,
-                 max_loop=50,
+                 inner_epoch=100,
+                 outer_epoch=50,
                  *args, **kwargs):
         kwargs['model_name'] = model_name
         super(BANK, self).__init__(**kwargs)
         self.gamma = gamma  # kernel width
-        self.dim_rf = dim_rf  # dim of random feature
-        self.lbd = lbd  # regularization parameter
+        self.rf_dim = rf_dim  # dim of random feature
+        self.inner_regularization = inner_regularization  # regularization parameter
+        self.outer_regularization = outer_regularization
         self.alpha = alpha  # prior for DPM
         self.kappa = kappa  # prior for GIW
         self.inner_epoch = inner_epoch
-        self.max_loop = max_loop
+        self.outer_epoch = outer_epoch
 
     def _init(self):
         super(BANK, self)._init()
-        self.W_ = None
-        self.beta_ = None
+        self.omega_ = None
+        self.w_ = None
 
     @staticmethod
     def get_prior_giw(D, W, kappa, mu, nu, Psi):
@@ -117,8 +119,11 @@ class BANK(Model):
 
     @staticmethod
     def get_grad(beta, Phi, y, lbd):
-        sig_predict = (1.0 / (1 + np.exp(-(np.dot(Phi, beta)))))
-        grad_pen = lbd * beta
+        try:
+            sig_predict = (1.0 / (1 + np.exp(-(np.dot(Phi, beta)))))
+            grad_pen = lbd * beta
+        except FloatingPointError:
+            print("Error")
         return np.dot(Phi.T, (sig_predict - y)) + grad_pen
 
     @staticmethod
@@ -130,14 +135,218 @@ class BANK(Model):
                   do_validation=False,
                   x_valid=None, y_valid=None,
                   callbacks=None, callback_metrics=None):
+        num_samples = x.shape[0]
+        input_dim = x.shape[1]
+        rf_dim = self.rf_dim
+        rf_2dim = rf_dim * 2
+        full_rf_dim = rf_2dim + 1
+        scale_rf = 1.0  # / np.sqrt(dim_rf)
+
+        L = self.outer_epoch
+
+        self.x_ = x
+        self.y_ = y
+
+        kappa0 = self.kappa
+        loc0 = np.zeros(input_dim)
+        degree0 = input_dim + 3
+        psi0 = self.gamma * np.eye(input_dim, input_dim)
+
+        num_kernels = int(rf_dim / 10)  # as in original code
+        z = np.zeros(rf_dim).astype(int)
+        omega = np.zeros((rf_dim, input_dim))
+
+        for di in range(rf_dim):
+            omega[di, :] = np.random.multivariate_normal(np.zeros(input_dim), psi0 / (degree0 - input_dim - 1))
+
+        mu_lst = []
+        cov_lst = []
+        for k in range(num_kernels):
+            mu_lst.append(np.zeros(input_dim))
+            cov_lst.append(np.zeros((input_dim, input_dim)))
+        nk = np.zeros(num_kernels)
+        for di in range(rf_dim):
+            nk[z[di]] += 1
+
+        # for k in range(K):
+        #     mu_lst[k], cov_lst[k] = BANK.get_prior_giw_sample(D, W[Z == k, :], kappa0, mu0, nu0, Psi0)
+        #
+        # for di in range(dim_rf):
+        #     W[di, :] = np.random.multivariate_normal(mu_lst[Z[di]], cov_lst[Z[di]])
+
+        w = np.zeros(full_rf_dim)
+        # for di in range(dim_rf):
+        #     di_idx = [di, di + dim_rf]
+        #     n_di_idx = 2
+        #     if di == dim_rf - 1:
+        #         di_idx = [di, di + dim_rf, dprime]
+        #         n_di_idx = 2
+        #     beta[di_idx] = stats.multivariate_normal.rvs(np.zeros(n_di_idx), 1.0 / self.lbd)
+        omega_x = np.dot(omega, self.x_.T).T
+
+        phi = np.ones((num_samples, full_rf_dim))
+        phi[:, 0:rf_dim] = np.cos(omega_x)
+        phi[:, rf_dim:rf_2dim] = np.sin(omega_x)
+        phi *= scale_rf
+
+        log_lap_beta_old = np.empty(rf_dim)
+        log_pbeta_old = np.zeros(rf_dim)
+        log_lap_beta_old[:] = np.nan
+        log_mode_old = np.zeros(rf_dim)
+        log_mode_old[:] = np.nan
+
+        pp_mulgauss = np.zeros((num_kernels, rf_dim))
+        log_alpha = np.nan
+
+        w, lap_matrix = BANK.newtons_optimizer(w,
+                                               BANK.get_log_f, BANK.get_grad, BANK.get_hessian,
+                                               (phi, self.y_, self.inner_regularization),
+                                               max_loop=self.inner_epoch, eps=1e-7, beta=0.8)
+
+        for l in range(L):
+            # sample mu, cov
+            for k in range(num_kernels):
+                mu_lst[k], cov_lst[k] = BANK.get_prior_giw_sample(input_dim, omega[z == k, :],
+                                                                  kappa0, loc0, degree0, psi0)
+                if nk[k] > 0:
+                    print("mu = max:{}, min:{}".format(np.max(mu_lst[k]), np.min(mu_lst[k])))
+                    print("cov = max:{}, min:{}".format(np.max(cov_lst[k]), np.min(cov_lst[k])))
+
+            for di in range(rf_dim):
+                for k in range(num_kernels):
+                    pp_mulgauss[k, di] = stats.multivariate_normal. \
+                        logpdf(omega[di, :], mu_lst[k], cov_lst[k])
+            pp_mulgauss -= np.max(pp_mulgauss, axis=0)
+
+            if np.isnan(log_alpha):
+                log_alpha = np.percentile(np.abs(pp_mulgauss[pp_mulgauss < 0]), 1)
+                print(log_alpha)
+
+            # sample Z
+            for di in range(rf_dim):
+                zdi = z[di]
+                # remove
+                nk[zdi] -= 1
+
+                pp = pp_mulgauss[:, di]
+
+                for k in range(num_kernels):
+                    if nk[k] > 0:
+                        pp[k] += np.log(nk[k])
+                    else:
+                        pp[k] += log_alpha
+                try:
+                    pp = np.exp(pp - np.max(pp))
+                    pp /= np.sum(pp)
+                    zdi_new = np.argmax(np.random.multinomial(1, pp))
+                except FloatingPointError:
+                    print("Error pp={}".format(pp))
+                    zdi_new = np.argmax(pp)
+
+                z[di] = zdi_new
+                nk[zdi_new] += 1
+
+            print("nk={}".format(nk[nk > 0]))
+
+            if np.sum(np.abs(np.cos(np.dot(omega, self.x_.T).T) * scale_rf - phi[:, 0: rf_dim])) > 1e-7:
+                print("Error Phi")
+
+            # sample W & beta
+            for di in range(rf_dim):
+                di_idx = [di, di + rf_dim]
+                n_di_idx = 2
+                if di == rf_dim - 1:
+                    di_idx = [di, di + rf_dim, rf_2dim]
+                    n_di_idx = 3
+                log_pbeta_old[di] = stats.multivariate_normal.\
+                    logpdf(w[di_idx], np.zeros(n_di_idx), 1.0 / self.inner_regularization)
+
+            n_accept = 0
+            for di in range(rf_dim):
+                di_idx = [di, di + rf_dim]
+                n_di_idx = 2
+                if di == rf_dim - 1:
+                    di_idx = [di, di + rf_dim, rf_2dim]
+                    n_di_idx = 3
+
+                zdi = z[di]
+                omega_di_old = omega[di, :].copy()
+                Phidi_old = phi[:, di_idx].copy()
+
+                omega[di, :] = np.random.multivariate_normal(mu_lst[zdi], cov_lst[zdi])
+                omega_x_di_tmp = np.dot(self.x_, omega[di, :].T)  # (N, 1)
+                phi[:, di] = np.cos(omega_x_di_tmp) * scale_rf
+                phi[:, di + rf_dim] = np.sin(omega_x_di_tmp) * scale_rf
+
+                beta_idx_old = w[di_idx].copy()
+
+                phi_beta_old = np.sum(Phidi_old * beta_idx_old, axis=1)
+                exp_Phi_beta_old = np.exp(phi_beta_old)
+                log_py_old = -np.sum(np.log(1.0 + exp_Phi_beta_old)) + np.dot(phi_beta_old, self.y_)
+
+                beta_mode, lap_matrix = BANK.newtons_optimizer(w[di_idx],
+                                                               BANK.get_log_f, BANK.get_grad, BANK.get_hessian,
+                                                               (phi[:, di_idx], self.y_, self.inner_regularization),
+                                                               max_loop=self.inner_epoch, eps=1e-15, beta=0.8)
+                lap_inv_matrix_a = np.linalg.inv(lap_matrix)
+                w[di_idx] = np.multiply(lap_inv_matrix_a, np.random.normal(0, 1, (n_di_idx, 1))) + beta_mode
+
+                phi_w = np.sum(phi[:, di_idx] * w[di_idx], axis=1)
+                exp_phi = np.exp(phi_w)
+                log_py = -np.sum(np.log(1.0 + exp_phi)) + np.dot(phi_w, self.y_)
+                try:
+                    log_pbeta = stats.multivariate_normal.logpdf(w[di_idx], np.zeros(n_di_idx),
+                                                                 1.0 / self.inner_regularization)
+                except FloatingPointError:
+                    print("Error log_pbeta = {}".format(w[di_idx]))
+
+                log_mode = stats.multivariate_normal.logpdf(w[di_idx], beta_mode, lap_inv_matrix_a)
+
+                log_lap_beta = \
+                    - (- 0.5 * np.log(np.abs(np.linalg.det(lap_matrix))))
+                if np.isnan(log_lap_beta_old[di]):
+                    log_lap_beta_old[di] = log_lap_beta
+                if np.isnan(log_mode_old[di]):
+                    log_mode_old[di] = log_mode
+
+                accept_rate = min(0,
+                                  ((log_py + log_pbeta + log_lap_beta_old[di] + log_mode_old[di]) -
+                                   (log_py_old + log_pbeta_old[di] + log_lap_beta + log_mode)))
+
+                if np.log(np.random.uniform()) > accept_rate:
+                    w[di_idx] = beta_idx_old
+                    omega[di, :] = omega_di_old
+                    phi[:, di_idx] = Phidi_old
+                else:
+                    log_lap_beta_old[di] = log_lap_beta
+                    log_pbeta_old[di] = log_pbeta
+                    log_mode_old[di] = log_mode
+                    n_accept += 1
+
+            phi_w = np.sum(phi * w, axis=1)
+            print("err={}, accept={}".format(np.mean(self.y_ != (phi_w >= 0)), n_accept))
+
+        w = np.zeros(full_rf_dim)
+        w, lap_matrix = BANK.newtons_optimizer(w,
+                                               BANK.get_log_f, BANK.get_grad, BANK.get_hessian,
+                                               (phi, self.y_, self.outer_regularization),
+                                               max_loop=self.inner_epoch, eps=1e-7, beta=0.8)
+
+        self.omega_ = omega
+        self.w_ = w
+
+    def _fit_loop_v2(self, x, y,
+                  do_validation=False,
+                  x_valid=None, y_valid=None,
+                  callbacks=None, callback_metrics=None):
         N = x.shape[0]
         D = x.shape[1]
-        dim_rf = self.dim_rf
+        dim_rf = self.rf_dim
         dprime = dim_rf * 2
         dprime_ext = dprime + 1
-        scale_rf = 1.0 / np.sqrt(dim_rf)
+        scale_rf = 1.0  # / np.sqrt(dim_rf)
 
-        L = self.max_loop
+        L = self.outer_epoch
 
         self.x_ = x
         self.y_ = y
@@ -151,6 +360,9 @@ class BANK(Model):
         Z = np.zeros(dim_rf).astype(int)
         W = np.zeros((dim_rf, D))
 
+        for di in range(dim_rf):
+            W[di, :] = np.random.multivariate_normal(np.zeros(D), Psi0 / (nu0 - D - 1))
+
         mu_lst = []
         cov_lst = []
         for k in range(K):
@@ -159,11 +371,11 @@ class BANK(Model):
         nk = np.zeros(K)
         for di in range(dim_rf):
             nk[Z[di]] += 1
-        for k in range(K):
-            mu_lst[k], cov_lst[k] = BANK.get_prior_giw_sample(D, W[Z == k, :], kappa0, mu0, nu0, Psi0)
-
-        for di in range(dim_rf):
-            W[di, :] = np.random.multivariate_normal(mu_lst[Z[di]], cov_lst[Z[di]])
+        # for k in range(K):
+        #     mu_lst[k], cov_lst[k] = BANK.get_prior_giw_sample(D, W[Z == k, :], kappa0, mu0, nu0, Psi0)
+        #
+        # for di in range(dim_rf):
+        #     W[di, :] = np.random.multivariate_normal(mu_lst[Z[di]], cov_lst[Z[di]])
 
         beta = np.zeros(dprime_ext)
         # for di in range(dim_rf):
@@ -187,14 +399,19 @@ class BANK(Model):
         pp_mulgauss = np.zeros((K, dim_rf))
         log_alpha = np.nan
 
+        beta, lap_matrix_a = BANK.newtons_optimizer(beta,
+                                                    BANK.get_log_f, BANK.get_grad, BANK.get_hessian,
+                                                    (Phi, self.y_, self.inner_regularization),
+                                                    max_loop=100, eps=1e-7, beta=0.8)
+
         for l in range(L):
             # print("W={}".format(W))
             # sample mu, cov
             for k in range(K):
-                mu_lst[k], cov_lst[k] = BANK.get_prior_giw(D, W[Z == k, :], kappa0, mu0, nu0, Psi0)
+                mu_lst[k], cov_lst[k] = BANK.get_prior_giw_sample(D, W[Z == k, :], kappa0, mu0, nu0, Psi0)
                 if nk[k] > 0:
-                    print("mu = {}".format(mu_lst[k]))
-                    print("cov = {}".format(cov_lst[k]))
+                    print("mu = max:{}, min:{}".format(np.max(mu_lst[k]), np.min(mu_lst[k])))
+                    print("cov = max:{}, min:{}".format(np.max(cov_lst[k]), np.min(cov_lst[k])))
 
             for di in range(dim_rf):
                 for k in range(K):
@@ -242,7 +459,7 @@ class BANK(Model):
                 if di == dim_rf - 1:
                     di_idx = [di, di + dim_rf, dprime]
                     n_di_idx = 3
-                log_pbeta_old[di] = stats.multivariate_normal.logpdf(beta[di_idx], np.zeros(n_di_idx), 1.0 / self.lbd)
+                log_pbeta_old[di] = stats.multivariate_normal.logpdf(beta[di_idx], np.zeros(n_di_idx), 1.0 / self.inner_regularization)
 
             n_accept = 0
             for di in range(dim_rf):
@@ -269,14 +486,14 @@ class BANK(Model):
 
                 beta[di_idx], lap_matrix_a = BANK.newtons_optimizer(beta[di_idx],
                                                                     BANK.get_log_f, BANK.get_grad, BANK.get_hessian,
-                                                                    (Phi[:, di_idx], self.y_, self.lbd),
+                                                                    (Phi[:, di_idx], self.y_, self.inner_regularization),
                                                                     max_loop=100, eps=1e-15, beta=0.8)
 
                 Phi_beta = np.sum(Phi[:, di_idx] * beta[di_idx], axis=1)
                 exp_Phi = np.exp(Phi_beta)
                 log_py = -np.sum(np.log(1.0 + exp_Phi)) + np.dot(Phi_beta, self.y_)
                 try:
-                    log_pbeta = stats.multivariate_normal.logpdf(beta[di_idx], np.zeros(n_di_idx), 1.0 / self.lbd)
+                    log_pbeta = stats.multivariate_normal.logpdf(beta[di_idx], np.zeros(n_di_idx), 1.0 / self.inner_regularization)
                 except FloatingPointError:
                     print("Error log_pbeta = {}".format(beta[di_idx]))
 
@@ -312,13 +529,14 @@ class BANK(Model):
             Phi_beta = np.sum(Phi * beta, axis=1)
             print("err={}, accept={}".format(np.mean(self.y_ != (Phi_beta >= 0)), n_accept))
 
+        beta = np.zeros(dprime_ext)
         beta, lap_matrix_a = BANK.newtons_optimizer(beta,
                                                     BANK.get_log_f, BANK.get_grad, BANK.get_hessian,
-                                                    (Phi, self.y_, self.lbd),
-                                                    max_loop=100, eps=1e-7, beta=0.8)
+                                                    (Phi, self.y_, self.inner_regularization),
+                                                    max_loop=200, eps=1e-9, beta=0.8)
 
-        self.W_ = W
-        self.beta_ = beta
+        self.omega_ = W
+        self.w_ = beta
 
     def _fit_loop_v1(self, x, y,
                      do_validation=False,
@@ -326,12 +544,12 @@ class BANK(Model):
                      callbacks=None, callback_metrics=None):
         N = x.shape[0]
         D = x.shape[1]
-        dim_rf = self.dim_rf
+        dim_rf = self.rf_dim
         dprime = dim_rf * 2
         dprime_ext = dprime + 1
         scale_rf = 1.0 / np.sqrt(dim_rf)
 
-        L = self.max_loop
+        L = self.outer_epoch
 
         self.x_ = x
         self.y_ = y
@@ -429,8 +647,8 @@ class BANK(Model):
                 if di == dim_rf - 1:
                     di_idx = [di, di + dim_rf, dprime]
                     n_di_idx = 3
-                log_pbeta_old[di] = stats.multivariate_normal.logpdf(beta[di_idx], np.zeros(n_di_idx), 1.0 / self.lbd)
-                lap_matrix_a = self.lbd * np.eye(n_di_idx)  # np.zeros((2, 2))
+                log_pbeta_old[di] = stats.multivariate_normal.logpdf(beta[di_idx], np.zeros(n_di_idx), 1.0 / self.inner_regularization)
+                lap_matrix_a = self.inner_regularization * np.eye(n_di_idx)  # np.zeros((2, 2))
                 for n in range(N):
                     phi_pair = Phi[n:1, di_idx]
                     lap_matrix_a += np.dot(phi_pair.T, phi_pair) * (exp_PhiXy[n] / (exp_PhiXy[n]) ** 2)
@@ -459,18 +677,18 @@ class BANK(Model):
                     PhiX_t = np.sum(Phi[idx, :] * beta, axis=1)  # (t,)
                     PhiXy_t = PhiX_t * self.y_[idx]  # (t,)
                     exp_minus_PhiXy_t = np.exp(-PhiXy_t)
-                    grad = self.lbd - self.y_[idx] * exp_minus_PhiXy_t / (exp_minus_PhiXy_t + 1)
+                    grad = self.inner_regularization - self.y_[idx] * exp_minus_PhiXy_t / (exp_minus_PhiXy_t + 1)
                     # beta[di_idx] *= (1.0 * t) / (t + 1)
                     beta[di_idx] -= \
-                        (1.0 / (self.lbd * (t + 1))) * np.sum(Phi[idx, :][:, di_idx].T * grad, axis=1) / self.batch_size
+                        (1.0 / (self.inner_regularization * (t + 1))) * np.sum(Phi[idx, :][:, di_idx].T * grad, axis=1) / self.batch_size
 
                 exp_PhiXy = np.exp(np.sum(-Phi * beta, axis=1) * self.y_)
                 log_py = -np.sum(np.log(1.0 + exp_PhiXy))
                 try:
-                    log_pbeta = stats.multivariate_normal.logpdf(beta[di_idx], np.zeros(n_di_idx), 1.0 / self.lbd)
+                    log_pbeta = stats.multivariate_normal.logpdf(beta[di_idx], np.zeros(n_di_idx), 1.0 / self.inner_regularization)
                 except FloatingPointError:
                     print("Error log_pbeta = {}".format(beta[di_idx]))
-                lap_matrix_a = self.lbd * np.eye(n_di_idx)  # np.zeros((2, 2))
+                lap_matrix_a = self.inner_regularization * np.eye(n_di_idx)  # np.zeros((2, 2))
                 for n in range(N):
                     phi_pair = Phi[n:1, di_idx]
                     lap_matrix_a += np.dot(phi_pair.T, phi_pair) * (exp_PhiXy[n] / (exp_PhiXy[n]) ** 2)
@@ -496,45 +714,26 @@ class BANK(Model):
                     log_lap_beta_old[di] = log_lap_beta
                     log_pbeta_old[di] = log_pbeta
 
-        self.W_ = W
-        self.beta_ = beta
-
-    # def predict(self, x):
-    #     dim_rf = self.dim_rf
-    #     dprime = dim_rf * 2
-    #     dprime_ext = dprime + 1
-    #     scale_rf = 1.0 / np.sqrt(dim_rf)
-    #
-    #     N_test = x.shape[0]
-    #     y = np.ones(N_test)
-    #
-    #     Wx = np.dot(self.W_, x.T).T
-    #     Phi = np.ones((N_test, dprime_ext))
-    #     Phi[:, 0:dim_rf] = np.cos(Wx)
-    #     Phi[:, dim_rf:dprime] = np.sin(Wx)
-    #     Phi *= scale_rf
-    #
-    #     py = 1.0 / (1 + np.exp(-np.sum(Phi * self.beta_, axis=1)))
-    #
-    #     y[py < 0.5] = 0
-    #     return y
+        self.omega_ = W
+        self.w_ = beta
 
     def predict(self, x):
-        dim_rf = self.dim_rf
+        dim_rf = self.rf_dim
         dprime = dim_rf * 2
         dprime_ext = dprime + 1
-        scale_rf = 1.0 / np.sqrt(dim_rf)
+        scale_rf = 1.0  # / np.sqrt(dim_rf)
 
         N_test = x.shape[0]
         y = np.ones(N_test, dtype=int)
 
-        Wx = np.dot(self.W_, x.T).T
-        Phi = np.ones((N_test, dprime_ext))
-        Phi[:, 0:dim_rf] = np.cos(Wx)
-        Phi[:, dim_rf:dprime] = np.sin(Wx)
-        Phi *= scale_rf
+        omega_x = np.dot(self.omega_, x.T).T
+        phi = np.ones((N_test, dprime_ext))
+        phi[:, 0:dim_rf] = np.cos(omega_x)
 
-        y[(np.sum(Phi * self.beta_, axis=1)) < 0] = 0
+        phi[:, dim_rf:dprime] = np.sin(omega_x)
+        phi *= scale_rf
+
+        y[(np.sum(phi * self.w_, axis=1)) <= 0] = 0
 
         return self._decode_labels(y)
 
@@ -543,14 +742,14 @@ class BANK(Model):
         out.update({
             'gamma': self.gamma,
             'kappa': self.kappa,
-            'lbd': self.lbd,
+            'lbd': self.inner_regularization,
         })
         return out
 
     def get_all_params(self, deep=True):
         out = super(BANK, self).get_all_params(deep=deep)
         out.update({
-            'W_': copy.deepcopy(self.W_),
-            'beta_': copy.deepcopy(self.beta_),
+            'W_': copy.deepcopy(self.omega_),
+            'beta_': copy.deepcopy(self.w_),
         })
         return out

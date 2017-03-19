@@ -28,12 +28,12 @@ def test_bank_2d():
 
     learner = BANK(
         gamma=20,
-        dim_rf=400,
-        lbd=0.125,
+        rf_dim=400,
+        inner_regularization=0.125,
         alpha=1.0,
         kappa=1.0,
         inner_epoch=1,
-        max_loop=20,
+        outer_epoch=20,
         batch_size=5
     )
 
@@ -60,13 +60,14 @@ def test_bank_svmguide1():
     x_test = x_test.toarray()
 
     learner = BANK(
-        gamma=0.1,
-        dim_rf=400,
-        lbd=0.125,
-        alpha=100.0,
+        gamma=1.0/1.25727,
+        rf_dim=384,
+        inner_regularization=0.125,
+        outer_regularization=0.125,
+        alpha=10.0,
         kappa=0.1,
         inner_epoch=1,
-        max_loop=100,
+        outer_epoch=200,
         batch_size=5
     )
 
@@ -74,6 +75,7 @@ def test_bank_svmguide1():
 
     y_train_pred = learner.predict(x_train)
     y_test_pred = learner.predict(x_test)
+    print("Dataset: {}".format(data_name))
     print("Training error = %.4f" % (1 - metrics.accuracy_score(y_train, y_train_pred)))
     print("Test error = %.4f" % (1 - metrics.accuracy_score(y_test, y_test_pred)))
 
@@ -93,13 +95,14 @@ def test_bank_musk():
     x_test = x_test.toarray()
 
     learner = BANK(
-        gamma=50,
-        dim_rf=384,
-        lbd=0.0078,
+        gamma=1.0/138,
+        rf_dim=384,
+        inner_regularization=976.563,
+        outer_regularization=128,
         alpha=10,
         kappa=0.1,
         inner_epoch=1,
-        max_loop=50,
+        outer_epoch=201,
         batch_size=5
     )
 
@@ -107,14 +110,15 @@ def test_bank_musk():
 
     y_train_pred = learner.predict(x_train)
     y_test_pred = learner.predict(x_test)
+    print("Dataset: {}".format(data_name))
     print("Training error = %.4f" % (1 - metrics.accuracy_score(y_train, y_train_pred)))
     print("Test error = %.4f" % (1 - metrics.accuracy_score(y_test, y_test_pred)))
 
-
-def test_bank_a9a():
+def test_bank_phishing():
+    np.seterr(under='warn')
     sub_folder = ''
-    data_name = 'a9a'
-    n_features = 123
+    data_name = 'phishing'
+    n_features = 68
     train_file_name = data_dir + sub_folder + data_name + '.txt'
     test_file_name = data_dir + sub_folder + data_name + '_t.txt'
 
@@ -125,23 +129,28 @@ def test_bank_a9a():
     x_test = x_test.toarray()
 
     learner = BANK(
-        gamma=100,
-        dim_rf=400,
-        lbd=0.0625,
-        alpha=10.0,
+        gamma=1.0/1.06662,
+        rf_dim=384,
+        inner_regularization=0.00195313,
+        outer_regularization=0.5,
+        alpha=10,
         kappa=0.1,
         inner_epoch=1,
-        max_loop=50,
+        outer_epoch=201,
         batch_size=5
     )
 
     learner.fit(x_train, y_train)
 
+    y_train_pred = learner.predict(x_train)
     y_test_pred = learner.predict(x_test)
-    print("Training error = %.4f" % (1 - metrics.accuracy_score(y_test, y_test_pred)))
+    print("Dataset: {}".format(data_name))
+    print("Training error = %.4f" % (1 - metrics.accuracy_score(y_train, y_train_pred)))
+    print("Test error = %.4f" % (1 - metrics.accuracy_score(y_test, y_test_pred)))
 
 if __name__ == '__main__':
     # pytest.main([__file__])
     # test_bank_2d()
-    test_bank_svmguide1()
+    # test_bank_svmguide1()
     # test_bank_musk()
+    test_bank_phishing()
