@@ -10,6 +10,14 @@ import warnings
 import numpy as np
 
 
+def tuid():
+    '''
+    Create a string ID based on current time
+    :return: a string formatted using current time
+    '''
+    return time.strftime('%Y-%m-%d_%H.%M.%S')
+
+
 def deepcopy(obj):
     try:
         return copy.deepcopy(obj)
