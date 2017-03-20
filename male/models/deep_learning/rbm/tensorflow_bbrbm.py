@@ -6,13 +6,14 @@ import numpy as np
 
 import tensorflow as tf
 from scipy.misc import logsumexp
+from .bbrbm import BernoulliBernoulliRBM
 from .tensorflow_rbm import TensorFlowRBM
-from ....utils.func_utils import tf_logsumone
+from ....utils.func_utils import tf_logsumone, logsumone
 
 EPSILON = np.finfo(np.float32).eps
 
 
-class BernoulliBernoulliTensorFlowRBM(TensorFlowRBM):
+class BernoulliBernoulliTensorFlowRBM(TensorFlowRBM, BernoulliBernoulliRBM):
     def __init__(self, model_name="TensorFlow_BBRBM", **kwargs):
         kwargs["model_name"] = model_name
         super(BernoulliBernoulliTensorFlowRBM, self).__init__(**kwargs)
@@ -20,22 +21,27 @@ class BernoulliBernoulliTensorFlowRBM(TensorFlowRBM):
     def _init(self):
         super(BernoulliBernoulliTensorFlowRBM, self)._init()
 
-    def _get_hidden_prob(self, vsample, **kwargs):
-        return tf.nn.sigmoid(tf.matmul(vsample, self.w_) + self.h_)
+    # def _get_hidden_prob(self, vsample, **kwargs):
+    def _create_hidden_prob(self, tf_vsample, **kwargs):
+        return tf.nn.sigmoid(tf.matmul(tf_vsample, self.tf_w_) + self.tf_h_)
 
-    def _sample_hidden(self, hprob):
-        return tf.to_float(tf.less(tf.random_uniform(hprob.get_shape()), hprob))
+    # def _sample_hidden(self, hprob):
+    def _create_sample_hidden(self, tf_hprob):
+        return tf.to_float(tf.less(tf.random_uniform(tf_hprob.get_shape()), tf_hprob))
 
-    def _get_visible_prob(self, hsample):
-        return tf.nn.sigmoid(tf.matmul(hsample, tf.transpose(self.w_)) + self.v_)
 
-    def _sample_visible(self, vprob):
-        return tf.to_float(tf.less(tf.random_uniform(vprob.get_shape()), vprob))
+    # def _get_visible_prob(self, hsample):
+    def _create_visible_prob(self, tf_hsample):
+        return tf.nn.sigmoid(tf.matmul(tf_hsample, tf.transpose(self.tf_w_)) + self.tf_v_)
 
-    def _create_free_energy(self, x):
-        wx = tf.matmul(x, self.w_) + self.h_
-        return - tf.matmul(x, tf.transpose(self.v_)) \
-               - tf.reduce_sum(tf_logsumone(wx), axis=1, keep_dims=True)
+    # def _sample_visible(self, vprob):
+    def _create_sample_visible(self, tf_vprob):
+        return tf.to_float(tf.less(tf.random_uniform(tf_vprob.get_shape()), tf_vprob))
+
+    def _create_free_energy(self, tf_x):
+        tf_wx = tf.matmul(tf_x, self.tf_w_) + self.tf_h_
+        return - tf.matmul(tf_x, tf.transpose(self.tf_v_)) \
+               - tf.reduce_sum(tf_logsumone(tf_wx), axis=1, keep_dims=True)
         # return - x.dot(self.v_.T) - logsumone(wx).sum(axis=1, keepdims=True)
         # return - x.dot(self.v_.T) - np.logaddexp(np.zeros(wx.shape), wx).sum(axis=1, keepdims=True)
 
@@ -44,10 +50,10 @@ class BernoulliBernoulliTensorFlowRBM(TensorFlowRBM):
         return logsumexp(x.dot(np.log(vprob.T)) + (1 - x).dot(np.log(1 - vprob.T)),
                          axis=1) - np.log(hsample.shape[0])
 
-    def _create_reconstruction_loglik(self, x, rdata=None):
-        rdata = self._create_reconstruction(x) if rdata is None else rdata
-        rdata = tf.clip_by_value(rdata, EPSILON, 1 - EPSILON)
-        return x * tf.log(rdata) + (1 - x) * tf.log(1 - rdata)
+    def _create_reconstruction_loglik(self, tf_x, tf_rdata=None):
+        tf_rdata = self._create_reconstruction(tf_x) if tf_rdata is None else tf_rdata
+        tf_rdata = tf.clip_by_value(tf_rdata, EPSILON, 1 - EPSILON)
+        return tf_x * tf.log(tf_rdata) + (1 - tf_x) * tf.log(1 - tf_rdata)
 
     def get_logpartition(self, method='exact'):
         if method == 'exact':
@@ -74,7 +80,7 @@ class BernoulliBernoulliTensorFlowRBM(TensorFlowRBM):
 
     def transform(self, x, **kwargs):
         sess = self._get_session(**kwargs)
-        hprob = sess.run(self.hidden_prob_, feed_dict={self.x_: x})
+        hprob = sess.run(self.tf_hidden_prob_, feed_dict={self.tf_x_: x})
         if sess != self.tf_session_:
             sess.close()
         return hprob
