@@ -114,6 +114,7 @@ def test_bank_musk():
     print("Training error = %.4f" % (1 - metrics.accuracy_score(y_train, y_train_pred)))
     print("Test error = %.4f" % (1 - metrics.accuracy_score(y_test, y_test_pred)))
 
+
 def test_bank_phishing():
     np.seterr(under='warn')
     sub_folder = ''
@@ -152,5 +153,5 @@ if __name__ == '__main__':
     # pytest.main([__file__])
     # test_bank_2d()
     # test_bank_svmguide1()
-    # test_bank_musk()
-    test_bank_phishing()
+    test_bank_musk()
+    # test_bank_phishing()
