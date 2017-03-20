@@ -14,23 +14,19 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import PredefinedSplit
 from sklearn.model_selection import StratifiedShuffleSplit
 
+from male import data_dir
 from male.models.kernel import KSGD
 from male.callbacks import Display
 
-data_dir = 'C:/Data/'
-
 
 def test_sgd_visualization_2d():
-    sub_folder = '2d/'
-    data_name = 'train.scale'
     n_features = 2
-    train_file_name = data_dir + sub_folder + data_name + '.txt'
-
+    train_file_name = os.path.join(data_dir(), "demo/synthetic_2D_data_train")
     x_train, y_train = load_svmlight_file(train_file_name, n_features=n_features)
-
     x_train = x_train.toarray()
 
     display = Display(freq=10,
+                      dpi='auto',
                       monitor=[{'metrics': ['predict'],
                                 'title': "Learning losses",
                                 'xlabel': "X1",
@@ -61,10 +57,9 @@ def test_sgd_visualization_2d():
 
 
 def test_sgd_svmguide1_bin():
-    data_name = 'svmguide1'
     n_features = 4
-    train_file_name = data_dir + data_name + '.txt'
-    test_file_name = data_dir + data_name + '_t.txt'
+    train_file_name = os.path.join(data_dir(), "demo/svmguide1_train")
+    test_file_name = os.path.join(data_dir(), "demo/svmguide1_test")
 
     x_train, y_train = load_svmlight_file(train_file_name, n_features=n_features)
     x_test, y_test = load_svmlight_file(test_file_name, n_features=n_features)
@@ -91,5 +86,5 @@ def test_sgd_svmguide1_bin():
 
 if __name__ == '__main__':
     pytest.main([__file__])
-    # test_sgd_svmguide1_bin()
     # test_sgd_visualization_2d()
+    # test_sgd_svmguide1_bin()

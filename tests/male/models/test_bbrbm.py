@@ -7,17 +7,19 @@ import pytest
 import numpy as np
 from sklearn.datasets import load_svmlight_file
 
+from male import data_dir
 from male.callbacks import Display
 from male.models.deep_learning.rbm import BernoulliBernoulliRBM
 
 
 def test_bbrbm_mnist():
-    from male import HOME
     from sklearn.metrics import accuracy_score
     from sklearn.neighbors import KNeighborsClassifier
 
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"), n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"), n_features=784)
+    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
+                                          n_features=784)
+    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
+                                        n_features=784)
 
     x_train = x_train.toarray() / 255.0
     idx_train = np.random.permutation(x_train.shape[0])
@@ -38,7 +40,8 @@ def test_bbrbm_mnist():
                                freq=1,
                                monitor=[{'metrics': ['recon_err', 'val_recon_err'],
                                          'type': 'line',
-                                         'labels': ["training recon error", "validation recon error"],
+                                         'labels': ["training recon error",
+                                                    "validation recon error"],
                                          'title': "Reconstruction Errors",
                                          'xlabel': "epoch",
                                          'ylabel': "error",
@@ -51,14 +54,16 @@ def test_bbrbm_mnist():
                                          },
                                         {'metrics': ['recon_loglik', 'val_recon_loglik'],
                                          'type': 'line',
-                                         'labels': ["training recon loglik", "validation recon loglik"],
+                                         'labels': ["training recon loglik",
+                                                    "validation recon loglik"],
                                          'title': "Reconstruction Loglikelihoods",
                                          'xlabel': "epoch",
                                          'ylabel': "loglik",
                                          },
                                         {'metrics': ['recon_loglik', 'val_recon_loglik'],
                                          'type': 'line',
-                                         'labels': ["training recon loglik", "validation recon loglik"],
+                                         'labels': ["training recon loglik",
+                                                    "validation recon loglik"],
                                          'title': "Reconstruction Loglikelihoods",
                                          'xlabel': "epoch",
                                          'ylabel': "loglik",
@@ -118,7 +123,8 @@ def test_bbrbm_mnist():
     print("Train free energy = %.4f" % model.get_free_energy(x_train).mean())
     print("Test free energy = %.4f" % model.get_free_energy(x_test).mean())
 
-    print("Train reconstruction likelihood = %.4f" % model.get_reconstruction_loglik(x_train).mean())
+    print(
+        "Train reconstruction likelihood = %.4f" % model.get_reconstruction_loglik(x_train).mean())
     print("Test reconstruction likelihood = %.4f" % model.get_reconstruction_loglik(x_test).mean())
 
     x_train1 = model.transform(x_train)
@@ -131,10 +137,10 @@ def test_bbrbm_mnist():
 
 
 def test_bbrbm_mnist_csl():
-    from male import HOME
-
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"), n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"), n_features=784)
+    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
+                                          n_features=784)
+    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
+                                        n_features=784)
 
     x_train = x_train.toarray() / 255.0
     idx_train = np.random.permutation(x_train.shape[0])
@@ -170,10 +176,10 @@ def test_bbrbm_mnist_csl():
 
 
 def test_bbrbm_mnist_generate_data():
-    from male import HOME
-
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"), n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"), n_features=784)
+    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
+                                          n_features=784)
+    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
+                                        n_features=784)
 
     x_train = x_train.toarray() / 255.0
     idx_train = np.random.permutation(x_train.shape[0])
@@ -217,10 +223,10 @@ def test_bbrbm_mnist_generate_data():
 
 
 def test_bbrbm_mnist_logpartition():
-    from male import HOME
-
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"), n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"), n_features=784)
+    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
+                                          n_features=784)
+    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
+                                        n_features=784)
 
     x_train = x_train.toarray() / 255.0
     idx_train = np.random.permutation(x_train.shape[0])
@@ -256,15 +262,16 @@ def test_bbrbm_mnist_logpartition():
 
 
 def test_bbrbm_mnist_gridsearch():
-    from male import HOME
     from sklearn.pipeline import Pipeline
     from sklearn.metrics import accuracy_score
     from sklearn.model_selection import GridSearchCV
     from sklearn.model_selection import PredefinedSplit
     from sklearn.neighbors import KNeighborsClassifier
 
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"), n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"), n_features=784)
+    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
+                                          n_features=784)
+    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
+                                        n_features=784)
 
     x_train = x_train.toarray() / 255.0
     idx_train = np.random.permutation(x_train.shape[0])

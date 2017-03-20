@@ -8,6 +8,8 @@ import numpy as np
 from sklearn.datasets import load_svmlight_file
 from sklearn.model_selection import StratifiedShuffleSplit
 
+from male import data_dir
+from male import model_dir
 from male.callbacks import Display
 from male.callbacks import EarlyStopping
 from male.callbacks import ModelCheckpoint
@@ -21,13 +23,12 @@ np.random.seed(6789)
 def test_ssrbm_mnist():
     num_labeled_data = 1000
 
-    from male import HOME
     from sklearn.metrics import accuracy_score
     from sklearn.neighbors import KNeighborsClassifier
 
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"),
+    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
                                           n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"),
+    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
                                         n_features=784)
 
     x_train = x_train.toarray() / 255.0
@@ -113,7 +114,7 @@ def test_ssrbm_mnist():
                                       ])
 
     early_stopping = EarlyStopping(monitor='val_loss', patience=15, verbose=1)
-    filepath = os.path.join(HOME, "rmodel/male/srbm/mnist_{epoch:04d}_{val_loss:.6f}.pkl")
+    filepath = os.path.join(model_dir(), "male/ssrbm/mnist_{epoch:04d}_{val_loss:.6f}.pkl")
     checkpoint = ModelCheckpoint(filepath,
                                  mode='min',
                                  monitor='val_loss',
@@ -160,16 +161,15 @@ def test_ssrbm_mnist():
         accuracy_score(y_test, clf.predict(x_test1))))
 
 
-def test_srbm_mnist_regression():
+def test_ssrbm_mnist_regression():
     num_labeled_data = 1000
 
-    from male import HOME
     from sklearn.svm import SVR
     from sklearn.metrics import mean_squared_error
 
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"),
+    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
                                           n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"),
+    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
                                         n_features=784)
 
     x_train = x_train.toarray() / 255.0
@@ -255,7 +255,7 @@ def test_srbm_mnist_regression():
                                       ])
 
     early_stopping = EarlyStopping(monitor='val_loss', patience=15, verbose=1)
-    filepath = os.path.join(HOME, "rmodel/male/srbm/mnist_{epoch:04d}_{val_loss:.6f}.pkl")
+    filepath = os.path.join(model_dir(), "male/ssrbm/mnist_{epoch:04d}_{val_loss:.6f}.pkl")
     checkpoint = ModelCheckpoint(filepath,
                                  mode='min',
                                  monitor='val_loss',
@@ -301,8 +301,9 @@ def test_srbm_mnist_regression():
         np.sqrt(mean_squared_error(y_test, s.predict(x_test)))))
 
 
-def test_srbm_diabetes_regression():
-    from male import HOME
+def test_ssrbm_diabetes_regression():
+    '''TODO: remove some labels to test Semi-Supevised RBM
+    '''
     from sklearn import datasets
 
     diabetes = datasets.load_diabetes()
@@ -364,7 +365,7 @@ def test_srbm_diabetes_regression():
                                       ])
 
     early_stopping = EarlyStopping(monitor='val_loss', patience=15, verbose=1)
-    filepath = os.path.join(HOME, "rmodel/male/srbm/diabetes_{epoch:04d}_{val_loss:.6f}.pkl")
+    filepath = os.path.join(model_dir(), "male/ssrbm/diabetes_{epoch:04d}_{val_loss:.6f}.pkl")
     checkpoint = ModelCheckpoint(filepath,
                                  mode='min',
                                  monitor='val_loss',
@@ -400,14 +401,15 @@ def test_srbm_diabetes_regression():
         model.score(x_test, y_test)))
 
 
-def test_srbm_load_to_continue_training():
-    from male import HOME
+def test_ssrbm_load_to_continue_training():
+    '''TODO: Fix the file name to test
+    '''
     from sklearn.metrics import accuracy_score
     from sklearn.neighbors import KNeighborsClassifier
 
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"),
+    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
                                           n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"),
+    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
                                         n_features=784)
 
     x_train = x_train.toarray() / 255.0
@@ -424,20 +426,21 @@ def test_srbm_load_to_continue_training():
     y = np.concatenate([y_train, y_test])
 
     model = SemiSupervisedRBM()
-    model = model.load_model(os.path.join(HOME, "rmodel/male/srbm/mnist_0030_0.423379.pkl"))
+    model = model.load_model(os.path.join(model_dir(), "male/ssrbm/mnist_0030_0.423379.pkl"))
     model.fit(x, y)
     print("Test reconstruction error = %.4f" % model.get_reconstruction_error(x_test).mean())
     print("Test loss = %.4f" % model.get_loss(x_test, y_test))
 
 
-def test_srbm_mnist_gridsearch():
-    from male import HOME
+def test_ssrbm_mnist_gridsearch():
+    '''TODO: remove some labels to test Semi-Supervised RBM
+    '''
     from sklearn.model_selection import PredefinedSplit
     from sklearn.model_selection import GridSearchCV
 
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"),
+    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
                                           n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"),
+    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
                                         n_features=784)
 
     x_train = x_train.toarray() / 255.0
@@ -488,6 +491,6 @@ if __name__ == '__main__':
     pytest.main([__file__])
     # test_ssrbm_mnist()
     # test_srbm_mnist_regression()
-    # test_srbm_diabetes_regression()
+    # test_ssrbm_diabetes_regression()
     # test_srbm_mnist_gridsearch()
     # test_srbm_load_to_continue_training()

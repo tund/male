@@ -14,6 +14,8 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import PredefinedSplit
 from sklearn.model_selection import StratifiedShuffleSplit
 
+from male import data_dir
+from male import model_dir
 from male.callbacks import Display
 from male.models.kernel import FOGD
 from male.callbacks import EarlyStopping
@@ -119,10 +121,9 @@ def test_fogd_check_grad():
 
 
 def test_fogd_mnist_bin():
-    from male import HOME
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"),
+    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
                                           n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"),
+    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
                                         n_features=784)
 
     idx_train = np.where(np.uint8(y_train == 0) | np.uint8(y_train == 1))[0]
@@ -168,10 +169,9 @@ def test_fogd_mnist_bin():
 
 
 def test_fogd_mnist_softmax():
-    from male import HOME
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"),
+    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
                                           n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"),
+    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
                                         n_features=784)
 
     x_train = x_train.toarray() / 255.0
@@ -218,10 +218,9 @@ def test_fogd_mnist_softmax():
 
 
 def test_fogd_mnist_softmax_gridsearch():
-    from male import HOME
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"),
+    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
                                           n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"),
+    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
                                         n_features=784)
 
     x_train = x_train.toarray() / 255.0
@@ -306,10 +305,9 @@ def test_fogd_regression_gridsearch():
 
 
 def test_fogd_mnist_cv():
-    from male import HOME
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"),
+    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
                                           n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"),
+    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
                                         n_features=784)
 
     x_train = x_train.toarray() / 255.0
@@ -326,7 +324,7 @@ def test_fogd_mnist_cv():
     y = np.concatenate([y_train, y_test])
 
     early_stopping = EarlyStopping(monitor='val_loss', patience=2)
-    filepath = os.path.join(HOME, "rmodel/male/fogd/mnist_{epoch:04d}_{val_loss:.6f}.pkl")
+    filepath = os.path.join(model_dir(), "male/fogd/mnist_{epoch:04d}_{val_loss:.6f}.pkl")
     checkpoint = ModelCheckpoint(filepath,
                                  mode='min',
                                  monitor='val_loss',
@@ -357,10 +355,9 @@ def test_fogd_mnist_cv():
 
 
 def test_fogd_mnist_cv_gridsearch():
-    from male import HOME
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"),
+    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
                                           n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"),
+    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
                                         n_features=784)
 
     x_train = x_train.toarray() / 255.0
@@ -384,7 +381,7 @@ def test_fogd_mnist_cv_gridsearch():
                                    + [1] * x_test.shape[0])
 
     early_stopping = EarlyStopping(monitor='val_loss', patience=2)
-    filepath = os.path.join(HOME, "rmodel/male/fogd/mnist_{epoch:04d}_{val_loss:.6f}.pkl")
+    filepath = os.path.join(model_dir(), "male/fogd/mnist_{epoch:04d}_{val_loss:.6f}.pkl")
     checkpoint = ModelCheckpoint(filepath,
                                  mode='min',
                                  monitor='val_loss',
@@ -423,12 +420,11 @@ def test_fogd_mnist_cv_gridsearch():
 
 
 def test_fogd_syn2d_cv():
-    from male import HOME
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/syn2d_data/train.scale.txt"),
+    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/synthetic_2D_data_train"),
                                           n_features=2)
-    x_train = x_train.toarray()
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/syn2d_data/nolabel.txt"),
+    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/synthetic_2D_data_test"),
                                         n_features=2)
+    x_train = x_train.toarray()
     x_test = x_test.toarray()
 
     # idx_train = np.random.permutation(x_train.shape[0])
@@ -436,7 +432,8 @@ def test_fogd_syn2d_cv():
     # y_train = y_train[idx_train]
 
     idx_train, idx_test = next(
-        iter(StratifiedShuffleSplit(n_splits=1, test_size=40, random_state=6789).split(x_train, y_train))
+        iter(StratifiedShuffleSplit(n_splits=1, test_size=40, random_state=6789).split(x_train,
+                                                                                       y_train))
     )
     x0 = x_train[idx_train]
     y0 = y_train[idx_train]
@@ -447,7 +444,8 @@ def test_fogd_syn2d_cv():
     y = np.concatenate([y0, y1])
 
     early_stopping = EarlyStopping(monitor='val_loss', patience=10, verbose=1)
-    filepath = os.path.join(HOME, "rmodel/male/fogd/syn2d_data_{epoch:04d}_{val_err:.6f}.pkl")
+    filepath = os.path.join(model_dir(),
+                            "male/fogd/synthetic_2D_data_{epoch:04d}_{val_err:.6f}.pkl")
     checkpoint = ModelCheckpoint(filepath,
                                  mode='min',
                                  monitor='val_err',
@@ -478,7 +476,7 @@ def test_fogd_syn2d_cv():
                                 },
                                ])
 
-    clf = FOGD(model_name="mnist_fogd_hinge",
+    clf = FOGD(model_name="syn2d_fogd_hinge",
                D=10,
                lbd=0.0,
                gamma=0.5,
@@ -502,7 +500,8 @@ def test_fogd_syn2d_cv():
 
     # save predictions
     x_test[x_test == 0] = 1e-4
-    dump_svmlight_file(x_test, y_test_pred, os.path.join(HOME, "rdata/syn2d_data/predict.txt"),
+    dump_svmlight_file(x_test, y_test_pred,
+                       os.path.join(data_dir(), "demo/synthetic_2D_data_test_predict"),
                        zero_based=False)
 
 

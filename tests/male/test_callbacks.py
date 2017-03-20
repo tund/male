@@ -12,7 +12,8 @@ from sklearn.datasets import load_svmlight_file
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import PredefinedSplit
 
-from male import GLM
+from male import model_dir
+from male.models.linear import GLM
 from male.callbacks import Display
 from male.callbacks import EarlyStopping
 from male.callbacks import ModelCheckpoint
@@ -30,7 +31,7 @@ def test_display_callbacks():
     y = np.concatenate([y_train, y_test])
 
     early_stopping = EarlyStopping(monitor='val_loss', patience=2, verbose=1)
-    filepath = os.path.join(HOME, "rmodel/male/glm/mnist_{epoch:04d}_{val_loss:.6f}.pkl")
+    filepath = os.path.join(model_dir(), "male/glm/checkpoint_{epoch:04d}_{val_loss:.6f}.pkl")
     checkpoint = ModelCheckpoint(filepath,
                                  mode='min',
                                  monitor='val_loss',
@@ -67,15 +68,16 @@ def test_display_callbacks():
                              dpi='auto',
                              layout=(1, 1),
                              figsize=(6, 15),
-                             freq=10,
+                             freq=1,
                              monitor=[{'metrics': ['weights'],
                                        'title': "Learned weights",
                                        'type': 'img',
+                                       'disp_dim': (5, 2),
                                        'tile_shape': (5, 2),
                                        },
                                       ])
 
-    clf = GLM(model_name="mnist_glm_softmax",
+    clf = GLM(model_name="checkpoint_glm_softmax",
               link='softmax',
               loss='softmax',
               optimizer='sgd',

@@ -7,6 +7,8 @@ import pytest
 import numpy as np
 from sklearn.datasets import load_svmlight_file
 
+from male import data_dir
+from male import model_dir
 from male.callbacks import Display
 from male.callbacks import EarlyStopping
 from male.callbacks import ModelCheckpoint
@@ -50,13 +52,13 @@ def test_srbm_hidden_posterior_approximation():
     fig, axes = plt.subplots(1, 3)
     cax = [None] * 3
     cax[0] = axes[0].imshow(np.abs(h_vi_1st - h_vi_2nd),
-                         aspect='auto', interpolation='None', cmap='jet')
+                            aspect='auto', interpolation='None', cmap='jet')
     axes[0].set_title("VI_1st vs VI_2nd", fontsize=24)
     cax[1] = axes[1].imshow(np.abs(h_vi_1st - h_gibbs),
-                         aspect='auto', interpolation='None', cmap='jet')
+                            aspect='auto', interpolation='None', cmap='jet')
     axes[1].set_title("VI_1st vs Gibbs", fontsize=24)
     cax[2] = axes[2].imshow(np.abs(h_gibbs - h_vi_2nd),
-                         aspect='auto', interpolation='None', cmap='jet')
+                            aspect='auto', interpolation='None', cmap='jet')
     axes[2].set_title("VI_2nd vs Gibbs", fontsize=24)
     for i in range(3):
         cb = fig.colorbar(cax[i], ax=axes[i])
@@ -117,13 +119,13 @@ def test_srbm_hidden_posterior_approximation():
     fig, axes = plt.subplots(1, 3)
     cax = [None] * 3
     cax[0] = axes[0].imshow(np.abs(h_vi_1st - h_vi_2nd),
-                         aspect='auto', interpolation='None', cmap='jet')
+                            aspect='auto', interpolation='None', cmap='jet')
     axes[0].set_title("VI_1st vs VI_2nd", fontsize=24)
     cax[1] = axes[1].imshow(np.abs(h_vi_1st - h_gibbs),
-                         aspect='auto', interpolation='None', cmap='jet')
+                            aspect='auto', interpolation='None', cmap='jet')
     axes[1].set_title("VI_1st vs Gibbs", fontsize=24)
     cax[2] = axes[2].imshow(np.abs(h_gibbs - h_vi_2nd),
-                         aspect='auto', interpolation='None', cmap='jet')
+                            aspect='auto', interpolation='None', cmap='jet')
     axes[2].set_title("VI_2nd vs Gibbs", fontsize=24)
     for i in range(3):
         cb = fig.colorbar(cax[i], ax=axes[i])
@@ -159,13 +161,12 @@ def test_srbm_hidden_posterior_approximation():
 
 
 def test_srbm_mnist():
-    from male import HOME
     from sklearn.metrics import accuracy_score
     from sklearn.neighbors import KNeighborsClassifier
 
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"),
+    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
                                           n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"),
+    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
                                         n_features=784)
 
     x_train = x_train.toarray() / 255.0
@@ -245,7 +246,7 @@ def test_srbm_mnist():
                                       ])
 
     early_stopping = EarlyStopping(monitor='val_loss', patience=15, verbose=1)
-    filepath = os.path.join(HOME, "rmodel/male/srbm/mnist_{epoch:04d}_{val_loss:.6f}.pkl")
+    filepath = os.path.join(model_dir(), "male/srbm/mnist_{epoch:04d}_{val_loss:.6f}.pkl")
     checkpoint = ModelCheckpoint(filepath,
                                  mode='min',
                                  monitor='val_loss',
@@ -292,13 +293,12 @@ def test_srbm_mnist():
 
 
 def test_srbm_mnist_regression():
-    from male import HOME
     from sklearn.svm import SVR
     from sklearn.metrics import mean_squared_error
 
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"),
+    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
                                           n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"),
+    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
                                         n_features=784)
 
     x_train = x_train.toarray() / 255.0
@@ -378,7 +378,7 @@ def test_srbm_mnist_regression():
                                       ])
 
     early_stopping = EarlyStopping(monitor='val_loss', patience=15, verbose=1)
-    filepath = os.path.join(HOME, "rmodel/male/srbm/mnist_{epoch:04d}_{val_loss:.6f}.pkl")
+    filepath = os.path.join(model_dir(), "male/srbm/mnist_{epoch:04d}_{val_loss:.6f}.pkl")
     checkpoint = ModelCheckpoint(filepath,
                                  mode='min',
                                  monitor='val_loss',
@@ -425,7 +425,6 @@ def test_srbm_mnist_regression():
 
 
 def test_srbm_diabetes_regression():
-    from male import HOME
     from sklearn import datasets
 
     diabetes = datasets.load_diabetes()
@@ -487,7 +486,7 @@ def test_srbm_diabetes_regression():
                                       ])
 
     early_stopping = EarlyStopping(monitor='val_loss', patience=15, verbose=1)
-    filepath = os.path.join(HOME, "rmodel/male/srbm/diabetes_{epoch:04d}_{val_loss:.6f}.pkl")
+    filepath = os.path.join(data_dir(), "male/srbm/diabetes_{epoch:04d}_{val_loss:.6f}.pkl")
     checkpoint = ModelCheckpoint(filepath,
                                  mode='min',
                                  monitor='val_loss',
@@ -524,13 +523,12 @@ def test_srbm_diabetes_regression():
 
 
 def test_srbm_load_to_continue_training():
-    from male import HOME
     from sklearn.metrics import accuracy_score
     from sklearn.neighbors import KNeighborsClassifier
 
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"),
+    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
                                           n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"),
+    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
                                         n_features=784)
 
     x_train = x_train.toarray() / 255.0
@@ -547,20 +545,19 @@ def test_srbm_load_to_continue_training():
     y = np.concatenate([y_train, y_test])
 
     model = SupervisedRBM()
-    model = model.load_model(os.path.join(HOME, "rmodel/male/srbm/mnist_0030_0.423379.pkl"))
+    model = model.load_model(os.path.join(model_dir(), "male/srbm/mnist_0030_0.423379.pkl"))
     model.fit(x, y)
     print("Test reconstruction error = %.4f" % model.get_reconstruction_error(x_test).mean())
     print("Test loss = %.4f" % model.get_loss(x_test, y_test))
 
 
 def test_srbm_mnist_gridsearch():
-    from male import HOME
     from sklearn.model_selection import PredefinedSplit
     from sklearn.model_selection import GridSearchCV
 
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"),
+    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
                                           n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"),
+    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
                                         n_features=784)
 
     x_train = x_train.toarray() / 255.0

@@ -8,18 +8,18 @@ import numpy as np
 
 from sklearn.datasets import load_svmlight_file
 
-from male import HOME
+from male import data_dir
 from male.callbacks import Display
 from male.models.distribution import Uniform
 from male.models.deep_learning.generative import GAN
 
 
 def test_gan_mnist():
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist"),
+    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
                                           n_features=784)
-    x_train = x_train.toarray().astype(np.float32) / 255.0
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t"),
+    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
                                         n_features=784)
+    x_train = x_train.toarray().astype(np.float32) / 255.0
     x_test = x_test.toarray().astype(np.float32) / 255.0
 
     loss_display = Display(layout=(1, 1),
@@ -92,5 +92,5 @@ def test_gan_mnist():
 
 
 if __name__ == '__main__':
-    # pytest.main([__file__])
-    test_gan_mnist()
+    pytest.main([__file__])
+    # test_gan_mnist()

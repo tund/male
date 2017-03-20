@@ -8,16 +8,16 @@ import numpy as np
 
 from sklearn.datasets import load_svmlight_file
 
+from male import data_dir
 from male.models.deep_learning.autoencoder import KerasVAE
-from male import HOME
 
 
 def test_keras_vae_mnist_bin():
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"),
+    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
                                           n_features=784)
-    x_train = x_train.toarray().astype(np.float32) / 255.0
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"),
+    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
                                         n_features=784)
+    x_train = x_train.toarray().astype(np.float32) / 255.0
     x_test = x_test.toarray().astype(np.float32) / 255.0
 
     cv = [-1] * x_train.shape[0] + [0] * x_test.shape[0]
@@ -37,5 +37,5 @@ def test_keras_vae_mnist_bin():
 
 
 if __name__ == '__main__':
-    # pytest.main([__file__])
-    test_keras_vae_mnist_bin()
+    pytest.main([__file__])
+    # test_keras_vae_mnist_bin()

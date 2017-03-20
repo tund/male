@@ -14,6 +14,8 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import PredefinedSplit
 from sklearn.model_selection import StratifiedShuffleSplit
 
+from male import data_dir
+from male import model_dir
 from male.models.kernel import KMM
 from male.callbacks import Display
 from male.callbacks import EarlyStopping
@@ -299,10 +301,9 @@ def test_kmm_check_grad():
 
 
 def test_kmm_mnist_bin():
-    from male import HOME
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"),
+    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
                                           n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"),
+    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
                                         n_features=784)
 
     idx_train = np.where(np.uint8(y_train == 0) | np.uint8(y_train == 1))[0]
@@ -366,10 +367,9 @@ def test_kmm_mnist_bin():
 def test_kmm_mnist_softmax():
     np.random.seed(6789)
 
-    from male import HOME
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"),
+    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
                                           n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"),
+    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
                                         n_features=784)
 
     x_train = x_train.toarray() / 255.0
@@ -435,10 +435,9 @@ def test_kmm_mnist_softmax():
 def test_kmm_mnist_softmax_gridsearch():
     np.random.seed(6789)
 
-    from male import HOME
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"),
+    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
                                           n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"),
+    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
                                         n_features=784)
 
     x_train = x_train.toarray() / 255.0
@@ -535,7 +534,7 @@ def test_kmm_regression_gridsearch():
 
     ps = PredefinedSplit(test_fold=[-1] * 70 + [1] * 30)
 
-    clf = KMM(model_name="mnist_kmm_l2",
+    clf = KMM(model_name="regression_kmm_l2",
               D=4,
               lbd=0.01,
               gamma=0.01,
@@ -569,10 +568,9 @@ def test_kmm_regression_gridsearch():
 
 
 def test_kmm_mnist_cv():
-    from male import HOME
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"),
+    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
                                           n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"),
+    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
                                         n_features=784)
 
     x_train = x_train.toarray() / 255.0
@@ -589,7 +587,7 @@ def test_kmm_mnist_cv():
     y = np.concatenate([y_train, y_test])
 
     early_stopping = EarlyStopping(monitor='val_err', patience=2, verbose=1)
-    filepath = os.path.join(HOME, "rmodel/male/kmm/mnist_{epoch:04d}_{val_err:.6f}.pkl")
+    filepath = os.path.join(model_dir(), "male/kmm/mnist_{epoch:04d}_{val_err:.6f}.pkl")
     checkpoint = ModelCheckpoint(filepath,
                                  mode='min',
                                  monitor='val_err',
@@ -650,10 +648,9 @@ def test_kmm_mnist_cv():
 
 
 def test_kmm_mnist_cv_gridsearch():
-    from male import HOME
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"),
+    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
                                           n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"),
+    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
                                         n_features=784)
 
     x_train = x_train.toarray() / 255.0
@@ -725,10 +722,9 @@ def test_kmm_mnist_cv_gridsearch():
 
 
 def test_kmm_mnist_cv_disp():
-    from male import HOME
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"),
+    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
                                           n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"),
+    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
                                         n_features=784)
 
     x_train = x_train.toarray() / 255.0
@@ -745,7 +741,7 @@ def test_kmm_mnist_cv_disp():
     y = np.concatenate([y_train, y_test])
 
     early_stopping = EarlyStopping(monitor='val_err', patience=2, verbose=1)
-    filepath = os.path.join(HOME, "rmodel/male/kmm/mnist_{epoch:04d}_{val_err:.6f}.pkl")
+    filepath = os.path.join(model_dir(), "male/kmm/mnist_{epoch:04d}_{val_err:.6f}.pkl")
     checkpoint = ModelCheckpoint(filepath,
                                  mode='min',
                                  monitor='val_err',
@@ -829,10 +825,9 @@ def test_kmm_mnist_cv_disp():
 
 
 def test_kmm_pima():
-    from male import HOME
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/pima/mnist_6k"),
+    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
                                           n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"),
+    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
                                         n_features=784)
 
     x_train = x_train.toarray() / 255.0
@@ -849,7 +844,7 @@ def test_kmm_pima():
     y = np.concatenate([y_train, y_test])
 
     early_stopping = EarlyStopping(monitor='val_err', patience=2, verbose=1)
-    filepath = os.path.join(HOME, "rmodel/male/kmm/mnist_{epoch:04d}_{val_err:.6f}.pkl")
+    filepath = os.path.join(model_dir(), "male/kmm/mnist_{epoch:04d}_{val_err:.6f}.pkl")
     checkpoint = ModelCheckpoint(filepath,
                                  mode='min',
                                  monitor='val_err',
@@ -933,11 +928,10 @@ def test_kmm_pima():
 
 
 def test_kmm_syn2d():
-    from male import HOME
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/syn2d_data/train.scale.txt"),
+    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/synthetic_2D_data_train"),
                                           n_features=2)
     x_train = x_train.toarray()
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/syn2d_data/nolabel.txt"),
+    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/synthetic_2D_data_test"),
                                         n_features=2)
     x_test = x_test.toarray()
 
@@ -958,7 +952,7 @@ def test_kmm_syn2d():
     y = np.concatenate([y0, y1])
 
     early_stopping = EarlyStopping(monitor='val_loss', patience=10, verbose=1)
-    filepath = os.path.join(HOME, "rmodel/male/kmm/syn2d_data_{epoch:04d}_{val_err:.6f}.pkl")
+    filepath = os.path.join(model_dir(), "male/kmm/syn2d_data_{epoch:04d}_{val_err:.6f}.pkl")
     checkpoint = ModelCheckpoint(filepath,
                                  mode='min',
                                  monitor='val_err',
@@ -1019,7 +1013,8 @@ def test_kmm_syn2d():
 
     # save predictions
     x_test[x_test == 0] = 1e-4
-    dump_svmlight_file(x_test, y_test_pred, os.path.join(HOME, "rdata/syn2d_data/predict.txt"),
+    dump_svmlight_file(x_test, y_test_pred,
+                       os.path.join(data_dir(), "demo/synthetic_2D_data_test_predict"),
                        zero_based=False)
 
 
