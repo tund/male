@@ -152,6 +152,6 @@ def test_bank_phishing():
 if __name__ == '__main__':
     # pytest.main([__file__])
     # test_bank_2d()
-    # test_bank_svmguide1()
-    test_bank_musk()
+    test_bank_svmguide1()
+    # test_bank_musk()
     # test_bank_phishing()

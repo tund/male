@@ -233,6 +233,8 @@ class BANK(Model):
                 zdi = z[di]
                 # remove
                 nk[zdi] -= 1
+                giw_lst[zdi].del_item(z_giw[di])
+                z_giw[(z == zdi) & (z_giw > z_giw[di])] -= 1
 
                 pp = pp_mulgauss[:, di]
 
@@ -256,6 +258,7 @@ class BANK(Model):
 
                 z[di] = zdi_new
                 nk[zdi_new] += 1
+                z_giw[di] = giw_lst[zdi_new].add_item(omega[di, :])
 
             print("nk={}".format(nk[nk > 0]))
 
