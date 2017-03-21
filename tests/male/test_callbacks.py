@@ -13,6 +13,7 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import PredefinedSplit
 
 from male import model_dir
+from male import random_seed
 from male.models.linear import GLM
 from male.callbacks import Display
 from male.callbacks import EarlyStopping
@@ -20,7 +21,7 @@ from male.callbacks import ModelCheckpoint
 
 
 def test_display_callbacks():
-    from male import HOME
+    np.random.seed(random_seed())
 
     x_train = np.random.randn(10000, 10)
     y_train = np.random.randint(0, 10, size=(10000))

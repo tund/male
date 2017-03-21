@@ -3,8 +3,11 @@ from __future__ import print_function
 from __future__ import absolute_import
 
 _EPSILON = 1e-8
+_RANDOM_SEED = 6789
 _DATA_DIR = "datasets"
 _MODEL_DIR = "models"
+_REMOTE_DATA_DIR = "datasets"
+_REMOTE_MODEL_DIR = "models"
 
 
 def epsilon():
@@ -44,6 +47,15 @@ def set_epsilon(e):
     _EPSILON = e
 
 
+def random_seed():
+    return _RANDOM_SEED
+
+
+def set_random_seed(s):
+    global _RANDOM_SEED
+    _RANDOM_SEED = s
+
+
 def data_dir():
     return _DATA_DIR
 
@@ -60,3 +72,21 @@ def model_dir():
 def set_model_dir(d):
     global _MODEL_DIR
     _MODEL_DIR = d
+
+
+def remote_data_dir():
+    return _REMOTE_DATA_DIR
+
+
+def set_remote_data_dir(d):
+    global _REMOTE_DATA_DIR
+    _REMOTE_DATA_DIR = d
+
+
+def remote_model_dir():
+    return _REMOTE_MODEL_DIR
+
+
+def set_remote_model_dir(d):
+    global _REMOTE_MODEL_DIR
+    _REMOTE_MODEL_DIR = d

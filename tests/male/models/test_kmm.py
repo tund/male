@@ -8,7 +8,6 @@ import numpy as np
 
 from sklearn import metrics
 from sklearn.base import clone
-from sklearn.datasets import load_svmlight_file
 from sklearn.datasets import dump_svmlight_file
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import PredefinedSplit
@@ -16,6 +15,8 @@ from sklearn.model_selection import StratifiedShuffleSplit
 
 from male import data_dir
 from male import model_dir
+from male import random_seed
+from male.datasets import demo
 from male.models.kernel import KMM
 from male.callbacks import Display
 from male.callbacks import EarlyStopping
@@ -27,6 +28,8 @@ plt.style.use('ggplot')
 
 
 def test_kmm_check_grad():
+    np.random.seed(random_seed())
+
     # <editor-fold desc="Binary classification using ONE kernel">
     eps = 1e-6
     num_data = 10
@@ -301,20 +304,19 @@ def test_kmm_check_grad():
 
 
 def test_kmm_mnist_bin():
-    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
-                                          n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
-                                        n_features=784)
+    np.random.seed(random_seed())
+
+    (x_train, y_train), (x_test, y_test) = demo.load_mnist()
 
     idx_train = np.where(np.uint8(y_train == 0) | np.uint8(y_train == 1))[0]
     print("# training samples = {}".format(len(idx_train)))
-    x_train = x_train.toarray() / 255.0
+    x_train /= 255.0
     x_train = x_train[idx_train]
     y_train = y_train[idx_train]
 
     idx_test = np.where(np.uint8(y_test == 0) | np.uint8(y_test == 1))[0]
     print("# testing samples = {}".format(len(idx_test)))
-    x_test = x_test.toarray() / 255.0
+    x_test /= 255.0
     x_test = x_test[idx_test]
     y_test = y_test[idx_test]
 
@@ -365,20 +367,17 @@ def test_kmm_mnist_bin():
 
 
 def test_kmm_mnist_softmax():
-    np.random.seed(6789)
+    np.random.seed(random_seed())
 
-    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
-                                          n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
-                                        n_features=784)
+    (x_train, y_train), (x_test, y_test) = demo.load_mnist()
 
-    x_train = x_train.toarray() / 255.0
+    x_train /= 255.0
     idx_train = np.random.permutation(x_train.shape[0])
     x_train = x_train[idx_train]
     y_train = y_train[idx_train]
     print("# training samples = {}".format(x_train.shape[0]))
 
-    x_test = x_test.toarray() / 255.0
+    x_test /= 255.0
     idx_test = np.random.permutation(x_test.shape[0])
     x_test = x_test[idx_test]
     y_test = y_test[idx_test]
@@ -433,20 +432,17 @@ def test_kmm_mnist_softmax():
 
 
 def test_kmm_mnist_softmax_gridsearch():
-    np.random.seed(6789)
+    np.random.seed(random_seed())
 
-    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
-                                          n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
-                                        n_features=784)
+    (x_train, y_train), (x_test, y_test) = demo.load_mnist()
 
-    x_train = x_train.toarray() / 255.0
+    x_train /= 255.0
     idx_train = np.random.permutation(x_train.shape[0])
     x_train = x_train[idx_train]
     y_train = y_train[idx_train]
     print("# training samples = {}".format(x_train.shape[0]))
 
-    x_test = x_test.toarray() / 255.0
+    x_test /= 255.0
     idx_test = np.random.permutation(x_test.shape[0])
     x_test = x_test[idx_test]
     y_test = y_test[idx_test]
@@ -522,6 +518,8 @@ def test_kmm_mnist_softmax_gridsearch():
 
 
 def test_kmm_regression_gridsearch():
+    np.random.seed(random_seed())
+
     # regression
     eps = 1e-6
     num_data = 100
@@ -568,17 +566,16 @@ def test_kmm_regression_gridsearch():
 
 
 def test_kmm_mnist_cv():
-    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
-                                          n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
-                                        n_features=784)
+    np.random.seed(random_seed())
 
-    x_train = x_train.toarray() / 255.0
+    (x_train, y_train), (x_test, y_test) = demo.load_mnist()
+
+    x_train /= 255.0
     idx_train = np.random.permutation(x_train.shape[0])
     x_train = x_train[idx_train]
     y_train = y_train[idx_train]
 
-    x_test = x_test.toarray() / 255.0
+    x_test /= 255.0
     idx_test = np.random.permutation(x_test.shape[0])
     x_test = x_test[idx_test]
     y_test = y_test[idx_test]
@@ -648,17 +645,16 @@ def test_kmm_mnist_cv():
 
 
 def test_kmm_mnist_cv_gridsearch():
-    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
-                                          n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
-                                        n_features=784)
+    np.random.seed(random_seed())
 
-    x_train = x_train.toarray() / 255.0
+    (x_train, y_train), (x_test, y_test) = demo.load_mnist()
+
+    x_train /= 255.0
     idx_train = np.random.permutation(x_train.shape[0])
     x_train = x_train[idx_train]
     y_train = y_train[idx_train]
 
-    x_test = x_test.toarray() / 255.0
+    x_test /= 255.0
     idx_test = np.random.permutation(x_test.shape[0])
     x_test = x_test[idx_test]
     y_test = y_test[idx_test]
@@ -722,17 +718,16 @@ def test_kmm_mnist_cv_gridsearch():
 
 
 def test_kmm_mnist_cv_disp():
-    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
-                                          n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
-                                        n_features=784)
+    np.random.seed(random_seed())
 
-    x_train = x_train.toarray() / 255.0
+    (x_train, y_train), (x_test, y_test) = demo.load_mnist()
+
+    x_train /= 255.0
     idx_train = np.random.permutation(x_train.shape[0])
     x_train = x_train[idx_train]
     y_train = y_train[idx_train]
 
-    x_test = x_test.toarray() / 255.0
+    x_test /= 255.0
     idx_test = np.random.permutation(x_test.shape[0])
     x_test = x_test[idx_test]
     y_test = y_test[idx_test]
@@ -825,17 +820,16 @@ def test_kmm_mnist_cv_disp():
 
 
 def test_kmm_pima():
-    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
-                                          n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
-                                        n_features=784)
+    np.random.seed(random_seed())
 
-    x_train = x_train.toarray() / 255.0
+    (x_train, y_train), (x_test, y_test) = demo.load_mnist()
+
+    x_train /= 255.0
     idx_train = np.random.permutation(x_train.shape[0])
     x_train = x_train[idx_train]
     y_train = y_train[idx_train]
 
-    x_test = x_test.toarray() / 255.0
+    x_test /= 255.0
     idx_test = np.random.permutation(x_test.shape[0])
     x_test = x_test[idx_test]
     y_test = y_test[idx_test]
@@ -928,12 +922,9 @@ def test_kmm_pima():
 
 
 def test_kmm_syn2d():
-    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/synthetic_2D_data_train"),
-                                          n_features=2)
-    x_train = x_train.toarray()
-    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/synthetic_2D_data_test"),
-                                        n_features=2)
-    x_test = x_test.toarray()
+    np.random.seed(random_seed())
+
+    (x_train, y_train), (x_test, y_test) = demo.load_synthetic_2d()
 
     # idx_train = np.random.permutation(x_train.shape[0])
     # x_train = x_train[idx_train]
@@ -1019,7 +1010,7 @@ def test_kmm_syn2d():
 
 
 def test_kmm_syndata2():
-    np.random.seed(6789)
+    np.random.seed(random_seed())
 
     M = 1000  # number of samples
     D = 250  # number of random features (random feature dimension)

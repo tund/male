@@ -9,10 +9,16 @@ from . import model
 from .model import Model
 from .common import epsilon
 from .common import set_epsilon
+from .common import random_seed
+from .common import set_random_seed
 from .common import data_dir
 from .common import set_data_dir
 from .common import model_dir
 from .common import set_model_dir
+from .common import remote_data_dir
+from .common import set_remote_data_dir
+from .common import remote_model_dir
+from .common import set_remote_model_dir
 
 try:
     from .tensorflow_model import TensorFlowModel
@@ -44,20 +50,32 @@ if os.path.exists(_config_path):
     _config = json.load(open(_config_path))
     _epsilon = _config.get('epsilon', epsilon())
     assert isinstance(_epsilon, float)
+    _random_seed = _config.get('random_seed', random_seed())
+    assert isinstance(_random_seed, float)
     _data_dir = _config.get('data_dir', os.path.join(_male_dir, 'datasets'))
     assert isinstance(_data_dir, unicode)
     _model_dir = _config.get('model_dir', os.path.join(_male_dir, 'models'))
     assert isinstance(_model_dir, unicode)
+    _remote_data_dir = _config.get('remote_data_dir', 'http://prada-research.net/demo/datasets')
+    assert isinstance(_remote_data_dir, unicode)
+    _remote_model_dir = _config.get('remote_model_dir', 'http://prada-research.net/demo/models')
+    assert isinstance(_remote_model_dir, unicode)
 
     set_epsilon(_epsilon)
+    set_random_seed(_random_seed)
     set_data_dir(_data_dir)
     set_model_dir(_model_dir)
+    set_remote_data_dir(_remote_data_dir)
+    set_remote_model_dir(_remote_model_dir)
 
 # save config file
 if not os.path.exists(_config_path):
     _config = {'epsilon': epsilon(),
+               'random_seed': random_seed(),
                'data_dir': os.path.join(_male_dir, 'datasets'),
-               'model_dir': os.path.join(_male_dir, 'models')}
+               'model_dir': os.path.join(_male_dir, 'models'),
+               'remote_data_dir': 'http://prada-research.net/demo/datasets',
+               'remote_model_dir': 'http://prada-research.net/demo/models'}
     with open(_config_path, 'w') as f:
         f.write(json.dumps(_config, indent=4))
 # </editor-fold>

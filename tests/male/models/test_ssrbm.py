@@ -5,19 +5,15 @@ from __future__ import absolute_import
 import os
 import pytest
 import numpy as np
-from sklearn.datasets import load_svmlight_file
 from sklearn.model_selection import StratifiedShuffleSplit
 
-from male import data_dir
 from male import model_dir
+from male import random_seed
+from male.datasets import demo
 from male.callbacks import Display
 from male.callbacks import EarlyStopping
 from male.callbacks import ModelCheckpoint
 from male.models.deep_learning.rbm import SemiSupervisedRBM
-from male.models.deep_learning.rbm.rbm import INFERENCE_ENGINE
-from male.models.deep_learning.rbm.srbm import APPROX_METHOD
-
-np.random.seed(6789)
 
 
 def test_ssrbm_mnist():
@@ -26,17 +22,16 @@ def test_ssrbm_mnist():
     from sklearn.metrics import accuracy_score
     from sklearn.neighbors import KNeighborsClassifier
 
-    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
-                                          n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
-                                        n_features=784)
+    np.random.seed(random_seed())
 
-    x_train = x_train.toarray() / 255.0
+    (x_train, y_train), (x_test, y_test) = demo.load_mnist()
+
+    x_train /= 255.0
     idx_train = np.random.permutation(x_train.shape[0])
     x_train = x_train[idx_train]
     y_train = y_train[idx_train]
 
-    x_test = x_test.toarray() / 255.0
+    x_test /= 255.0
     idx_test = np.random.permutation(x_test.shape[0])
     x_test = x_test[idx_test]
     y_test = y_test[idx_test]
@@ -167,17 +162,16 @@ def test_ssrbm_mnist_regression():
     from sklearn.svm import SVR
     from sklearn.metrics import mean_squared_error
 
-    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
-                                          n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
-                                        n_features=784)
+    np.random.seed(random_seed())
 
-    x_train = x_train.toarray() / 255.0
+    (x_train, y_train), (x_test, y_test) = demo.load_mnist()
+
+    x_train /= 255.0
     idx_train = np.random.permutation(x_train.shape[0])
     x_train = x_train[idx_train]
     y_train = y_train[idx_train]
 
-    x_test = x_test.toarray() / 255.0
+    x_test /= 255.0
     idx_test = np.random.permutation(x_test.shape[0])
     x_test = x_test[idx_test]
     y_test = y_test[idx_test]
@@ -306,6 +300,8 @@ def test_ssrbm_diabetes_regression():
     '''
     from sklearn import datasets
 
+    np.random.seed(random_seed())
+
     diabetes = datasets.load_diabetes()
     idx = np.random.permutation(diabetes.data.shape[0])
     x_train = diabetes.data[idx[:300]]
@@ -407,17 +403,16 @@ def test_ssrbm_load_to_continue_training():
     from sklearn.metrics import accuracy_score
     from sklearn.neighbors import KNeighborsClassifier
 
-    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
-                                          n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
-                                        n_features=784)
+    np.random.seed(random_seed())
 
-    x_train = x_train.toarray() / 255.0
+    (x_train, y_train), (x_test, y_test) = demo.load_mnist()
+
+    x_train /= 255.0
     idx_train = np.random.permutation(x_train.shape[0])
     x_train = x_train[idx_train]
     y_train = y_train[idx_train]
 
-    x_test = x_test.toarray() / 255.0
+    x_test /= 255.0
     idx_test = np.random.permutation(x_test.shape[0])
     x_test = x_test[idx_test]
     y_test = y_test[idx_test]
@@ -438,17 +433,16 @@ def test_ssrbm_mnist_gridsearch():
     from sklearn.model_selection import PredefinedSplit
     from sklearn.model_selection import GridSearchCV
 
-    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
-                                          n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
-                                        n_features=784)
+    np.random.seed(random_seed())
 
-    x_train = x_train.toarray() / 255.0
+    (x_train, y_train), (x_test, y_test) = demo.load_mnist()
+
+    x_train /= 255.0
     idx_train = np.random.permutation(x_train.shape[0])
     x_train = x_train[idx_train]
     y_train = y_train[idx_train]
 
-    x_test = x_test.toarray() / 255.0
+    x_test /= 255.0
     idx_test = np.random.permutation(x_test.shape[0])
     x_test = x_test[idx_test]
     y_test = y_test[idx_test]

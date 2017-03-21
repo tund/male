@@ -5,10 +5,9 @@ from __future__ import absolute_import
 import os
 import pytest
 import numpy as np
-from sklearn.datasets import load_svmlight_file
 
-from male import data_dir
-from male import model_dir
+from male import random_seed
+from male.datasets import demo
 from male.callbacks import Display
 from male.models.deep_learning.rbm import BernoulliBernoulliTensorFlowRBM
 
@@ -17,17 +16,16 @@ def test_bbtfrbm_mnist():
     from sklearn.metrics import accuracy_score
     from sklearn.neighbors import KNeighborsClassifier
 
-    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
-                                          n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
-                                        n_features=784)
+    np.random.seed(random_seed())
 
-    x_train = x_train.toarray().astype(np.float32) / 255.0
+    (x_train, y_train), (x_test, y_test) = demo.load_mnist()
+
+    x_train = x_train.astype(np.float32) / 255.0
     idx_train = np.random.permutation(x_train.shape[0])
     x_train = x_train[idx_train]
     y_train = y_train[idx_train]
 
-    x_test = x_test.toarray().astype(np.float32) / 255.0
+    x_test = x_test.astype(np.float32) / 255.0
     idx_test = np.random.permutation(x_test.shape[0])
     x_test = x_test[idx_test]
     y_test = y_test[idx_test]
@@ -128,17 +126,16 @@ def test_bbtfrbm_mnist():
 def test_bbtfrbm_mnist_csl():
     '''TODO: Fix the code to test TensorFlow Bernoulli-Bernoulli RBM
     '''
-    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
-                                          n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
-                                        n_features=784)
+    np.random.seed(random_seed())
 
-    x_train = x_train.toarray() / 255.0
+    (x_train, y_train), (x_test, y_test) = demo.load_mnist()
+
+    x_train /= 255.0
     idx_train = np.random.permutation(x_train.shape[0])
     x_train = x_train[idx_train]
     y_train = y_train[idx_train]
 
-    x_test = x_test.toarray() / 255.0
+    x_test /= 255.0
     idx_test = np.random.permutation(x_test.shape[0])
     x_test = x_test[idx_test]
     y_test = y_test[idx_test]
@@ -169,17 +166,16 @@ def test_bbtfrbm_mnist_csl():
 def test_bbtfrbm_mnist_generate_data():
     '''TODO: Fix the code to test TensorFlow Bernoulli-Bernoulli RBM
     '''
-    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
-                                          n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
-                                        n_features=784)
+    np.random.seed(random_seed())
 
-    x_train = x_train.toarray() / 255.0
+    (x_train, y_train), (x_test, y_test) = demo.load_mnist()
+
+    x_train /= 255.0
     idx_train = np.random.permutation(x_train.shape[0])
     x_train = x_train[idx_train]
     y_train = y_train[idx_train]
 
-    x_test = x_test.toarray() / 255.0
+    x_test /= 255.0
     idx_test = np.random.permutation(x_test.shape[0])
     x_test = x_test[idx_test]
     y_test = y_test[idx_test]
@@ -218,17 +214,16 @@ def test_bbtfrbm_mnist_generate_data():
 def test_bbtfrbm_mnist_logpartition():
     '''TODO: Fix the code to test TensorFlow Bernoulli-Bernoulli RBM
     '''
-    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
-                                          n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
-                                        n_features=784)
+    np.random.seed(random_seed())
 
-    x_train = x_train.toarray() / 255.0
+    (x_train, y_train), (x_test, y_test) = demo.load_mnist()
+
+    x_train /= 255.0
     idx_train = np.random.permutation(x_train.shape[0])
     x_train = x_train[idx_train]
     y_train = y_train[idx_train]
 
-    x_test = x_test.toarray() / 255.0
+    x_test /= 255.0
     idx_test = np.random.permutation(x_test.shape[0])
     x_test = x_test[idx_test]
     y_test = y_test[idx_test]
@@ -265,16 +260,16 @@ def test_bbtfrbm_mnist_gridsearch():
     from sklearn.model_selection import PredefinedSplit
     from sklearn.neighbors import KNeighborsClassifier
 
-    x_train, y_train = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_train"),
-                                          n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(data_dir(), "demo/mnist_test"),
-                                        n_features=784)
-    x_train = x_train.toarray() / 255.0
+    np.random.seed(random_seed())
+
+    (x_train, y_train), (x_test, y_test) = demo.load_mnist()
+
+    x_train /= 255.0
     idx_train = np.random.permutation(x_train.shape[0])
     x_train = x_train[idx_train]
     y_train = y_train[idx_train]
 
-    x_test = x_test.toarray() / 255.0
+    x_test /= 255.0
     idx_test = np.random.permutation(x_test.shape[0])
     x_test = x_test[idx_test]
     y_test = y_test[idx_test]
