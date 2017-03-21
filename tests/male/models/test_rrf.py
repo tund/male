@@ -8,16 +8,20 @@ import numpy as np
 
 from sklearn import metrics
 from sklearn.base import clone
-from sklearn.datasets import load_svmlight_file
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import PredefinedSplit
 
+from male import model_dir
+from male import random_seed
+from male.datasets import demo
 from male.models.kernel import RRF
 from male.callbacks import EarlyStopping
 from male.callbacks import ModelCheckpoint
 
 
 def test_rrf_check_grad():
+    np.random.seed(random_seed())
+
     # <editor-fold desc="Binary classification">
     eps = 1e-6
     num_data = 10
@@ -123,21 +127,19 @@ def test_rrf_check_grad():
 
 
 def test_rrf_mnist_bin():
-    from male import HOME
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"),
-                                          n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"),
-                                        n_features=784)
+    np.random.seed(random_seed())
+
+    (x_train, y_train), (x_test, y_test) = demo.load_mnist()
 
     idx_train = np.where(np.uint8(y_train == 0) | np.uint8(y_train == 1))[0]
     print("# training samples = {}".format(len(idx_train)))
-    x_train = x_train.toarray() / 255.0
+    x_train /= 255.0
     x_train = x_train[idx_train]
     y_train = y_train[idx_train]
 
     idx_test = np.where(np.uint8(y_test == 0) | np.uint8(y_test == 1))[0]
     print("# testing samples = {}".format(len(idx_test)))
-    x_test = x_test.toarray() / 255.0
+    x_test /= 255.0
     x_test = x_test[idx_test]
     y_test = y_test[idx_test]
 
@@ -173,19 +175,17 @@ def test_rrf_mnist_bin():
 
 
 def test_rrf_mnist_softmax():
-    from male import HOME
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"),
-                                          n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"),
-                                        n_features=784)
+    np.random.seed(random_seed())
 
-    x_train = x_train.toarray() / 255.0
+    (x_train, y_train), (x_test, y_test) = demo.load_mnist()
+
+    x_train /= 255.0
     idx_train = np.random.permutation(x_train.shape[0])
     x_train = x_train[idx_train]
     y_train = y_train[idx_train]
     print("# training samples = {}".format(x_train.shape[0]))
 
-    x_test = x_test.toarray() / 255.0
+    x_test /= 255.0
     idx_test = np.random.permutation(x_test.shape[0])
     x_test = x_test[idx_test]
     y_test = y_test[idx_test]
@@ -223,19 +223,17 @@ def test_rrf_mnist_softmax():
 
 
 def test_rrf_mnist_softmax_gridsearch():
-    from male import HOME
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"),
-                                          n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"),
-                                        n_features=784)
+    np.random.seed(random_seed())
 
-    x_train = x_train.toarray() / 255.0
+    (x_train, y_train), (x_test, y_test) = demo.load_mnist()
+
+    x_train /= 255.0
     idx_train = np.random.permutation(x_train.shape[0])
     x_train = x_train[idx_train]
     y_train = y_train[idx_train]
     print("# training samples = {}".format(x_train.shape[0]))
 
-    x_test = x_test.toarray() / 255.0
+    x_test /= 255.0
     idx_test = np.random.permutation(x_test.shape[0])
     x_test = x_test[idx_test]
     y_test = y_test[idx_test]
@@ -274,6 +272,8 @@ def test_rrf_mnist_softmax_gridsearch():
 
 
 def test_rrf_regression_gridsearch():
+    np.random.seed(random_seed())
+
     # regression
     eps = 1e-6
     num_data = 100
@@ -311,18 +311,16 @@ def test_rrf_regression_gridsearch():
 
 
 def test_rrf_mnist_cv():
-    from male import HOME
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"),
-                                          n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"),
-                                        n_features=784)
+    np.random.seed(random_seed())
 
-    x_train = x_train.toarray() / 255.0
+    (x_train, y_train), (x_test, y_test) = demo.load_mnist()
+
+    x_train /= 255.0
     idx_train = np.random.permutation(x_train.shape[0])
     x_train = x_train[idx_train]
     y_train = y_train[idx_train]
 
-    x_test = x_test.toarray() / 255.0
+    x_test /= 255.0
     idx_test = np.random.permutation(x_test.shape[0])
     x_test = x_test[idx_test]
     y_test = y_test[idx_test]
@@ -331,7 +329,7 @@ def test_rrf_mnist_cv():
     y = np.concatenate([y_train, y_test])
 
     early_stopping = EarlyStopping(monitor='val_loss', patience=2)
-    filepath = os.path.join(HOME, "rmodel/male/rrf/mnist_{epoch:04d}_{val_loss:.6f}.pkl")
+    filepath = os.path.join(model_dir(), "male/rrf/mnist_{epoch:04d}_{val_loss:.6f}.pkl")
     checkpoint = ModelCheckpoint(filepath,
                                  mode='min',
                                  monitor='val_loss',
@@ -362,18 +360,16 @@ def test_rrf_mnist_cv():
 
 
 def test_rrf_mnist_cv_gridsearch():
-    from male import HOME
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"),
-                                          n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"),
-                                        n_features=784)
+    np.random.seed(random_seed())
 
-    x_train = x_train.toarray() / 255.0
+    (x_train, y_train), (x_test, y_test) = demo.load_mnist()
+
+    x_train /= 255.0
     idx_train = np.random.permutation(x_train.shape[0])
     x_train = x_train[idx_train]
     y_train = y_train[idx_train]
 
-    x_test = x_test.toarray() / 255.0
+    x_test /= 255.0
     idx_test = np.random.permutation(x_test.shape[0])
     x_test = x_test[idx_test]
     y_test = y_test[idx_test]
@@ -389,7 +385,7 @@ def test_rrf_mnist_cv_gridsearch():
                                    + [1] * x_test.shape[0])
 
     early_stopping = EarlyStopping(monitor='val_loss', patience=2)
-    filepath = os.path.join(HOME, "rmodel/male/rrf/mnist_{epoch:04d}_{val_loss:.6f}.pkl")
+    filepath = os.path.join(model_dir(), "male/rrf/mnist_{epoch:04d}_{val_loss:.6f}.pkl")
     checkpoint = ModelCheckpoint(filepath,
                                  mode='min',
                                  monitor='val_loss',
@@ -428,11 +424,11 @@ def test_rrf_mnist_cv_gridsearch():
 
 
 if __name__ == '__main__':
-    # pytest.main([__file__])
-    test_rrf_check_grad()
-    test_rrf_mnist_bin()
-    test_rrf_mnist_softmax()
+    pytest.main([__file__])
+    # test_rrf_check_grad()
+    # test_rrf_mnist_bin()
+    # test_rrf_mnist_softmax()
     # test_rrf_mnist_softmax_gridsearch()
     # test_rrf_regression_gridsearch()
-    test_rrf_mnist_cv()
+    # test_rrf_mnist_cv()
     # test_rrf_mnist_cv_gridsearch()
