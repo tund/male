@@ -1,5 +1,5 @@
 __metaclass__ = type
-class A():
+class A:
     def __init__(self):
         print("A")
 
