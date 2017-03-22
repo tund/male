@@ -1,4 +1,5 @@
-class A:
+__metaclass__ = type
+class A():
     def __init__(self):
         print("A")
 
@@ -23,10 +24,9 @@ print("        /   \            ")
 print("       B*    C*          ")
 print("        \   /            ")
 print("          X*             ")
-print(" Method Resolution Orther:")
-print(X.mro())
-print("Output:")
 obj = X()
+print("Method Resolution Order:")
+print(X.mro())
 print("Explanation:")
 print("1. Depth first search: X -> B -> A -> C -> A")
 print("2. Remove superclasses in the middle: X -> B -> C -> A")
