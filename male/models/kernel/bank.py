@@ -285,7 +285,7 @@ class BANK(Model):
 
                 zdi = z[di]
                 omega_di_old = omega[di, :].copy()
-                Phidi_old = phi[:, di_idx].copy()
+                phidi_old = phi[:, di_idx].copy()
 
                 omega[di, :] = np.random.multivariate_normal(mu_lst[zdi], cov_lst[zdi])
                 omega_x_di_tmp = np.dot(self.x_, omega[di, :].T)  # (N, 1)
@@ -294,9 +294,9 @@ class BANK(Model):
 
                 beta_idx_old = w[di_idx].copy()
 
-                phi_beta_old = np.sum(Phidi_old * beta_idx_old, axis=1)
-                exp_Phi_beta_old = np.exp(phi_beta_old)
-                log_py_old = -np.sum(np.log(1.0 + exp_Phi_beta_old)) + np.dot(phi_beta_old, self.y_)
+                phi_beta_old = np.sum(phidi_old * beta_idx_old, axis=1)
+                exp_phi_beta_old = np.exp(phi_beta_old)
+                log_py_old = -np.sum(np.log(1.0 + exp_phi_beta_old)) + np.dot(phi_beta_old, self.y_)
 
                 beta_mode, lap_matrix = BANK.newtons_optimizer(w[di_idx],
                                                                BANK.get_log_f, BANK.get_grad, BANK.get_hessian,
@@ -330,7 +330,7 @@ class BANK(Model):
                 if np.log(np.random.uniform()) > accept_rate:
                     w[di_idx] = beta_idx_old
                     omega[di, :] = omega_di_old
-                    phi[:, di_idx] = Phidi_old
+                    phi[:, di_idx] = phidi_old
                 else:
                     log_lap_beta_old[di] = log_lap_beta
                     log_pbeta_old[di] = log_pbeta
@@ -960,14 +960,14 @@ class BANK(Model):
         out.update({
             'gamma': self.gamma,
             'kappa': self.kappa,
-            'lbd': self.inner_regularization,
+            'inner_regularization': self.inner_regularization,
         })
         return out
 
     def get_all_params(self, deep=True):
         out = super(BANK, self).get_all_params(deep=deep)
         out.update({
-            'W_': copy.deepcopy(self.omega_),
-            'beta_': copy.deepcopy(self.w_),
+            'omega_': copy.deepcopy(self.omega_),
+            'w_': copy.deepcopy(self.w_),
         })
         return out
