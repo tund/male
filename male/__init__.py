@@ -7,6 +7,7 @@ import json
 
 from . import model
 from .model import Model
+from .optimizer import Optimizer
 from .common import epsilon
 from .common import set_epsilon
 from .common import random_seed
