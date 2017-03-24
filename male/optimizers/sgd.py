@@ -28,20 +28,20 @@ class SGD(Optimizer):
 
     def init_params(self, **kwargs):
         super(SGD, self).init_params(**kwargs)
-        self.iter_ = 0
-        self.initial_decay_ = self.decay
-        self.moments_ = [np.zeros(p.shape) for p in self.params_]
+        self.iteration = 0
+        self.initial_decay = self.decay
+        self.moments = [np.zeros(p.shape) for p in self.params]
 
     def update_params(self, *args, **kwargs):
-        grads = self.grad_func_(*args)
+        grads = self.grad_func(*args)
 
         lr = self.learning_rate
-        if self.initial_decay_ > 0:
-            lr *= (1. / (1. + self.decay * self.iter_))
-            self.iter_ += 1
+        if self.initial_decay > 0:
+            lr *= (1. / (1. + self.decay * self.iteration))
+            self.iteration += 1
 
         # momentum
-        for p, g, m in zip(self.params_, grads, self.moments_):
+        for p, g, m in zip(self.params, grads, self.moments):
             m[:] = self.momentum * m - lr * g  # velocity
             if self.nesterov:
                 new_p = p + self.momentum * m - lr * g

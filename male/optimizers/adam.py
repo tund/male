@@ -34,22 +34,22 @@ class Adam(Optimizer):
 
     def init_params(self, **kwargs):
         super(Adam, self).init_params(**kwargs)
-        self.iter_ = 0
-        self.initial_decay_ = self.decay
-        self.first_moments_ = [np.zeros(p.shape) for p in self.params_]
-        self.second_moments_ = [np.zeros(p.shape) for p in self.params_]
+        self.iteration = 0
+        self.initial_decay = self.decay
+        self.first_moments = [np.zeros(p.shape) for p in self.params]
+        self.second_moments = [np.zeros(p.shape) for p in self.params]
 
     def update_params(self, *args, **kwargs):
-        grads = self.grad_func_(*args)
+        grads = self.grad_func(*args)
 
         lr = self.learning_rate
-        if self.initial_decay_ > 0:
-            lr *= (1. / (1. + self.decay * self.iter_))
+        if self.initial_decay > 0:
+            lr *= (1. / (1. + self.decay * self.iteration))
 
-        self.iter_ += 1
-        lr_t = lr * (np.sqrt(1. - self.beta_2 ** self.iter_) / (1. - self.beta_1 ** self.iter_))
+        self.iteration += 1
+        lr_t = lr * (np.sqrt(1. - self.beta_2 ** self.iteration) / (1. - self.beta_1 ** self.iteration))
 
-        for p, g, m, v in zip(self.params_, grads, self.first_moments_, self.second_moments_):
+        for p, g, m, v in zip(self.params, grads, self.first_moments, self.second_moments):
             m_t = (self.beta_1 * m) + (1. - self.beta_1) * g
             v_t = (self.beta_2 * v) + (1. - self.beta_2) * g * g
             p_t = p - lr_t * m_t / (np.sqrt(v_t) + self.epsilon)
@@ -80,17 +80,17 @@ class Adamax(Adam):
         super(Adamax, self).__init__(**kwargs)
 
     def update_params(self, *args, **kwargs):
-        grads = self.grad_func_(*args)
+        grads = self.grad_func(*args)
 
         lr = self.learning_rate
-        if self.initial_decay_ > 0:
-            lr *= (1. / (1. + self.decay * self.iter_))
+        if self.initial_decay > 0:
+            lr *= (1. / (1. + self.decay * self.iteration))
 
-        self.iter_ += 1
-        lr_t = lr / (1. - self.beta_1 ** self.iter_)
+        self.iteration += 1
+        lr_t = lr / (1. - self.beta_1 ** self.iteration)
 
         # Note that: self.second_moments_ is now exponentially weighted infinity norm
-        for p, g, m, u in zip(self.params_, grads, self.first_moments_, self.second_moments_):
+        for p, g, m, u in zip(self.params, grads, self.first_moments, self.second_moments):
             m_t = (self.beta_1 * m) + (1. - self.beta_1) * g
             u_t = np.maximum(self.beta_2 * u, np.abs(g))
             p_t = p - lr_t * m_t / (u_t + self.epsilon)
@@ -130,24 +130,24 @@ class Nadam(Adam):
         self.m_schedule_ = 1.0
 
     def update_params(self, *args, **kwargs):
-        grads = self.grad_func_(*args)
+        grads = self.grad_func(*args)
 
-        self.iter_ += 1
+        self.iteration += 1
 
         # Due to the recommendations in [2], i.e. warming momentum schedule
-        momentum_cache_t = self.beta_1 * (1. - 0.5 * (np.power(0.96, self.iter_ * self.schedule_decay)))
-        momentum_cache_t_1 = self.beta_1 * (1. - 0.5 * (np.power(0.96, (self.iter_ + 1) * self.schedule_decay)))
+        momentum_cache_t = self.beta_1 * (1. - 0.5 * (np.power(0.96, self.iteration * self.schedule_decay)))
+        momentum_cache_t_1 = self.beta_1 * (1. - 0.5 * (np.power(0.96, (self.iteration + 1) * self.schedule_decay)))
         m_schedule_new = self.m_schedule_ * momentum_cache_t
         m_schedule_next = self.m_schedule_ * momentum_cache_t * momentum_cache_t_1
         self.m_schedule_ = m_schedule_new
 
-        for p, g, m, v in zip(self.params_, grads, self.first_moments_, self.second_moments_):
+        for p, g, m, v in zip(self.params, grads, self.first_moments, self.second_moments):
             # the following equations given in [1]
             g_prime = g / (1. - m_schedule_new)
             m_t = self.beta_1 * m + (1. - self.beta_1) * g
             m_t_prime = m_t / (1. - m_schedule_next)
             v_t = self.beta_2 * v + (1. - self.beta_2) * g * g
-            v_t_prime = v_t / (1. - self.beta_2 ** self.iter_)
+            v_t_prime = v_t / (1. - self.beta_2 ** self.iteration)
             m_t_bar = (1. - momentum_cache_t) * g_prime + momentum_cache_t_1 * m_t_prime
 
             m[:] = m_t

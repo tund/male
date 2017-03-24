@@ -20,9 +20,9 @@ class Optimizer(object):
         self.learning_rate = learning_rate
 
     def init_params(self, obj_func=None, grad_func=None, params=[], **kwargs):
-        self.obj_func_ = obj_func
-        self.grad_func_ = grad_func
-        self.params_ = params
+        self.obj_func = obj_func
+        self.grad_func = grad_func
+        self.params = params
 
     def update_params(self, *args, **kwargs):
         raise NotImplementedError

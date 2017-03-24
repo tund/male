@@ -31,17 +31,17 @@ class Adadelta(RMSProp):
 
     def init_params(self, **kwargs):
         super(Adadelta, self).init_params(**kwargs)
-        self.delta_accumulators_ = [np.zeros(p.shape) for p in self.params_]
+        self.delta_accumulators = [np.zeros(p.shape) for p in self.params]
 
     def update_params(self, *args, **kwargs):
-        grads = self.grad_func_(*args)
+        grads = self.grad_func(*args)
 
         lr = self.learning_rate
-        if self.initial_decay_ > 0:
-            lr *= (1. / (1. + self.decay * self.iter_))
-            self.iter_ += 1
+        if self.initial_decay > 0:
+            lr *= (1. / (1. + self.decay * self.iteration))
+            self.iteration += 1
 
-        for p, g, a, d_a in zip(self.params_, grads, self.accumulators_, self.delta_accumulators_):
+        for p, g, a, d_a in zip(self.params, grads, self.accumulators, self.delta_accumulators):
             # update accumulator
             a[:] = self.rho * a + (1. - self.rho) * g * g
             # use the new accumulator and the *old* delta_accumulator

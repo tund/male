@@ -29,18 +29,18 @@ class Adagrad(Optimizer):
 
     def init_params(self, **kwargs):
         super(Adagrad, self).init_params(**kwargs)
-        self.iter_ = 0
-        self.initial_decay_ = self.decay
-        self.accumulators_ = [np.zeros(p.shape) for p in self.params_]
+        self.iteration = 0
+        self.initial_decay = self.decay
+        self.accumulators = [np.zeros(p.shape) for p in self.params]
 
     def update_params(self, *args, **kwargs):
-        grads = self.grad_func_(*args)
+        grads = self.grad_func(*args)
 
         lr = self.learning_rate
-        if self.initial_decay_ > 0:
-            lr *= (1. / (1. + self.decay * self.iter_))
-            self.iter_ += 1
+        if self.initial_decay > 0:
+            lr *= (1. / (1. + self.decay * self.iteration))
+            self.iteration += 1
 
-        for p, g, a in zip(self.params_, grads, self.accumulators_):
+        for p, g, a in zip(self.params, grads, self.accumulators):
             a[:] = a + g * g  # update accumulator
             p[:] = p - lr * g / (np.sqrt(a) + self.epsilon)

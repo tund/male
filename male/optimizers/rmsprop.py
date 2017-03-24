@@ -33,14 +33,14 @@ class RMSProp(Adagrad):
         self.rho = rho
 
     def update_params(self, *args, **kwargs):
-        grads = self.grad_func_(*args)
+        grads = self.grad_func(*args)
 
         lr = self.learning_rate
-        if self.initial_decay_ > 0:
-            lr *= (1. / (1. + self.decay * self.iter_))
-            self.iter_ += 1
+        if self.initial_decay > 0:
+            lr *= (1. / (1. + self.decay * self.iteration))
+            self.iteration += 1
 
-        for p, g, a in zip(self.params_, grads, self.accumulators_):
+        for p, g, a in zip(self.params, grads, self.accumulators):
             # update accumulator
             a[:] = self.rho * a + (1. - self.rho) * g * g
             p[:] = p - lr * g / (np.sqrt(a) + self.epsilon)
