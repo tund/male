@@ -6,6 +6,7 @@ install_requires = [
     'matplotlib',
     'scikit-learn',
     'scipy',
+    'dill',
     'pytest'
 ]
 

@@ -14,6 +14,7 @@ from sklearn.model_selection import PredefinedSplit
 from male import model_dir
 from male import random_seed
 from male.datasets import demo
+from male.optimizers import SGD
 from male.models.linear import GLM
 from male.callbacks import Display
 from male.callbacks import EarlyStopping
@@ -212,6 +213,21 @@ def test_glm_mnist_logit():
 
     clf = GLM(model_name="mnist_glm_logit",
               optimizer='sgd',
+              l1_penalty=0.0,
+              l2_penalty=0.0,
+              random_state=6789)
+
+    clf.fit(x_train, y_train)
+
+    y_train_pred = clf.predict(x_train)
+    y_test_pred = clf.predict(x_test)
+
+    print("Training error = %.4f" % (1 - metrics.accuracy_score(y_train, y_train_pred)))
+    print("Testing error = %.4f" % (1 - metrics.accuracy_score(y_test, y_test_pred)))
+
+    optz = SGD(learning_rate=0.01, momentum=0.9, nesterov=True)
+    clf = GLM(model_name="mnist_glm_logit",
+              optimizer=optz,
               l1_penalty=0.0,
               l2_penalty=0.0,
               random_state=6789)
@@ -473,7 +489,6 @@ def test_glm_mnist_cv():
               optimizer='sgd',
               num_epochs=100,
               batch_size=100,
-              learning_rate=0.001,
               task='classification',
               metrics=['loss', 'err'],
               callbacks=[early_stopping, checkpoint, loss_display, weight_display],
