@@ -25,20 +25,20 @@ class Newton(Optimizer):
     def update_params(self, *args, **kwargs):
         raise NotImplementedError
 
-    def solve(self, vars=None, *args, **kwargs):
+    def solve(self, variables=None, *args, **kwargs):
         obj_lst = []
         for l in range(self.max_loop):
-            grad = self.grad_func(vars, *args)
-            hess = self.hess_func(vars, *args)
+            grad = self.grad_func(variables, *args)
+            hess = self.hess_func(variables, *args)
             hess_inv = np.linalg.inv(hess)
-            d = -np.dot(hess_inv, grad.reshape((len(vars), 1)))
-            d = d.reshape(len(vars))
+            d = -np.dot(hess_inv, grad.reshape((len(variables), 1)))
+            d = d.reshape(len(variables))
             t = 1
-            obj_x = self.obj_func(vars, *args)
-            while self.obj_func(vars + t * d, *args) > obj_x + 0.5 * t * np.dot(grad, d):
+            obj_x = self.obj_func(variables, *args)
+            while self.obj_func(variables + t * d, *args) > obj_x + 0.5 * t * np.dot(grad, d):
                 t = self.learning_rate * t
-            vars += t * d
-            obj_lst.append(self.obj_func(vars, *args))
+            variables += t * d
+            obj_lst.append(self.obj_func(variables, *args))
             if (l > 1) and np.abs((obj_lst[l] - obj_lst[l - 1]) / obj_lst[l]) < self.tolerance:
                 break
-        return vars, obj_lst[-1]
+        return variables, obj_lst[-1]
