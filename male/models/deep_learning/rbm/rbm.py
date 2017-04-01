@@ -40,6 +40,7 @@ class RBM(Model):
                  num_cd=1,
                  sampling_in_last_cd='none',
                  num_pcd=15,
+                 num_chains=100,
                  # learning rates
                  learning_rate=0.1,
                  learning_rate_decay='none',
@@ -68,6 +69,7 @@ class RBM(Model):
         self.num_cd = num_cd
         self.sampling_in_last_cd = sampling_in_last_cd
         self.num_pcd = num_pcd
+        self.num_chains = num_chains
 
         self.learning_rate = learning_rate
         self.learning_rate_decay = learning_rate_decay
@@ -191,6 +193,14 @@ class RBM(Model):
                             hprob, sampling=CD_SAMPLING['hidden_visible'])
                     hsample, vprob, vsample, hprob = self._gibbs_sampling(
                         hprob, sampling=self.sampling_in_last_cd)
+                elif self.learning_method == LEARNING_METHOD['pcd']:
+                    vprob = self._get_visible_prob(self.pcd_hsample)
+                    vsample = self._sample_visible(vprob)
+                    hprob = self._get_hidden_prob(vsample)
+                    for ipcd in range(self.num_pcd):
+                        self.pcd_hsample, vprob, vsample, hprob = self._gibbs_sampling(
+                            hprob, sampling=CD_SAMPLING['hidden_visible'])
+                    hprob = self.pcd_hsample
 
                 # ======== negative phase =========
                 neg_hgrad, neg_vgrad, neg_wgrad = self._get_negative_grad(vprob, hprob)
