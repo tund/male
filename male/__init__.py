@@ -4,6 +4,7 @@ import os
 import platform
 from os.path import expanduser
 import json
+from builtins import str
 
 from . import model
 from .model import Model
@@ -54,13 +55,13 @@ if os.path.exists(_config_path):
     _random_seed = _config.get('random_seed', random_seed())
     assert isinstance(_random_seed, int)
     _data_dir = _config.get('data_dir', os.path.join(_male_dir, 'datasets'))
-    assert isinstance(_data_dir, unicode)
+    assert isinstance(_data_dir, str)
     _model_dir = _config.get('model_dir', os.path.join(_male_dir, 'models'))
-    assert isinstance(_model_dir, unicode)
+    assert isinstance(_model_dir, str)
     _remote_data_dir = _config.get('remote_data_dir', 'http://prada-research.net/demo/datasets')
-    assert isinstance(_remote_data_dir, unicode)
+    assert isinstance(_remote_data_dir, str)
     _remote_model_dir = _config.get('remote_model_dir', 'http://prada-research.net/demo/models')
-    assert isinstance(_remote_model_dir, unicode)
+    assert isinstance(_remote_model_dir, str)
 
     set_epsilon(_epsilon)
     set_random_seed(_random_seed)

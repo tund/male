@@ -7,7 +7,8 @@ install_requires = [
     'scikit-learn',
     'scipy',
     'dill',
-    'pytest'
+    'pytest',
+    'future'
 ]
 
 setup(
