@@ -92,3 +92,35 @@ class GaussianInvWishart(object):
         self.x_sum -= self.x_lst[index]
         del self.x_lst[index]
         self.invalid = True
+
+    @staticmethod
+    def sample_posterior(dim, data, lbd0, loc0, degree0, scale_mat0):
+        """
+        Sample from posterior distribution given observed data
+        without requiring any immediate function call (e.g. add, del items)
+        :param dim: dimension of data
+        :param data: (num_samples,dim)
+        :param lbd0: scalar
+        :param loc0: location of data (dim,)
+        :param degree0: degree of freedom, scalar > dim - 1
+        :param scale_mat0: (dim,dim)
+        :return: [mean_new, cov_new] of normal distribution
+        """
+        num_samples = data.shape[0]
+        lbd0_loc0 = lbd0 * loc0
+        if num_samples > 0:
+            data_bar = np.mean(data, axis=0)  # (dim,)
+            d_data_bar = data - data_bar  # (dim,num_samples)
+            C = np.dot(d_data_bar.T, d_data_bar)  # (dim,dim)
+        else:
+            data_bar = np.zeros(dim)
+            C = np.zeros((dim, dim))
+        loc_new = (lbd0_loc0 + num_samples * data_bar) / (lbd0 + num_samples)
+        degree_new = degree0 + num_samples
+        kappa_new = lbd0 + num_samples
+        data_bar_loc = (data_bar - loc0).reshape((dim, 1))
+        scale_mat_new = \
+            scale_mat0 + C + (lbd0 * num_samples / (lbd0 + num_samples)) * np.dot(data_bar_loc, data_bar_loc.T)
+        cov_new = stats.invwishart.rvs(df=degree_new, scale=scale_mat_new)
+        mean_new = stats.multivariate_normal.rvs(loc_new, cov_new / kappa_new)
+        return [mean_new, cov_new]
