@@ -20,6 +20,10 @@ class BernoulliBernoulliRBM(RBM):
     def _init(self):
         super(BernoulliBernoulliRBM, self)._init()
 
+    def _init_params(self, x):
+        super(BernoulliBernoulliRBM, self)._init_params(x)
+        self.pcd_hsample = (0.5 > np.random.rand(self.num_chains, self.num_hidden)).astype(np.int)
+
     def _get_hidden_prob(self, vsample, **kwargs):
         return sigmoid(vsample.dot(self.w_) + self.h_)
 

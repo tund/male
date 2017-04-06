@@ -161,6 +161,7 @@ class SemiSupervisedRBM(SupervisedRBM):
             return np.sqrt(mean_squared_error(y, y_pred))
 
     def _encode_labels(self, y):
+        y = np.copy(y)
         idx1 = np.where(y != 10 ** 8)[0]  # containing labels
         yy = super(SupervisedRBM, self)._encode_labels(y[idx1])
         if self.task == 'regression':
@@ -172,6 +173,7 @@ class SemiSupervisedRBM(SupervisedRBM):
         return y
 
     def _decode_labels(self, y):
+        y = np.copy(y)
         idx1 = np.where(y != 10 ** 8)[0]  # containing labels
         yy = super(SupervisedRBM, self)._decode_labels(y[idx1])
         if self.task == 'regression':
@@ -180,6 +182,7 @@ class SemiSupervisedRBM(SupervisedRBM):
         return y
 
     def _transform_labels(self, y):
+        y = np.copy(y)
         idx1 = np.where(y != 10 ** 8)[0]  # containing labels
         yy = super(SupervisedRBM, self)._transform_labels(y[idx1])
         if self.task == 'regression':

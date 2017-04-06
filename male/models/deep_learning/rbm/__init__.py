@@ -1,3 +1,4 @@
+from .nrbm import NonnegativeRBM
 from .srbm import SupervisedRBM
 from .ssrbm import SemiSupervisedRBM
 from .bbrbm import BernoulliBernoulliRBM

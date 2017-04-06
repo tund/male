@@ -5,26 +5,27 @@ from __future__ import absolute_import
 import os
 import pytest
 import numpy as np
-from sklearn.datasets import load_svmlight_file
 
+from male import random_seed
+from male.datasets import demo
 from male.callbacks import Display
 from male.models.deep_learning.rbm import BernoulliBernoulliTensorFlowRBM
 
 
 def test_bbtfrbm_mnist():
-    from male import HOME
     from sklearn.metrics import accuracy_score
     from sklearn.neighbors import KNeighborsClassifier
 
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"), n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"), n_features=784)
+    np.random.seed(random_seed())
 
-    x_train = x_train.toarray().astype(np.float32) / 255.0
+    (x_train, y_train), (x_test, y_test) = demo.load_mnist()
+
+    x_train = x_train.astype(np.float32) / 255.0
     idx_train = np.random.permutation(x_train.shape[0])
     x_train = x_train[idx_train]
     y_train = y_train[idx_train]
 
-    x_test = x_test.toarray().astype(np.float32) / 255.0
+    x_test = x_test.astype(np.float32) / 255.0
     idx_test = np.random.permutation(x_test.shape[0])
     x_test = x_test[idx_test]
     y_test = y_test[idx_test]
@@ -38,7 +39,8 @@ def test_bbtfrbm_mnist():
                                freq=1,
                                monitor=[{'metrics': ['recon_err', 'val_recon_err'],
                                          'type': 'line',
-                                         'labels': ["training recon error", "validation recon error"],
+                                         'labels': ["training recon error",
+                                                    "validation recon error"],
                                          'title': "Reconstruction Errors",
                                          'xlabel': "epoch",
                                          'ylabel': "error",
@@ -51,14 +53,16 @@ def test_bbtfrbm_mnist():
                                          },
                                         {'metrics': ['recon_loglik', 'val_recon_loglik'],
                                          'type': 'line',
-                                         'labels': ["training recon loglik", "validation recon loglik"],
+                                         'labels': ["training recon loglik",
+                                                    "validation recon loglik"],
                                          'title': "Reconstruction Loglikelihoods",
                                          'xlabel': "epoch",
                                          'ylabel': "loglik",
                                          },
                                         {'metrics': ['recon_loglik', 'val_recon_loglik'],
                                          'type': 'line',
-                                         'labels': ["training recon loglik", "validation recon loglik"],
+                                         'labels': ["training recon loglik",
+                                                    "validation recon loglik"],
                                          'title': "Reconstruction Loglikelihoods",
                                          'xlabel': "epoch",
                                          'ylabel': "loglik",
@@ -106,7 +110,8 @@ def test_bbtfrbm_mnist():
     print("Train free energy = %.4f" % model.get_free_energy(x_train).mean())
     print("Test free energy = %.4f" % model.get_free_energy(x_test).mean())
 
-    print("Train reconstruction likelihood = %.4f" % model.get_reconstruction_loglik(x_train).mean())
+    print(
+        "Train reconstruction likelihood = %.4f" % model.get_reconstruction_loglik(x_train).mean())
     print("Test reconstruction likelihood = %.4f" % model.get_reconstruction_loglik(x_test).mean())
 
     x_train1 = model.transform(x_train)
@@ -118,23 +123,24 @@ def test_bbtfrbm_mnist():
     print("Error = %.4f" % (1 - accuracy_score(y_test, clf.predict(x_test1))))
 
 
-def test_bbrbm_mnist_csl():
-    from male import HOME
+def test_bbtfrbm_mnist_csl():
+    '''TODO: Fix the code to test TensorFlow Bernoulli-Bernoulli RBM
+    '''
+    np.random.seed(random_seed())
 
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"), n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"), n_features=784)
+    (x_train, y_train), (x_test, y_test) = demo.load_mnist()
 
-    x_train = x_train.toarray() / 255.0
+    x_train /= 255.0
     idx_train = np.random.permutation(x_train.shape[0])
     x_train = x_train[idx_train]
     y_train = y_train[idx_train]
 
-    x_test = x_test.toarray() / 255.0
+    x_test /= 255.0
     idx_test = np.random.permutation(x_test.shape[0])
     x_test = x_test[idx_test]
     y_test = y_test[idx_test]
 
-    model = BernoulliBernoulliRBM(
+    model = BernoulliBernoulliTensorFlowRBM(
         num_hidden=500,
         num_visible=784,
         batch_size=100,
@@ -157,23 +163,24 @@ def test_bbrbm_mnist_csl():
                            num_steps=100).mean())
 
 
-def test_bbrbm_mnist_generate_data():
-    from male import HOME
+def test_bbtfrbm_mnist_generate_data():
+    '''TODO: Fix the code to test TensorFlow Bernoulli-Bernoulli RBM
+    '''
+    np.random.seed(random_seed())
 
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"), n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"), n_features=784)
+    (x_train, y_train), (x_test, y_test) = demo.load_mnist()
 
-    x_train = x_train.toarray() / 255.0
+    x_train /= 255.0
     idx_train = np.random.permutation(x_train.shape[0])
     x_train = x_train[idx_train]
     y_train = y_train[idx_train]
 
-    x_test = x_test.toarray() / 255.0
+    x_test /= 255.0
     idx_test = np.random.permutation(x_test.shape[0])
     x_test = x_test[idx_test]
     y_test = y_test[idx_test]
 
-    model = BernoulliBernoulliRBM(
+    model = BernoulliBernoulliTensorFlowRBM(
         num_hidden=500,
         num_visible=784,
         batch_size=100,
@@ -204,23 +211,24 @@ def test_bbrbm_mnist_generate_data():
     plt.show()
 
 
-def test_bbrbm_mnist_logpartition():
-    from male import HOME
+def test_bbtfrbm_mnist_logpartition():
+    '''TODO: Fix the code to test TensorFlow Bernoulli-Bernoulli RBM
+    '''
+    np.random.seed(random_seed())
 
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"), n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"), n_features=784)
+    (x_train, y_train), (x_test, y_test) = demo.load_mnist()
 
-    x_train = x_train.toarray() / 255.0
+    x_train /= 255.0
     idx_train = np.random.permutation(x_train.shape[0])
     x_train = x_train[idx_train]
     y_train = y_train[idx_train]
 
-    x_test = x_test.toarray() / 255.0
+    x_test /= 255.0
     idx_test = np.random.permutation(x_test.shape[0])
     x_test = x_test[idx_test]
     y_test = y_test[idx_test]
 
-    model = BernoulliBernoulliRBM(
+    model = BernoulliBernoulliTensorFlowRBM(
         num_hidden=5,
         num_visible=784,
         batch_size=100,
@@ -243,23 +251,25 @@ def test_bbrbm_mnist_logpartition():
                            num_steps=1000).mean())
 
 
-def test_bbrbm_mnist_gridsearch():
-    from male import HOME
+def test_bbtfrbm_mnist_gridsearch():
+    '''TODO: Fix the code to test TensorFlow Bernoulli-Bernoulli RBM
+    '''
     from sklearn.pipeline import Pipeline
     from sklearn.metrics import accuracy_score
     from sklearn.model_selection import GridSearchCV
     from sklearn.model_selection import PredefinedSplit
     from sklearn.neighbors import KNeighborsClassifier
 
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"), n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"), n_features=784)
+    np.random.seed(random_seed())
 
-    x_train = x_train.toarray() / 255.0
+    (x_train, y_train), (x_test, y_test) = demo.load_mnist()
+
+    x_train /= 255.0
     idx_train = np.random.permutation(x_train.shape[0])
     x_train = x_train[idx_train]
     y_train = y_train[idx_train]
 
-    x_test = x_test.toarray() / 255.0
+    x_test /= 255.0
     idx_test = np.random.permutation(x_test.shape[0])
     x_test = x_test[idx_test]
     y_test = y_test[idx_test]
@@ -267,14 +277,14 @@ def test_bbrbm_mnist_gridsearch():
     x = np.vstack([x_train, x_test])
     y = np.concatenate([y_train, y_test])
 
-    estimators = [('rbm', BernoulliBernoulliRBM(num_hidden=500,
-                                                num_visible=784,
-                                                batch_size=100,
-                                                num_epochs=10,
-                                                momentum_method='sudden',
-                                                weight_cost=2e-4,
-                                                random_state=6789,
-                                                verbose=1)),
+    estimators = [('rbm', BernoulliBernoulliTensorFlowRBM(num_hidden=500,
+                                                          num_visible=784,
+                                                          batch_size=100,
+                                                          num_epochs=10,
+                                                          momentum_method='sudden',
+                                                          weight_cost=2e-4,
+                                                          random_state=6789,
+                                                          verbose=1)),
                   ('knn', KNeighborsClassifier(n_neighbors=4))]
 
     params = dict(rbm__num_hidden=[10, 20, 50],
@@ -295,9 +305,9 @@ def test_bbrbm_mnist_gridsearch():
 
 
 if __name__ == '__main__':
-    # pytest.main([__file__])
-    test_bbtfrbm_mnist()
-    # test_bbrbm_mnist_csl()
-    # test_bbrbm_mnist_generate_data()
-    # test_bbrbm_mnist_logpartition()
-    # test_bbrbm_mnist_gridsearch()
+    pytest.main([__file__])
+    # test_bbtfrbm_mnist()
+    # test_bbtfrbm_mnist_csl()
+    # test_bbtfrbm_mnist_generate_data()
+    # test_bbtfrbm_mnist_logpartition()
+    # test_bbtfrbm_mnist_gridsearch()

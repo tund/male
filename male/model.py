@@ -8,7 +8,7 @@ import sys
 import copy
 import time
 import numpy as np
-import pickle as pkl
+import dill as pkl
 
 from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin

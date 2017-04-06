@@ -8,10 +8,13 @@ import numpy as np
 
 from sklearn import metrics
 from sklearn.base import clone
-from sklearn.datasets import load_svmlight_file
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import PredefinedSplit
 
+from male import model_dir
+from male import random_seed
+from male.datasets import demo
+from male.optimizers import SGD
 from male.models.linear import GLM
 from male.callbacks import Display
 from male.callbacks import EarlyStopping
@@ -179,21 +182,19 @@ def test_glm_check_grad():
 
 
 def test_glm_mnist_logit():
-    from male import HOME
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"),
-                                          n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"),
-                                        n_features=784)
+    np.random.seed(random_seed())
+
+    (x_train, y_train), (x_test, y_test) = demo.load_mnist()
 
     idx_train = np.where(np.uint8(y_train == 0) | np.uint8(y_train == 1))[0]
     print("# training samples = {}".format(len(idx_train)))
-    x_train = x_train.toarray() / 255.0
+    x_train /= 255.0
     x_train = x_train[idx_train]
     y_train = y_train[idx_train]
 
     idx_test = np.where(np.uint8(y_test == 0) | np.uint8(y_test == 1))[0]
     print("# testing samples = {}".format(len(idx_test)))
-    x_test = x_test.toarray() / 255.0
+    x_test /= 255.0
     x_test = x_test[idx_test]
     y_test = y_test[idx_test]
 
@@ -224,21 +225,34 @@ def test_glm_mnist_logit():
     print("Training error = %.4f" % (1 - metrics.accuracy_score(y_train, y_train_pred)))
     print("Testing error = %.4f" % (1 - metrics.accuracy_score(y_test, y_test_pred)))
 
+    optz = SGD(learning_rate=0.01, momentum=0.9, nesterov=True)
+    clf = GLM(model_name="mnist_glm_logit",
+              optimizer=optz,
+              l1_penalty=0.0,
+              l2_penalty=0.0,
+              random_state=6789)
+
+    clf.fit(x_train, y_train)
+
+    y_train_pred = clf.predict(x_train)
+    y_test_pred = clf.predict(x_test)
+
+    print("Training error = %.4f" % (1 - metrics.accuracy_score(y_train, y_train_pred)))
+    print("Testing error = %.4f" % (1 - metrics.accuracy_score(y_test, y_test_pred)))
+
 
 def test_glm_mnist_softmax():
-    from male import HOME
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"),
-                                          n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"),
-                                        n_features=784)
+    np.random.seed(random_seed())
 
-    x_train = x_train.toarray() / 255.0
+    (x_train, y_train), (x_test, y_test) = demo.load_mnist()
+
+    x_train /= 255.0
     idx_train = np.random.permutation(x_train.shape[0])
     x_train = x_train[idx_train]
     y_train = y_train[idx_train]
     print("# training samples = {}".format(x_train.shape[0]))
 
-    x_test = x_test.toarray() / 255.0
+    x_test /= 255.0
     idx_test = np.random.permutation(x_test.shape[0])
     x_test = x_test[idx_test]
     y_test = y_test[idx_test]
@@ -273,21 +287,19 @@ def test_glm_mnist_softmax():
 
 
 def test_glm_mnist_logit_gridsearch():
-    from male import HOME
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"),
-                                          n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"),
-                                        n_features=784)
+    np.random.seed(random_seed())
+
+    (x_train, y_train), (x_test, y_test) = demo.load_mnist()
 
     idx_train = np.where(np.uint8(y_train == 0) | np.uint8(y_train == 1))[0]
     print("# training samples = {}".format(len(idx_train)))
-    x_train = x_train.toarray() / 255.0
+    x_train /= 255.0
     x_train = x_train[idx_train]
     y_train = y_train[idx_train]
 
     idx_test = np.where(np.uint8(y_test == 0) | np.uint8(y_test == 1))[0]
     print("# testing samples = {}".format(len(idx_test)))
-    x_test = x_test.toarray() / 255.0
+    x_test /= 255.0
     x_test = x_test[idx_test]
     y_test = y_test[idx_test]
 
@@ -320,19 +332,17 @@ def test_glm_mnist_logit_gridsearch():
 
 
 def test_glm_mnist_softmax_gridsearch():
-    from male import HOME
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"),
-                                          n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"),
-                                        n_features=784)
+    np.random.seed(random_seed())
 
-    x_train = x_train.toarray() / 255.0
+    (x_train, y_train), (x_test, y_test) = demo.load_mnist()
+
+    x_train /= 255.0
     idx_train = np.random.permutation(x_train.shape[0])
     x_train = x_train[idx_train]
     y_train = y_train[idx_train]
     print("# training samples = {}".format(x_train.shape[0]))
 
-    x_test = x_test.toarray() / 255.0
+    x_test /= 255.0
     idx_test = np.random.permutation(x_test.shape[0])
     x_test = x_test[idx_test]
     y_test = y_test[idx_test]
@@ -369,6 +379,8 @@ def test_glm_mnist_softmax_gridsearch():
 
 
 def test_glm_regression_gridsearch():
+    np.random.seed(random_seed())
+
     # regression
     eps = 1e-6
     num_data = 100
@@ -409,18 +421,16 @@ def test_glm_regression_gridsearch():
 
 
 def test_glm_mnist_cv():
-    from male import HOME
-    x_train, y_train = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist_6k"),
-                                          n_features=784)
-    x_test, y_test = load_svmlight_file(os.path.join(HOME, "rdata/mnist/mnist.t_1k"),
-                                        n_features=784)
+    np.random.seed(random_seed())
 
-    x_train = x_train.toarray() / 255.0
+    (x_train, y_train), (x_test, y_test) = demo.load_mnist()
+
+    x_train /= 255.0
     idx_train = np.random.permutation(x_train.shape[0])
     x_train = x_train[idx_train]
     y_train = y_train[idx_train]
 
-    x_test = x_test.toarray() / 255.0
+    x_test /= 255.0
     idx_test = np.random.permutation(x_test.shape[0])
     x_test = x_test[idx_test]
     y_test = y_test[idx_test]
@@ -429,7 +439,7 @@ def test_glm_mnist_cv():
     y = np.concatenate([y_train, y_test])
 
     early_stopping = EarlyStopping(monitor='val_loss', patience=2, verbose=1)
-    filepath = os.path.join(HOME, "rmodel/male/glm/mnist_{epoch:04d}_{val_loss:.6f}.pkl")
+    filepath = os.path.join(model_dir(), "male/glm/mnist_{epoch:04d}_{val_loss:.6f}.pkl")
     checkpoint = ModelCheckpoint(filepath,
                                  mode='min',
                                  monitor='val_loss',
@@ -479,7 +489,6 @@ def test_glm_mnist_cv():
               optimizer='sgd',
               num_epochs=100,
               batch_size=100,
-              learning_rate=0.001,
               task='classification',
               metrics=['loss', 'err'],
               callbacks=[early_stopping, checkpoint, loss_display, weight_display],

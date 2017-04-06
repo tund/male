@@ -9,6 +9,7 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.utils.validation import check_is_fitted
 
 from ... import Model
+from ... import optimizer as optz
 from ...activations import sigmoid
 from ...activations import softmax
 from ...utils.generic_utils import make_batches
@@ -30,7 +31,6 @@ class GLM(Model):
                  link='logit',  # link function
                  loss='logit',  # loss function
                  optimizer='L-BFGS-B',
-                 learning_rate=0.01,
                  l2_penalty=0.0,  # ridge regularization
                  l1_penalty=0.0,  # Lasso regularization
                  l1_smooth=1E-5,  # smoothing for Lasso regularization
@@ -41,7 +41,6 @@ class GLM(Model):
         self.link = link
         self.loss = loss
         self.optimizer = optimizer
-        self.learning_rate = learning_rate
         self.l1_penalty = l1_penalty
         self.l1_method = l1_method
         self.l1_smooth = l1_smooth
@@ -61,6 +60,14 @@ class GLM(Model):
         else:
             self.w_ = 0.01 * self.random_state_.randn(x.shape[1])
             self.b_ = np.zeros(1)
+        self._create_optimizer()
+
+    def _create_optimizer(self):
+        self.optimizer_ = optz.get(self.optimizer)
+        if issubclass(type(self.optimizer_), optz.Optimizer):
+            self.optimizer_.init_params(obj_func=self.get_loss,
+                                        grad_func=self.get_grad,
+                                        params=[self.w_, self.b_])
 
     def _fit_loop(self, x, y,
                   do_validation=False,
@@ -68,10 +75,10 @@ class GLM(Model):
                   callbacks=None, callback_metrics=None):
         if self.optimizer == 'L-BFGS-B':
             optimizer = minimize(self._get_loss_check_grad, self._roll_params(), args=(x, y),
-                                 jac=self._get_grad_check_grad, method=self.optimizer,
-                                 options={'disp': (self.verbose != 0)})
+                            jac=self._get_grad_check_grad, method=self.optimizer,
+                            options={'disp': (self.verbose != 0)})
             self.w_, self.b_ = self._unroll_params(optimizer.x)
-        if self.optimizer == 'sgd':
+        else:
             batches = make_batches(x.shape[0], self.batch_size)
 
             while (self.epoch_ < self.num_epochs) and (not self.stop_training_):
@@ -86,10 +93,7 @@ class GLM(Model):
                     x_batch = x[batch_start:batch_end]
                     y_batch = y[batch_start:batch_end]
 
-                    dw, db = self.get_grad(x_batch, y_batch)
-
-                    self.w_ -= self.learning_rate * dw
-                    self.b_ -= self.learning_rate * db
+                    self.optimizer_.update_params(x_batch, y_batch)
 
                     batch_logs.update(self._on_batch_end(x_batch, y_batch))
 
@@ -284,7 +288,6 @@ class GLM(Model):
             'l1_method': self.l1_method,
             'l1_smooth': self.l1_smooth,
             'l2_penalty': self.l2_penalty,
-            'learning_rate': self.learning_rate,
         })
         return out
 
@@ -295,5 +298,6 @@ class GLM(Model):
             'w_': copy.deepcopy(self.w_),
             'b_': copy.deepcopy(self.b_),
             'onehot_encoder_': copy.deepcopy(self.onehot_encoder_),
+            'optimizer_': self.optimizer_,
         })
         return out

@@ -180,7 +180,7 @@ def test_grn1d_inversegaussian1d():
 
 
 if __name__ == '__main__':
-    # pytest.main([__file__])
+    pytest.main([__file__])
     # test_grn1d_gaussian1d()
-    test_grn1d_gmm1d()
+    # test_grn1d_gmm1d()
     # test_grn1d_inversegaussian1d()
