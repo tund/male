@@ -31,12 +31,12 @@ class GaussianInvWishart(object):
         self.scale_mat = scale_mat.copy()
 
         self.num_samples = 0
-        self.x_sum = np.zeros(dim)
+        self.data_sum = np.zeros(dim)
         self.loc = self.loc0
         self.lbd = self.lbd0
         self.degree = self.degree0
         self.scale_mat = self.scale_mat
-        self.x_lst = []
+        self.data_lst = []
         self.invalid = False
 
     def sample(self):
@@ -56,27 +56,28 @@ class GaussianInvWishart(object):
         :return:
         """
         if self.num_samples > 0:
-            x_bar = self.x_sum / self.num_samples
-            dx_bar = self.x_lst - x_bar  # array (n,d)
+            data_bar = self.data_sum / self.num_samples
+            dx_bar = self.data_lst - data_bar  # array (n,d)
             C = np.dot(dx_bar.T, dx_bar)  # array (d,d)
         else:
-            x_bar = np.zeros(self.dim)
+            data_bar = np.zeros(self.dim)
             C = np.zeros((self.dim, self.dim))
-        x_bar_mu = (x_bar - self.loc0).reshape((self.dim, 1))
-        self.loc = (self.lbd0 * self.loc0 + self.x_sum) / self.lbd
-        self.scale_mat = self.scale_mat + C + (self.lbd0 * self.num_samples) * np.dot(x_bar_mu, x_bar_mu.T) / self.lbd
+        data_bar_mu = (data_bar - self.loc0).reshape((self.dim, 1))
+        self.loc = (self.lbd0 * self.loc0 + self.data_sum) / self.lbd
+        self.scale_mat = \
+            self.scale_mat + C + (self.lbd0 * self.num_samples) * np.dot(data_bar_mu, data_bar_mu.T) / self.lbd
 
-    def add_item(self, x):
+    def add_item(self, data):
         """
         Add one item to component
-        :param x: (d,)
+        :param data: (dim,)
         :return: index of item in the component
         """
         self.num_samples += 1
         self.lbd += 1
         self.degree += 1
-        self.x_sum += x
-        self.x_lst.append(x)
+        self.data_sum += data
+        self.data_lst.append(data)
         self.invalid = True
         return self.num_samples - 1  # zero-based index
 
@@ -89,8 +90,8 @@ class GaussianInvWishart(object):
         self.num_samples -= 1
         self.lbd -= 1
         self.degree -= 1
-        self.x_sum -= self.x_lst[index]
-        del self.x_lst[index]
+        self.data_sum -= self.data_lst[index]
+        del self.data_lst[index]
         self.invalid = True
 
     @staticmethod
