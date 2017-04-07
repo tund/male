@@ -300,8 +300,5 @@ class BaNK(Model):
 
     def get_all_params(self, deep=True):
         out = super(BaNK, self).get_all_params(deep=deep)
-        out.update({
-            'omega_': copy.deepcopy(self.omega_),
-            'w_': copy.deepcopy(self.w_),
-        })
+        out.update(self.get_params(deep=deep))
         return out
