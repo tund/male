@@ -6,7 +6,6 @@ from os.path import expanduser
 import json
 from builtins import str
 
-from . import model
 from .model import Model
 from .optimizer import Optimizer
 from .common import epsilon

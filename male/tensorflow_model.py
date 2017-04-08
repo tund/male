@@ -4,45 +4,47 @@ from __future__ import absolute_import
 
 import os
 import sys
+import six
 import copy
 import numpy as np
+import dill as pkl
 import tensorflow as tf
 
 from . import Model
+from . import model_dir
 from . import callbacks as cbks
 from .backend import tensorflow_backend as tf_backend
+from .utils.generic_utils import tuid
 from .utils.io_utils import ask_to_proceed_with_overwrite
 
 
 class TensorFlowModel(Model):
     def __init__(self,
                  model_name="TensorFlowMale",
-                 model_path="rmodel/male",
+                 model_path=None,
                  **kwargs):
-        kwargs["model_name"] = model_name
-        super(TensorFlowModel, self).__init__(**kwargs)
-        from . import HOME
-        self.model_path = os.path.join(HOME, model_path + "/" + model_name + "/" + model_name)
+        super(TensorFlowModel, self).__init__(model_name=model_name, **kwargs)
+        self.model_path = model_path
 
     def _init(self):
         super(TensorFlowModel, self)._init()
 
-        self.tf_graph_ = tf.Graph()
-        self.tf_config_ = tf_backend.get_default_config()
-        self.tf_session_ = tf.Session(config=self.tf_config_, graph=self.tf_graph_)
-        self.tf_saver_ = None
-        self.tf_merged_summaries_ = None
-        self.tf_summary_writer_ = None
+        self.tf_graph = tf.Graph()
+        self.tf_config = tf_backend.get_default_config()
+        self.tf_session = tf.Session(config=self.tf_config, graph=self.tf_graph)
+        self.tf_merged_summaries = None
+        self.tf_summary_writer = None
 
         if self.random_state is not None:
-            tf.set_random_seed(self.random_state)
+            with self.tf_graph.as_default():
+                tf.set_random_seed(self.random_state)
 
     def _get_session(self, **kwargs):
-        graph = kwargs['graph'] if 'graph' in kwargs else self.tf_graph_
-        sess = self.tf_session_ if 'sess' not in kwargs else kwargs['sess']
-        if sess is None:
-            sess = tf.Session(config=self.tf_config_, graph=graph)
-            self.tf_saver_.restore(sess, self.model_path)
+        graph = kwargs['graph'] if 'graph' in kwargs else self.tf_graph
+        sess = self.tf_session if 'sess' not in kwargs else kwargs['sess']
+        # if sess is None:
+        #     sess = tf.Session(config=self.tf_config, graph=graph)
+        #     self.tf_saver.restore(sess, self.model_path)
         return sess
 
     def _build_model(self, x):
@@ -74,20 +76,24 @@ class TensorFlowModel(Model):
             x_train, y_train = x, y
             x_valid, y_valid = None, None
 
-        if (not hasattr(self, 'epoch_')) or self.epoch_ == 0:
+        if (not hasattr(self, 'epoch')) or self.epoch == 0:
             self._init()
+            if x_train is not None:
+                self.data_dim = x_train.shape[1]
             if y_train is not None:
                 # encode labels
                 y_train = self._encode_labels(y_train)
-            with self.tf_graph_.as_default():
+            with self.tf_graph.as_default():
                 self._init_params(x_train)
                 self._build_model(x_train)
+                # Initialize all variables
+                self.tf_session.run(tf.global_variables_initializer())
         else:  # continue training
             if y_train is not None:
                 y_train = self._transform_labels(y_train)
 
-        self.history_ = cbks.History()
-        callbacks = [cbks.BaseLogger()] + [self.history_] + self.callbacks
+        self.history = cbks.History()
+        callbacks = [cbks.BaseLogger()] + [self.history] + self.callbacks
         if self.verbose:
             callbacks += [cbks.ProgbarLogger()]
         callbacks = cbks.CallbackList(callbacks)
@@ -121,7 +127,7 @@ class TensorFlowModel(Model):
             except:
                 print("Unexpected error: {}".format(sys.exc_info()[0]))
                 self._init_params(x_train)  # reset all parameters
-                self.exception_ = True
+                self.exception = True
                 return self
         else:
             self._fit_loop(x_train, y_train,
@@ -132,18 +138,16 @@ class TensorFlowModel(Model):
         callbacks.on_train_end()
         self._on_train_end()
 
-        return self
+        return self.history
 
-    def _on_train_begin(self):
-        super(TensorFlowModel, self)._on_train_begin()
-        with self.tf_graph_.as_default():
-            self.tf_saver_ = tf.train.Saver()
-
-    def _on_train_end(self):
-        super(TensorFlowModel, self)._on_train_end()
-        self.save(file_path=self.model_path)
-        self.tf_session_.close()
-        self.tf_session_ = None
+    def save(self, file_path=None, overwrite=True):
+        if file_path is None:
+            file_path = os.path.join(model_dir(), self.model_name,
+                                     "{}_{}.ckpt".format(tuid(), self.model_name))
+        if not os.path.exists(os.path.dirname(file_path)):
+            os.makedirs(os.path.dirname(file_path))
+        self._save_model(file_path, overwrite)
+        return file_path
 
     def _save_model(self, file_path, overwrite=True):
         # if file exists and should not be overwritten
@@ -151,18 +155,46 @@ class TensorFlowModel(Model):
             proceed = ask_to_proceed_with_overwrite(file_path)
             if not proceed:
                 return
-        # pkl.dump({'model': self}, open(file_path, 'wb'))
-        self.tf_saver_.save(self.tf_session_, file_path)
+        pkl.dump({'model': self}, open(file_path + ".pkl", 'wb'))
+        with self.tf_graph.as_default():
+            saver = tf.train.Saver()
+            saver.save(self.tf_session, file_path)
 
-    def get_all_params(self, deep=True):
-        out = super(TensorFlowModel, self).get_all_params(deep=deep)
-        out.update(self.get_params(deep=deep))
-        out.update({
-            'tf_graph_': self.tf_graph_,
-            'tf_config_': self.tf_config_,
-            'tf_session_': self.tf_session_,
-            'tf_saver_': self.tf_saver_,
-            'tf_merged_summaries_': self.tf_merged_summaries_,
-            'tf_summary_writer_': self.tf_summary_writer_,
-        })
+    @staticmethod
+    def load_model(file_path):
+        model = pkl.load(open(file_path + ".pkl", 'rb'))['model']
+        model.tf_session = tf.Session(config=model.tf_config, graph=model.tf_graph)
+        with model.tf_graph.as_default():
+            tf.get_variable_scope().reuse_variables()
+            model._init_params(None)
+            model._build_model(None)
+            saver = tf.train.Saver()
+            saver.restore(model.tf_session, file_path)
+        return model
+
+    def get_params(self, deep=True):
+        out = super(TensorFlowModel, self).get_params(deep=deep)
+        param_names = TensorFlowModel._get_param_names()
+        out.update(self._get_params(param_names=param_names, deep=deep))
         return out
+
+    def _get_params_to_dump(self, deep=True):
+        out = dict()
+        for key, value in six.iteritems(self.__dict__):
+            if ((not type(value).__module__.startswith('tf')) and
+                    (not type(value).__module__.startswith('tensorflow')) and
+                    (key != 'best_params')):
+                out[key] = value
+        param_names = ['tf_graph', 'tf_config', 'tf_merged_summaries', 'tf_summary_writer']
+        for key in param_names:
+            if key in self.__dict__:
+                out[key] = self.__getattribute__(key)
+        return out
+
+    def __getstate__(self):
+        from . import __version__
+        out = self._get_params_to_dump(deep=True)
+        if type(self).__module__.startswith('male.'):
+            return dict(out, _male_version=__version__)
+        else:
+            return dict(self.__dict__.items())

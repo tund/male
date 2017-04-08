@@ -7,6 +7,8 @@ import abc
 import sys
 import copy
 import time
+import warnings
+
 import numpy as np
 import dill as pkl
 
@@ -20,7 +22,9 @@ from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import LabelEncoder
 from scipy.optimize import check_grad as scipy_check_grad
 
+from .common import model_dir
 from . import callbacks as cbks
+from .utils.generic_utils import tuid
 from .utils.io_utils import ask_to_proceed_with_overwrite
 
 INF = 1e+8
@@ -56,17 +60,17 @@ class Model(BaseEstimator, ClassifierMixin,
         self.verbose = verbose
 
     def _init(self):
-        self.epoch_ = 0
-        self.history_ = None
-        self.num_classes_ = 0
-        self.label_encoder_ = None
-        self.start_time_ = 0.0
-        self.train_time_ = 0.0
-        self.stop_training_ = 0
-        self.exception_ = False
-        self.best_ = -INF
-        self.best_params_ = None
-        self.random_state_ = check_random_state(self.random_state)
+        self.epoch = 0
+        self.history = None
+        self.num_classes = 0
+        self.label_encoder = None
+        self.start_time = 0.0
+        self.train_time = 0.0
+        self.stop_training = 0
+        self.exception = False
+        self.best = -INF
+        self.best_params = None
+        self.random_engine = check_random_state(self.random_state)
 
     def _init_params(self, x):
         pass
@@ -97,7 +101,7 @@ class Model(BaseEstimator, ClassifierMixin,
             x_train, y_train = x, y
             x_valid, y_valid = None, None
 
-        if (not hasattr(self, 'epoch_')) or self.epoch_ == 0:
+        if (not hasattr(self, 'epoch')) or self.epoch == 0:
             self._init()
             if y_train is not None:
                 # encode labels
@@ -107,8 +111,8 @@ class Model(BaseEstimator, ClassifierMixin,
             if y_train is not None:
                 y_train = self._transform_labels(y_train)
 
-        self.history_ = cbks.History()
-        callbacks = [cbks.BaseLogger()] + [self.history_] + self.callbacks
+        self.history = cbks.History()
+        callbacks = [cbks.BaseLogger()] + [self.history] + self.callbacks
         if self.verbose:
             callbacks += [cbks.ProgbarLogger()]
         callbacks = cbks.CallbackList(callbacks)
@@ -142,7 +146,7 @@ class Model(BaseEstimator, ClassifierMixin,
             except:
                 print("Unexpected error: {}".format(sys.exc_info()[0]))
                 self._init_params(x_train)  # reset all parameters
-                self.exception_ = True
+                self.exception = True
                 return self
         else:
             self._fit_loop(x_train, y_train,
@@ -159,19 +163,19 @@ class Model(BaseEstimator, ClassifierMixin,
         pass
 
     def _on_train_begin(self):
-        self.stop_training_ = 0
-        self.start_time_ = time.time()
+        self.stop_training = 0
+        self.start_time = time.time()
 
     def _on_train_end(self):
-        self.train_time_ = time.time() - self.start_time_
+        self.train_time = time.time() - self.start_time
 
     def _on_epoch_begin(self):
         pass
 
     def _on_epoch_end(self):
-        self.epoch_ += 1
-        if self.stop_training_:
-            self.epoch_ = self.stop_training_
+        self.epoch += 1
+        if self.stop_training:
+            self.epoch = self.stop_training
 
     def _on_batch_begin(self, x, y=None):
         pass
@@ -225,20 +229,20 @@ class Model(BaseEstimator, ClassifierMixin,
     def _encode_labels(self, y):
         yy = y.copy()
         if self.task == 'classification':
-            self.label_encoder_ = LabelEncoder()
-            yy = self.label_encoder_.fit_transform(yy)
-            self.num_classes_ = len(self.label_encoder_.classes_)
+            self.label_encoder = LabelEncoder()
+            yy = self.label_encoder.fit_transform(yy)
+            self.num_classes = len(self.label_encoder.classes_)
         return yy
 
     def _decode_labels(self, y):
         if self.task == 'classification':
-            return self.label_encoder_.inverse_transform(y)
+            return self.label_encoder.inverse_transform(y)
         else:
             return y
 
     def _transform_labels(self, y):
         if self.task == 'classification':
-            return self.label_encoder_.transform(y)
+            return self.label_encoder.transform(y)
         else:
             return y
 
@@ -252,7 +256,7 @@ class Model(BaseEstimator, ClassifierMixin,
         pass
 
     def score(self, x, y, sample_weight=None):
-        if self.exception_:
+        if self.exception:
             return -INF
         else:
             if self.task == 'classification':
@@ -260,10 +264,13 @@ class Model(BaseEstimator, ClassifierMixin,
             else:
                 return -float(mean_squared_error(self.predict(x), y))
 
-    def save(self, file_path, overwrite=True):
+    def save(self, file_path=None, overwrite=True):
+        if file_path is None:
+            file_path = os.path.join(model_dir(), "{}_{}.pkl".format(tuid(), self.model_name))
         if not os.path.exists(os.path.dirname(file_path)):
             os.makedirs(os.path.dirname(file_path))
         self._save_model(file_path, overwrite)
+        return file_path
 
     def _save_model(self, file_path, overwrite=True):
         # if file exists and should not be overwritten
@@ -273,50 +280,92 @@ class Model(BaseEstimator, ClassifierMixin,
                 return
         pkl.dump({'model': self}, open(file_path, 'wb'))
 
-    def load_model(self, file_path):
-        return self._load_model(file_path)
-
-    def _load_model(self, file_path):
+    @staticmethod
+    def load_model(file_path):
         return pkl.load(open(file_path, 'rb'))['model']
-
-    def set_params(self, **params):
-        for p, value in params.items():
-            setattr(self, p, value)
-        return self
 
     def display(self, param, **kwargs):
         pass
 
     @abc.abstractmethod
     def get_params(self, deep=True):
-        return {'model_name': self.model_name,
-                'task': self.task,
-                'num_epochs': self.num_epochs,
-                'batch_size': self.batch_size,
-                'cv': self.cv,
-                'callbacks': self.callbacks,
-                'metrics': self.metrics,
-                'catch_exception': self.catch_exception,
-                'random_state': self.random_state,
-                'verbose': self.verbose}
+        """Get parameters for this estimator.
 
-    @abc.abstractmethod
-    def get_all_params(self, deep=True):
-        out = self.get_params(deep=deep)
-        out.update({'epoch_': self.epoch_,
-                    'start_time_': self.start_time_,
-                    'train_time_': self.train_time_,
-                    'num_classes_': self.num_classes_,
-                    'best_': self.best_,
-                    'stop_training_': self.stop_training_,
-                    'history_': self.copy_history(),
-                    'label_encoder_': copy.deepcopy(self.label_encoder_),
-                    'random_state_': copy.deepcopy(self.random_state_)})
+        Parameters
+        ----------
+        deep : boolean, optional
+            If True, will return the parameters for this estimator and
+            contained subobjects that are estimators.
+
+        Returns
+        -------
+        params : mapping of string to any
+            Parameter names mapped to their values.
+        """
+        param_names = Model._get_param_names()
+        return self._get_params(param_names=param_names, deep=deep)
+
+    def _get_params(self, param_names=[], deep=True):
+        """Get parameters for this estimator.
+
+        Parameters
+        ----------
+        deep : boolean, optional
+            If True, will return the parameters for this estimator and
+            contained subobjects that are estimators.
+
+        Returns
+        -------
+        params : mapping of string to any
+            Parameter names mapped to their values.
+        """
+        out = dict()
+        for key in param_names:
+            # We need deprecation warnings to always be on in order to
+            # catch deprecated param values.
+            # This is set in utils/__init__.py but it gets overwritten
+            # when running under python3 somehow.
+            warnings.simplefilter("always", DeprecationWarning)
+            try:
+                with warnings.catch_warnings(record=True) as w:
+                    value = getattr(self, key, None)
+                if len(w) and w[0].category == DeprecationWarning:
+                    # if the parameter is deprecated, don't show it
+                    continue
+            finally:
+                warnings.filters.pop(0)
+
+            # XXX: should we rather test if instance of estimator?
+            if deep and hasattr(value, 'get_params'):
+                deep_items = value.get_params().items()
+                out.update((key + '__' + k, val) for k, val in deep_items)
+            out[key] = value
         return out
 
-    def copy_history(self):
-        out = copy.copy(self.history_)
-        out.epoch = copy.deepcopy(self.history_.epoch)
-        out.history = copy.deepcopy(self.history_.history)
-        out.params = copy.deepcopy(self.history_.params)
-        return out
+    def get_all_params(self):
+        return self.__dict__
+
+    def set_all_params(self, **params):
+        valid_params = self.__dict__.keys()
+        for p, value in params.items():
+            if p in valid_params:
+                setattr(self, p, value)
+            else:
+                raise ValueError('Invalid parameter %s for estimator %s. '
+                                 'Check the list of available parameters '
+                                 'with `estimator.__dict__.keys()`.' %
+                                 (p, self.__class__.__name__))
+        return self
+
+    def __setstate__(self, state):
+        from . import __version__
+        if type(self).__module__.startswith('male.'):
+            pickle_version = state.pop("_male_version", "0.1.0")
+            if pickle_version != __version__:
+                warnings.warn(
+                    "Trying to unpickle estimator {0} from version {1} when "
+                    "using version {2}. This might lead to breaking code or "
+                    "invalid results. Use at your own risk.".format(
+                        self.__class__.__name__, pickle_version, __version__),
+                    UserWarning)
+        self.__dict__.update(state)

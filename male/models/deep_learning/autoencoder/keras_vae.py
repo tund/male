@@ -18,7 +18,7 @@ from keras.backend.tensorflow_backend import set_session
 
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
-config.log_device_placement = True
+config.log_device_placement = False
 config.allow_soft_placement = True
 set_session(tf.Session(config=config))
 
@@ -123,7 +123,7 @@ class KerasVAE(Model):
 
     def sampling(self, args):
         z_mean, z_log_std = args
-        e = K.random_normal(shape=(self.num_z,), mean=0.0, std=self.z_init)
+        e = K.random_normal(shape=(self.num_z,), mean=0.0, stddev=self.z_init)
         return z_mean + K.exp(z_log_std / 2) * e
 
     def loss(self, x, r):

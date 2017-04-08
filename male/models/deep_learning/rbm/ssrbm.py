@@ -2,20 +2,15 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
-import time
 import numpy as np
-import copy
 
-from sklearn.metrics import log_loss, accuracy_score, mean_squared_error
-from scipy.misc import logsumexp
-from scipy.optimize import minimize
-from sklearn.preprocessing import LabelEncoder, StandardScaler
-from sklearn.utils.validation import check_is_fitted
+from sklearn.metrics import mean_squared_error
+from sklearn.preprocessing import StandardScaler
 
 from .srbm import SupervisedRBM
-from .rbm import INFERENCE_ENGINE, LEARNING_METHOD, CD_SAMPLING
+from .rbm import LEARNING_METHOD, CD_SAMPLING
 from ....utils.generic_utils import make_batches
-from ....utils.func_utils import sigmoid, softmax
+from ....utils.func_utils import softmax
 
 EPSILON = np.finfo(np.float32).eps
 APPROX_METHOD = {'first_order': 0, 'second_order': 1}
@@ -27,33 +22,32 @@ class SemiSupervisedRBM(SupervisedRBM):
 
     def __init__(self,
                  model_name="ssRBM",
-                 *args, **kwargs):
-        kwargs["model_name"] = model_name
-        super(SemiSupervisedRBM, self).__init__(**kwargs)
+                 **kwargs):
+        super(SemiSupervisedRBM, self).__init__(model_name=model_name, **kwargs)
 
     def _init_params(self, x):
         super(SemiSupervisedRBM, self)._init_params(x)
 
-        c = self.num_classes_ if self.task == 'classification' else 1
-        self.yw_ = self.w_init * np.random.randn(self.num_hidden, c)  # [K,C]
-        self.yb_ = np.zeros([1, c])  # [1,C]
-        self.ywgrad_inc_ = np.zeros([self.num_hidden, c])  # [K,C]
-        self.ybgrad_inc_ = np.zeros([1, c])  # [1,C]
+        c = self.num_classes if self.task == 'classification' else 1
+        self.yw = self.w_init * np.random.randn(self.num_hidden, c)  # [K,C]
+        self.yb = np.zeros([1, c])  # [1,C]
+        self.ywgrad_inc = np.zeros([self.num_hidden, c])  # [K,C]
+        self.ybgrad_inc = np.zeros([1, c])  # [1,C]
         # variational parameters for posterior p(h|v,y) inference, where
         # mu[i] = p(h[i]=1|v,y)
-        self.mu_ = np.random.rand(self.batch_size, self.num_hidden)  # [BS,K]
+        self.mu = np.random.rand(self.batch_size, self.num_hidden)  # [BS,K]
 
     def _fit_loop(self, x, y,
                   do_validation=False,
                   x_valid=None, y_valid=None,
                   callbacks=None, callback_metrics=None):
-        k, n, c = self.num_hidden, self.num_visible, self.num_classes_
+        k, n, c = self.num_hidden, self.num_visible, self.num_classes
         prev_hprob = np.zeros([1, k])
 
         batches = make_batches(x.shape[0], self.batch_size)
-        while (self.epoch_ < self.num_epochs) and (not self.stop_training_):
+        while (self.epoch < self.num_epochs) and (not self.stop_training):
             epoch_logs = {}
-            callbacks.on_epoch_begin(self.epoch_)
+            callbacks.on_epoch_begin(self.epoch)
 
             for batch_idx, (batch_start, batch_end) in enumerate(batches):
                 batch_logs = {'batch': batch_idx,
@@ -98,14 +92,14 @@ class SemiSupervisedRBM(SupervisedRBM):
                         pos_ybgrad[0, i] += np.sum(np.double(idx))
                     pos_ybgrad /= batch_size
                     pos_ywgrad /= batch_size
-                    neg_ywgrad = hprob.T.dot(softmax(hprob.dot(self.yw_) + self.yb_)) / batch_size
-                    neg_ybgrad = np.mean(softmax(hprob.dot(self.yw_) + self.yb_),
+                    neg_ywgrad = hprob.T.dot(softmax(hprob.dot(self.yw) + self.yb)) / batch_size
+                    neg_ybgrad = np.mean(softmax(hprob.dot(self.yw) + self.yb),
                                          axis=0, keepdims=True)
                 else:
                     pos_ybgrad = np.mean(y_batch, keepdims=True)
                     pos_ywgrad = hprob.T.dot(y_batch[:, np.newaxis]) / batch_size
-                    neg_ybgrad = np.mean(hprob.dot(self.yw_) + self.yb_, keepdims=True)
-                    neg_ywgrad = hprob.T.dot(hprob.dot(self.yw_) + self.yb_) / batch_size
+                    neg_ybgrad = np.mean(hprob.dot(self.yw) + self.yb, keepdims=True)
+                    neg_ywgrad = hprob.T.dot(hprob.dot(self.yw) + self.yb) / batch_size
 
                 # ======== free phase =========
                 if self.learning_method == LEARNING_METHOD['cd']:
@@ -119,26 +113,26 @@ class SemiSupervisedRBM(SupervisedRBM):
                 neg_hgrad, neg_vgrad, neg_wgrad = self._get_negative_grad(vprob, hprob)
 
                 # update params
-                self.hgrad_inc_ = self.momentum_ * self.hgrad_inc_ \
-                                  + self.learning_rate * (pos_hgrad - neg_hgrad)
-                self.vgrad_inc_ = self.momentum_ * self.vgrad_inc_ \
-                                  + self.learning_rate * (pos_vgrad - neg_vgrad)
-                self.wgrad_inc_ = self.momentum_ * self.wgrad_inc_ \
-                                  + self.learning_rate * (pos_wgrad - neg_wgrad
-                                                          - self.weight_cost * self.w_)
+                self.hgrad_inc = self.momentum * self.hgrad_inc \
+                                 + self.learning_rate * (pos_hgrad - neg_hgrad)
+                self.vgrad_inc = self.momentum * self.vgrad_inc \
+                                 + self.learning_rate * (pos_vgrad - neg_vgrad)
+                self.wgrad_inc = self.momentum * self.wgrad_inc \
+                                 + self.learning_rate * (pos_wgrad - neg_wgrad
+                                                         - self.weight_cost * self.w)
 
-                self.ybgrad_inc_ = self.momentum_ * self.ybgrad_inc_ \
-                                   + self.learning_rate * (pos_ybgrad - neg_ybgrad)
-                self.ywgrad_inc_ = self.momentum_ * self.ywgrad_inc_ \
-                                   + self.learning_rate * (pos_ywgrad - neg_ywgrad
-                                                           - self.weight_cost * self.yw_)
+                self.ybgrad_inc = self.momentum * self.ybgrad_inc \
+                                  + self.learning_rate * (pos_ybgrad - neg_ybgrad)
+                self.ywgrad_inc = self.momentum * self.ywgrad_inc \
+                                  + self.learning_rate * (pos_ywgrad - neg_ywgrad
+                                                          - self.weight_cost * self.yw)
 
-                self.h_ += self.hgrad_inc_
-                self.v_ += self.vgrad_inc_
-                self.w_ += self.wgrad_inc_
+                self.h += self.hgrad_inc
+                self.v += self.vgrad_inc
+                self.w += self.wgrad_inc
 
-                self.yb_ += self.ybgrad_inc_
-                self.yw_ += self.ywgrad_inc_
+                self.yb += self.ybgrad_inc
+                self.yw += self.ywgrad_inc
 
                 batch_logs.update(self._on_batch_end(x_batch, y=y_batch, rdata=vprob))
                 callbacks.on_batch_end(batch_idx, batch_logs)
@@ -148,7 +142,7 @@ class SemiSupervisedRBM(SupervisedRBM):
                 for key, value in outs.items():
                     epoch_logs['val_' + key] = value
 
-            callbacks.on_epoch_end(self.epoch_, epoch_logs)
+            callbacks.on_epoch_end(self.epoch, epoch_logs)
             self._on_epoch_end()
 
     def get_loss(self, x, y, *args, **kwargs):
@@ -191,3 +185,9 @@ class SemiSupervisedRBM(SupervisedRBM):
         if self.task == 'classification':
             y = y.astype(np.int32)
         return y
+
+    def get_params(self, deep=True):
+        out = super(SemiSupervisedRBM, self).get_params(deep=deep)
+        param_names = SemiSupervisedRBM._get_param_names()
+        out.update(self._get_params(param_names=param_names, deep=deep))
+        return out

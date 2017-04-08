@@ -2,7 +2,6 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
-import copy
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
@@ -35,9 +34,8 @@ class GAN(TensorFlowModel):
                  generator_act_funcs=('relu',),
                  generator_out_func='sigmoid',
                  generator_learning_rate=0.001,
-                 *args, **kwargs):
-        kwargs['model_name'] = model_name
-        super(GAN, self).__init__(**kwargs)
+                 **kwargs):
+        super(GAN, self).__init__(model_name=model_name, **kwargs)
         self.num_x = num_x
         self.discriminator_batchnorm = discriminator_batchnorm
         self.num_discriminator_hiddens = num_discriminator_hiddens
@@ -54,42 +52,41 @@ class GAN(TensorFlowModel):
 
     def _build_model(self, x):
         with tf.variable_scope('generator'):
-            self.z_ = tf.placeholder(tf.float32, shape=[None, self.num_z])
-            self.g_ = self._create_generator(self.z_,
-                                             self.num_generator_hiddens,
-                                             self.generator_act_funcs,
-                                             self.generator_out_func)
+            self.z = tf.placeholder(tf.float32, shape=[None, self.num_z])
+            self.g = self._create_generator(self.z,
+                                            self.num_generator_hiddens,
+                                            self.generator_act_funcs,
+                                            self.generator_out_func)
 
         with tf.variable_scope('discriminator') as scope:
-            self.x_ = tf.placeholder(tf.float32, shape=[None, self.num_x])
-            self.d1_ = self._create_discriminator(self.x_,
-                                                  self.num_discriminator_hiddens,
-                                                  self.discriminator_act_funcs)
+            self.x = tf.placeholder(tf.float32, shape=[None, self.num_x])
+            self.d1 = self._create_discriminator(self.x,
+                                                 self.num_discriminator_hiddens,
+                                                 self.discriminator_act_funcs)
             scope.reuse_variables()
-            self.d2_ = self._create_discriminator(self.g_,
-                                                  self.num_discriminator_hiddens,
-                                                  self.discriminator_act_funcs)
+            self.d2 = self._create_discriminator(self.g,
+                                                 self.num_discriminator_hiddens,
+                                                 self.discriminator_act_funcs)
 
-        self.d_loss_ = tf.reduce_mean(-tf.log(self.d1_) - tf.log(1 - self.d2_))
-        self.g_loss_ = tf.reduce_mean(-tf.log(self.d2_))
+        self.d_loss = tf.reduce_mean(-tf.log(self.d1) - tf.log(1 - self.d2))
+        self.g_loss = tf.reduce_mean(-tf.log(self.d2))
 
-        self.d_params_ = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='discriminator')
-        self.g_params_ = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='generator')
+        self.d_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='discriminator')
+        self.g_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='generator')
 
-        self.d_opt_ = self._create_optimizer(self.d_loss_, self.d_params_,
-                                             self.discriminator_learning_rate)
-        self.g_opt_ = self._create_optimizer(self.g_loss_, self.g_params_,
-                                             self.generator_learning_rate)
-        self.tf_session_.run(tf.global_variables_initializer())
+        self.d_opt = self._create_optimizer(self.d_loss, self.d_params,
+                                            self.discriminator_learning_rate)
+        self.g_opt = self._create_optimizer(self.g_loss, self.g_params,
+                                            self.generator_learning_rate)
 
     def _fit_loop(self, x, y,
                   do_validation=False,
                   x_valid=None, y_valid=None,
                   callbacks=None, callback_metrics=None):
         batches = make_batches(x.shape[0], self.batch_size)
-        while (self.epoch_ < self.num_epochs) and (not self.stop_training_):
+        while (self.epoch < self.num_epochs) and (not self.stop_training):
             epoch_logs = {}
-            callbacks.on_epoch_begin(self.epoch_)
+            callbacks.on_epoch_begin(self.epoch)
 
             for batch_idx, (batch_start, batch_end) in enumerate(batches):
                 batch_size = batch_end - batch_start
@@ -100,16 +97,16 @@ class GAN(TensorFlowModel):
                 # update discriminator
                 x_batch = x[batch_start:batch_end]
                 z = self.sample_z(batch_size)
-                d_loss, _ = self.tf_session_.run(
-                    [self.d_loss_, self.d_opt_],
-                    feed_dict={self.x_: np.reshape(x_batch, [batch_size, self.num_x]),
-                               self.z_: np.reshape(z, [batch_size, self.num_z])})
+                d_loss, _ = self.tf_session.run(
+                    [self.d_loss, self.d_opt],
+                    feed_dict={self.x: np.reshape(x_batch, [batch_size, self.num_x]),
+                               self.z: np.reshape(z, [batch_size, self.num_z])})
 
                 # update generator
                 z = self.sample_z(batch_size)
-                g_loss, _ = self.tf_session_.run(
-                    [self.g_loss_, self.g_opt_],
-                    feed_dict={self.z_: np.reshape(z, [batch_size, self.num_z])})
+                g_loss, _ = self.tf_session.run(
+                    [self.g_loss, self.g_opt],
+                    feed_dict={self.z: np.reshape(z, [batch_size, self.num_z])})
 
                 batch_logs.update(self._on_batch_end(x))
                 batch_logs['d_loss'] = d_loss
@@ -117,7 +114,7 @@ class GAN(TensorFlowModel):
 
                 callbacks.on_batch_end(batch_idx, batch_logs)
 
-            callbacks.on_epoch_end(self.epoch_, epoch_logs)
+            callbacks.on_epoch_end(self.epoch, epoch_logs)
             self._on_epoch_end()
 
     def sample_z(self, num_samples):
@@ -130,13 +127,13 @@ class GAN(TensorFlowModel):
         batches = make_batches(num_samples, self.batch_size)
         for batch_idx, (batch_start, batch_end) in enumerate(batches):
             x[batch_start:batch_end] = sess.run(
-                self.g_,
+                self.g,
                 feed_dict={
-                    self.z_: np.reshape(z[batch_start:batch_end],
-                                        [batch_end - batch_start, self.num_z])
+                    self.z: np.reshape(z[batch_start:batch_end],
+                                       [batch_end - batch_start, self.num_z])
                 }
             )
-        if sess != self.tf_session_:
+        if sess != self.tf_session:
             sess.close()
         return x
 
@@ -215,23 +212,6 @@ class GAN(TensorFlowModel):
 
     def get_params(self, deep=True):
         out = super(GAN, self).get_params(deep=deep)
-        out.update({
-            'num_x': self.num_x,
-            'discriminator_batchnorm': self.discriminator_batchnorm,
-            'num_discriminator_hiddens': copy.deepcopy(self.num_discriminator_hiddens),
-            'discriminator_act_funcs': copy.deepcopy(self.discriminator_act_funcs),
-            'discriminator_learning_rate': self.discriminator_learning_rate,
-            'num_z': self.num_z,
-            'generator_batchnorm': self.generator_batchnorm,
-            'num_generator_hiddens': copy.deepcopy(self.num_generator_hiddens),
-            'generator_act_funcs': copy.deepcopy(self.generator_act_funcs),
-            'generator_out_func': self.generator_out_func,
-            'generator_learning_rate': self.generator_learning_rate,
-        })
-        return out
-
-    def get_all_params(self, deep=True):
-        out = super(GAN, self).get_all_params(deep=deep)
-        out.update(self.get_params(deep=deep))
-        out.update({})
+        param_names = GAN._get_param_names()
+        out.update(self._get_params(param_names=param_names, deep=deep))
         return out

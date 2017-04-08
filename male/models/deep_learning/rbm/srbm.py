@@ -2,15 +2,11 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
-import time
 import numpy as np
-import copy
 
 from sklearn.metrics import log_loss, accuracy_score, mean_squared_error
 from scipy.misc import logsumexp
-from scipy.optimize import minimize
-from sklearn.preprocessing import LabelEncoder, StandardScaler
-from sklearn.utils.validation import check_is_fitted
+from sklearn.preprocessing import StandardScaler
 
 from .bbrbm import BernoulliBernoulliRBM
 from .rbm import INFERENCE_ENGINE, LEARNING_METHOD, CD_SAMPLING
@@ -29,9 +25,8 @@ class SupervisedRBM(BernoulliBernoulliRBM):
                  model_name="sRBM",
                  inference_engine='variational_inference',
                  approx_method='first_order',  # {'first_order', 'second_order'}
-                 *args, **kwargs):
-        kwargs["model_name"] = model_name
-        super(SupervisedRBM, self).__init__(**kwargs)
+                 **kwargs):
+        super(SupervisedRBM, self).__init__(model_name=model_name, **kwargs)
         self.inference_engine = inference_engine
         self.approx_method = approx_method
 
@@ -49,26 +44,26 @@ class SupervisedRBM(BernoulliBernoulliRBM):
     def _init_params(self, x):
         super(SupervisedRBM, self)._init_params(x)
 
-        c = self.num_classes_ if self.task == 'classification' else 1
-        self.yw_ = self.w_init * np.random.randn(self.num_hidden, c)  # [K,C]
-        self.yb_ = np.zeros([1, c])  # [1,C]
-        self.ywgrad_inc_ = np.zeros([self.num_hidden, c])  # [K,C]
-        self.ybgrad_inc_ = np.zeros([1, c])  # [1,C]
+        c = self.num_classes if self.task == 'classification' else 1
+        self.yw = self.w_init * np.random.randn(self.num_hidden, c)  # [K,C]
+        self.yb = np.zeros([1, c])  # [1,C]
+        self.ywgrad_inc = np.zeros([self.num_hidden, c])  # [K,C]
+        self.ybgrad_inc = np.zeros([1, c])  # [1,C]
         # variational parameters for posterior p(h|v,y) inference, where
         # mu[i] = p(h[i]=1|v,y)
-        self.mu_ = np.random.rand(self.batch_size, self.num_hidden)  # [BS,K]
+        self.mu = np.random.rand(self.batch_size, self.num_hidden)  # [BS,K]
 
     def _fit_loop(self, x, y,
                   do_validation=False,
                   x_valid=None, y_valid=None,
                   callbacks=None, callback_metrics=None):
-        k, n, c = self.num_hidden, self.num_visible, self.num_classes_
+        k, n, c = self.num_hidden, self.num_visible, self.num_classes
         prev_hprob = np.zeros([1, k])
 
         batches = make_batches(x.shape[0], self.batch_size)
-        while (self.epoch_ < self.num_epochs) and (not self.stop_training_):
+        while (self.epoch < self.num_epochs) and (not self.stop_training):
             epoch_logs = {}
-            callbacks.on_epoch_begin(self.epoch_)
+            callbacks.on_epoch_begin(self.epoch)
 
             for batch_idx, (batch_start, batch_end) in enumerate(batches):
                 batch_logs = {'batch': batch_idx,
@@ -103,14 +98,14 @@ class SupervisedRBM(BernoulliBernoulliRBM):
                         idx = (y_batch == i)
                         pos_ywgrad[:, i] += np.sum(hprob[idx].T, axis=1) / batch_size
                         pos_ybgrad[0, i] = np.sum(np.double(idx)) / batch_size
-                    neg_ywgrad = hprob.T.dot(softmax(hprob.dot(self.yw_) + self.yb_)) / batch_size
-                    neg_ybgrad = np.mean(softmax(hprob.dot(self.yw_) + self.yb_),
+                    neg_ywgrad = hprob.T.dot(softmax(hprob.dot(self.yw) + self.yb)) / batch_size
+                    neg_ybgrad = np.mean(softmax(hprob.dot(self.yw) + self.yb),
                                          axis=0, keepdims=True)
                 else:
                     pos_ybgrad = np.mean(y_batch, keepdims=True)
                     pos_ywgrad = hprob.T.dot(y_batch[:, np.newaxis]) / batch_size
-                    neg_ybgrad = np.mean(hprob.dot(self.yw_) + self.yb_, keepdims=True)
-                    neg_ywgrad = hprob.T.dot(hprob.dot(self.yw_) + self.yb_) / batch_size
+                    neg_ybgrad = np.mean(hprob.dot(self.yw) + self.yb, keepdims=True)
+                    neg_ywgrad = hprob.T.dot(hprob.dot(self.yw) + self.yb) / batch_size
 
                 # ======== free phase =========
                 if self.learning_method == LEARNING_METHOD['cd']:
@@ -124,26 +119,26 @@ class SupervisedRBM(BernoulliBernoulliRBM):
                 neg_hgrad, neg_vgrad, neg_wgrad = self._get_negative_grad(vprob, hprob)
 
                 # update params
-                self.hgrad_inc_ = self.momentum_ * self.hgrad_inc_ \
-                                  + self.learning_rate * (pos_hgrad - neg_hgrad)
-                self.vgrad_inc_ = self.momentum_ * self.vgrad_inc_ \
-                                  + self.learning_rate * (pos_vgrad - neg_vgrad)
-                self.wgrad_inc_ = self.momentum_ * self.wgrad_inc_ \
-                                  + self.learning_rate * (pos_wgrad - neg_wgrad
-                                                          - self.weight_cost * self.w_)
+                self.hgrad_inc = self.momentum * self.hgrad_inc \
+                                 + self.learning_rate * (pos_hgrad - neg_hgrad)
+                self.vgrad_inc = self.momentum * self.vgrad_inc \
+                                 + self.learning_rate * (pos_vgrad - neg_vgrad)
+                self.wgrad_inc = self.momentum * self.wgrad_inc \
+                                 + self.learning_rate * (pos_wgrad - neg_wgrad
+                                                         - self.weight_cost * self.w)
 
-                self.ybgrad_inc_ = self.momentum_ * self.ybgrad_inc_ \
-                                   + self.learning_rate * (pos_ybgrad - neg_ybgrad)
-                self.ywgrad_inc_ = self.momentum_ * self.ywgrad_inc_ \
-                                   + self.learning_rate * (pos_ywgrad - neg_ywgrad
-                                                           - self.weight_cost * self.yw_)
+                self.ybgrad_inc = self.momentum * self.ybgrad_inc \
+                                  + self.learning_rate * (pos_ybgrad - neg_ybgrad)
+                self.ywgrad_inc = self.momentum * self.ywgrad_inc \
+                                  + self.learning_rate * (pos_ywgrad - neg_ywgrad
+                                                          - self.weight_cost * self.yw)
 
-                self.h_ += self.hgrad_inc_
-                self.v_ += self.vgrad_inc_
-                self.w_ += self.wgrad_inc_
+                self.h += self.hgrad_inc
+                self.v += self.vgrad_inc
+                self.w += self.wgrad_inc
 
-                self.yb_ += self.ybgrad_inc_
-                self.yw_ += self.ywgrad_inc_
+                self.yb += self.ybgrad_inc
+                self.yw += self.ywgrad_inc
 
                 batch_logs.update(self._on_batch_end(x_batch, y=y_batch, rdata=vprob))
                 callbacks.on_batch_end(batch_idx, batch_logs)
@@ -153,13 +148,13 @@ class SupervisedRBM(BernoulliBernoulliRBM):
                 for key, value in outs.items():
                     epoch_logs['val_' + key] = value
 
-            callbacks.on_epoch_end(self.epoch_, epoch_logs)
+            callbacks.on_epoch_end(self.epoch, epoch_logs)
             self._on_epoch_end()
 
     def _get_hidden_prob(self, x, **kwargs):
         if 'y' in kwargs:
             y = kwargs['y']
-            k, c = self.num_hidden, self.num_classes_
+            k, c = self.num_hidden, self.num_classes
             m, n = x.shape[0], self.num_visible
 
             if self.inference_engine == INFERENCE_ENGINE['variational_inference']:
@@ -167,29 +162,29 @@ class SupervisedRBM(BernoulliBernoulliRBM):
 
                 if self.task == 'classification':
                     # constant_term: [M,K]
-                    constant_term = self.yw_[:, y.astype(np.int8)].T + x.dot(self.w_) + self.h_
-                    yw_yw = self.yw_.T * self.yw_.T  # [C,K]
+                    constant_term = self.yw[:, y.astype(np.int8)].T + x.dot(self.w) + self.h
+                    yw_yw = self.yw.T * self.yw.T  # [C,K]
                     hprob = [np.random.rand(m, k), np.zeros([m, k])]  # [M, K]
                     # looping at fixed point update
                     while diff > 1e-4 and num_iters < 30:
-                        e = hprob[ii].dot(self.yw_) + self.yb_  # [M,C]
+                        e = hprob[ii].dot(self.yw) + self.yb  # [M,C]
                         me = np.max(e, axis=1, keepdims=True)  # [M,1]
                         ee = np.exp(e - me)  # [M,C]
                         # first-order Taylor series approximation
                         if self.approx_method == APPROX_METHOD['first_order']:
-                            hprob[jj] = sigmoid(constant_term - ee.dot(self.yw_.T)
+                            hprob[jj] = sigmoid(constant_term - ee.dot(self.yw.T)
                                                 / ee.sum(axis=1, keepdims=True))
                         # second-order Taylor series approximation
                         else:
                             lbd = ee / ee.sum(axis=1, keepdims=True)  # [M,C]
-                            db_mu = ee.dot(self.yw_.T) / ee.sum(axis=1, keepdims=True)  # [M,K]
-                            dlbd_mu = lbd.sum(axis=0, keepdims=True) * self.yw_ \
+                            db_mu = ee.dot(self.yw.T) / ee.sum(axis=1, keepdims=True)  # [M,K]
+                            dlbd_mu = lbd.sum(axis=0, keepdims=True) * self.yw \
                                       - db_mu.T.dot(lbd)  # [K,C]
                             hh = hprob[ii] * (1 - hprob[ii])  # [M,K]
                             term1 = 0.5 * hh.dot(dlbd_mu.dot(yw_yw))
                             term2 = 0.5 * (1 - 2 * hprob[ii]) * lbd.dot(yw_yw)  # [M,K]
-                            term3 = (hh * lbd.dot(self.yw_.T)).dot(self.yw_.dot(dlbd_mu.T))
-                            term4 = 0.5 * (1 - 2 * hprob[ii]) * lbd.dot(self.yw_.T)
+                            term3 = (hh * lbd.dot(self.yw.T)).dot(self.yw.dot(dlbd_mu.T))
+                            term4 = 0.5 * (1 - 2 * hprob[ii]) * lbd.dot(self.yw.T)
                             hprob[jj] = sigmoid(constant_term - db_mu
                                                 - term1 - term2 + term3 + term4)
                         diff = np.mean(np.abs(hprob[ii] - hprob[jj]))
@@ -200,20 +195,20 @@ class SupervisedRBM(BernoulliBernoulliRBM):
 
                 else:  # regression
                     # constant_term: [M,K]
-                    constant_term = np.outer(y, self.yw_) + x.dot(self.w_) + self.h_
+                    constant_term = np.outer(y, self.yw) + x.dot(self.w) + self.h
                     hprob = [sigmoid(constant_term), np.zeros([m, k])]
                     # looping at fixed point update
                     while diff > 1e-4 and num_iters < 100:
                         # first-order Taylor series approximation
                         if self.approx_method == APPROX_METHOD['first_order']:
-                            hprob[jj] = sigmoid(constant_term - (hprob[ii].dot(self.yw_)
-                                                                 + self.yb_).dot(self.yw_.T))
+                            hprob[jj] = sigmoid(constant_term - (hprob[ii].dot(self.yw)
+                                                                 + self.yb).dot(self.yw.T))
 
                         # second-order Taylor series approximation
                         else:
-                            hprob[jj] = sigmoid(constant_term - (hprob[ii].dot(self.yw_)
-                                                                 + self.yb_).dot(self.yw_.T)
-                                                - 0.5 * (self.yw_.T ** 2) * (1 - 2 * hprob[ii]))
+                            hprob[jj] = sigmoid(constant_term - (hprob[ii].dot(self.yw)
+                                                                 + self.yb).dot(self.yw.T)
+                                                - 0.5 * (self.yw.T ** 2) * (1 - 2 * hprob[ii]))
                         diff = np.mean(np.abs(hprob[ii] - hprob[jj]))
                         ii ^= 1
                         jj ^= 1
@@ -235,7 +230,7 @@ class SupervisedRBM(BernoulliBernoulliRBM):
                 num_samples = 1
                 hsample = (0.5 > np.random.rand(m, k)).astype(np.int)  # [M,K]
                 # p(h_k = 1 | v)
-                phk1v = sigmoid(x.dot(self.w_) + self.h_)  # [M,K]
+                phk1v = sigmoid(x.dot(self.w) + self.h)  # [M,K]
 
                 if self.task == 'classification':
                     for i in range(num_burnings + num_samples):
@@ -243,10 +238,10 @@ class SupervisedRBM(BernoulliBernoulliRBM):
                         for t in range(k):
                             hsample[:, t] = 0
                             # p(y | h_k = 0, h_(-k)): [M,1]
-                            pyhk = np.exp(np.sum(hsample * self.yw_[:, y.astype(np.int8)].T,
+                            pyhk = np.exp(np.sum(hsample * self.yw[:, y.astype(np.int8)].T,
                                                  axis=1, keepdims=True)
-                                          + self.yb_[:, y.astype(np.int8)].T
-                                          - logsumexp(hsample.dot(self.yw_) + self.yb_,
+                                          + self.yb[:, y.astype(np.int8)].T
+                                          - logsumexp(hsample.dot(self.yw) + self.yb,
                                                       axis=1, keepdims=True))
                             # p(h_k = 0 | h_(-k), v, y) = p(y | h_k = 0, h_(-k)) * p(h_k = 0 | v)
                             # Note that p(h_k = 0 | v) = 1 - p(h_k = 1 | v)
@@ -254,10 +249,10 @@ class SupervisedRBM(BernoulliBernoulliRBM):
 
                             hsample[:, t] = 1
                             # p(y | h_k = 1, h_(-k)): [M,1]
-                            pyhk = np.exp(np.sum(hsample * self.yw_[:, y.astype(np.int8)].T,
+                            pyhk = np.exp(np.sum(hsample * self.yw[:, y.astype(np.int8)].T,
                                                  axis=1, keepdims=True)
-                                          + self.yb_[:, y.astype(np.int8)].T
-                                          - logsumexp(hsample.dot(self.yw_) + self.yb_,
+                                          + self.yb[:, y.astype(np.int8)].T
+                                          - logsumexp(hsample.dot(self.yw) + self.yb,
                                                       axis=1, keepdims=True))
                             # p(h_k = 1 | h_(-k), v, y) = p(y | h_k = 1, h_(-k)) * p(h_k = 1 | v)
                             hprob1 = pyhk * phk1v[:, [t]]  # [M,1]
@@ -272,8 +267,8 @@ class SupervisedRBM(BernoulliBernoulliRBM):
                             hsample[:, t] = 0
                             # p(y | h_k = 0, h_(-k)): [M,1]
                             pyhk = np.exp(-0.5 * (y[:, np.newaxis] ** 2)
-                                          + (hsample.dot(self.yw_) + self.yb_) * y[:, np.newaxis]
-                                          - 0.5 * (hsample.dot(self.yw_) + self.yb_) ** 2)
+                                          + (hsample.dot(self.yw) + self.yb) * y[:, np.newaxis]
+                                          - 0.5 * (hsample.dot(self.yw) + self.yb) ** 2)
                             # p(h_k = 0 | h_(-k), v, y) = p(y | h_k = 0, h_(-k)) * p(h_k = 0 | v)
                             # Note that p(h_k = 0 | v) = 1 - p(h_k = 1 | v)
                             hprob0 = pyhk * (1.0 - phk1v[:, [t]])  # [M,1]
@@ -281,8 +276,8 @@ class SupervisedRBM(BernoulliBernoulliRBM):
                             hsample[:, t] = 1
                             # p(y | h_k = 1, h_(-k)): [M,1]
                             pyhk = np.exp(-0.5 * (y[:, np.newaxis] ** 2)
-                                          + (hsample.dot(self.yw_) + self.yb_) * y[:, np.newaxis]
-                                          - 0.5 * (hsample.dot(self.yw_) + self.yb_) ** 2)
+                                          + (hsample.dot(self.yw) + self.yb) * y[:, np.newaxis]
+                                          - 0.5 * (hsample.dot(self.yw) + self.yb) ** 2)
                             # p(h_k = 1 | h_(-k), v, y) = p(y | h_k = 1, h_(-k)) * p(h_k = 1 | v)
                             hprob1 = pyhk * phk1v[:, [t]]  # [M,1]
 
@@ -292,24 +287,24 @@ class SupervisedRBM(BernoulliBernoulliRBM):
 
                 return hprob  # endif
         else:
-            return sigmoid(x.dot(self.w_) + self.h_)
+            return sigmoid(x.dot(self.w) + self.h)
 
     def _predict_from_hidden(self, hidden):
         if self.task == 'classification':
-            return np.argmax(softmax(hidden.dot(self.yw_) + self.yb_), axis=1)
+            return np.argmax(softmax(hidden.dot(self.yw) + self.yb), axis=1)
         else:
-            return hidden.dot(self.yw_) + self.yb_
+            return hidden.dot(self.yw) + self.yb
 
     def _predict_proba_from_hidden(self, hidden):
         if self.task == 'classification':
-            return softmax(hidden.dot(self.yw_) + self.yb_)
+            return softmax(hidden.dot(self.yw) + self.yb)
         else:
-            return hidden.dot(self.yw_) + self.yb_
+            return hidden.dot(self.yw) + self.yb
 
     def get_loss(self, x, y, *args, **kwargs):
         if self.task == 'classification':
             y_pred = self.predict_proba(x)
-            return log_loss(y, y_pred)
+            return log_loss(y, y_pred, labels=self.label_encoder.classes_)
         else:  # regression
             y_pred = self._predict(x)
             return np.sqrt(mean_squared_error(y, y_pred))
@@ -317,9 +312,9 @@ class SupervisedRBM(BernoulliBernoulliRBM):
     def _get_loglik(self, hprob, x, y):
         if self.task == 'regression':
             hprob = np.clip(hprob.reshape(x.shape[0], self.num_hidden), EPSILON, 1 - EPSILON)
-            loglik = np.sum((hprob.dot(self.yw_) + self.yb_).T.dot(y)
-                            + np.sum(hprob * (x.dot(self.w_) + self.h_))
-                            - 0.5 * np.sum((hprob.dot(self.yw_) + self.yb_) ** 2)
+            loglik = np.sum((hprob.dot(self.yw) + self.yb).T.dot(y)
+                            + np.sum(hprob * (x.dot(self.w) + self.h))
+                            - 0.5 * np.sum((hprob.dot(self.yw) + self.yb) ** 2)
                             - np.sum(hprob * np.log(hprob) + (1 - hprob) * np.log(1 - hprob)))
             return -loglik
         else:
@@ -328,8 +323,8 @@ class SupervisedRBM(BernoulliBernoulliRBM):
     def get_grad(self, hprob, x, y):
         if self.task == 'regression':
             hprob = np.clip(hprob.reshape(x.shape[0], self.num_hidden), EPSILON, 1 - EPSILON)
-            df = (y.dot(self.yw_.T) + x.dot(self.w_) + self.h_
-                  - (hprob.dot(self.yw_) + self.yb_).dot(self.yw_.T)
+            df = (y.dot(self.yw.T) + x.dot(self.w) + self.h
+                  - (hprob.dot(self.yw) + self.yb).dot(self.yw.T)
                   - np.log(hprob) + np.log(1 - hprob))
             return np.ravel(-df)
         else:
@@ -348,28 +343,28 @@ class SupervisedRBM(BernoulliBernoulliRBM):
         pass
         hprob = self._unroll_params(w)
         if self.task == 'classification':
-            shared_term = self.yw_[:, y.astype(np.int8)].T + x.dot(self.w_) + self.h_
+            shared_term = self.yw[:, y.astype(np.int8)].T + x.dot(self.w) + self.h
             if self.approx_method == APPROX_METHOD['first_order']:
-                e = hprob.dot(self.yw_) + self.yb_
+                e = hprob.dot(self.yw) + self.yb
                 me = np.max(e, axis=1, keepdims=True)
                 ee = np.exp(e - me)
-                dw = shared_term - ee.dot(self.yw_.T) / ee.sum(axis=1, keepdims=True)
+                dw = shared_term - ee.dot(self.yw.T) / ee.sum(axis=1, keepdims=True)
             else:  # second-order
                 raise NotImplementedError
         if self.task == 'regression':
-            shared_term = y.dot(self.yw_.T) + x.dot(self.w_) + self.h_
+            shared_term = y.dot(self.yw.T) + x.dot(self.w) + self.h
             if self.approx_method == APPROX_METHOD['first_order']:
-                dw = shared_term - (hprob.dot(self.yw_) + self.yb_).dot(self.yw_.T)
+                dw = shared_term - (hprob.dot(self.yw) + self.yb).dot(self.yw.T)
             else:  # second-order
-                dw = shared_term - (hprob.dot(self.yw_) + self.yb_).dot(self.yw_.T) \
-                     - 0.5 * (self.yw_.T ** 2) * (1 - 2 * hprob)
+                dw = shared_term - (hprob.dot(self.yw) + self.yb).dot(self.yw.T) \
+                     - 0.5 * (self.yw.T ** 2) * (1 - 2 * hprob)
         return np.ravel(dw)
 
     def _unroll_params(self, w):
         return w.reshape([self.batch_size, self.num_hidden])
 
     def _roll_params(self):
-        return np.ravel(self.mu_)
+        return np.ravel(self.mu)
 
     def _encode_labels(self, y):
         yy = super(SupervisedRBM, self)._encode_labels(y)
@@ -398,37 +393,27 @@ class SupervisedRBM(BernoulliBernoulliRBM):
     def _predict(self, x):
         hpost = self.transform(x)
         if self.task == 'classification':
-            return np.argmax(softmax(hpost.dot(self.yw_) + self.yb_), axis=1)
+            return np.argmax(softmax(hpost.dot(self.yw) + self.yb), axis=1)
         else:
-            return hpost.dot(self.yw_) + self.yb_
+            return hpost.dot(self.yw) + self.yb
 
     def predict_proba(self, x):
         hpost = self.transform(x)
         if self.task == 'classification':
-            return softmax(hpost.dot(self.yw_) + self.yb_)
+            return softmax(hpost.dot(self.yw) + self.yb)
         else:
             raise NotImplementedError
 
     def score(self, x, y=None, **kwargs):
-        if self.task == 'classification':
+        if self.exception:
+            return - (1e+8)
+        elif self.task == 'classification':
             return float(accuracy_score(self.predict(x), y))
         else:
-            return -np.sqrt(mean_squared_error(y, self.predict(x)))
+            return -mean_squared_error(y, self.predict(x))
 
     def get_params(self, deep=True):
         out = super(SupervisedRBM, self).get_params(deep=deep)
-        out.update({"inference_engine": self.inference_engine,
-                    "approx_method": self.approx_method})
-        return out
-
-    def get_all_params(self, deep=True):
-        out = super(SupervisedRBM, self).get_all_params(deep=deep)
-        out.update(self.get_params(deep=deep))
-        out.update({
-            "yw_": copy.deepcopy(self.yw_),
-            "yb_": copy.deepcopy(self.yb_),
-            "ywgrad_inc_": copy.deepcopy(self.ywgrad_inc_),
-            "ybgrad_inc_": copy.deepcopy(self.ybgrad_inc_),
-            "mu_": copy.deepcopy(self.mu_),
-        })
+        param_names = SupervisedRBM._get_param_names()
+        out.update(self._get_params(param_names=param_names, deep=deep))
         return out

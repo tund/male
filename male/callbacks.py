@@ -213,13 +213,15 @@ class Display(Callback):
     LINESTYLE = ['-', '--', '-.', ':']
     LINE_WIDTH = 4
 
-    def __init__(self, title=None, dpi=None, layout=(1, 1), figsize=None, freq=1, monitor=None):
+    def __init__(self, title=None, dpi=None, layout=(1, 1),
+                 block_on_end=True, figsize=None, freq=1, monitor=None):
         super(Display, self).__init__()
         self.title = title
         self.dpi = dpi
         self.layout = layout
         self.figsize = figsize
         self.freq = freq
+        self.block_on_end = block_on_end
         self.monitor = monitor
 
     def draw(self, ax, title, **kwargs):
@@ -253,17 +255,17 @@ class Display(Callback):
             plt.ion()
 
     def on_epoch_end(self, epoch, logs={}):
-        if not self.model.stop_training_:
+        if not self.model.stop_training:
             if ((epoch + 1) % self.freq == 0) and (self.monitor is not None):
                 for i in range(len(self.monitor)):
                     u, v = np.unravel_index(i, self.layout, order='C')
                     self.axs[u, v].clear()
                     self.draw(self.axs[u, v], **self.monitor[i])
                     for (j, value) in enumerate(self.monitor[i]['metrics']):
-                        if value in self.model.history_.history:
+                        if value in self.model.history.history:
                             self.disp(self.axs[u, v], j,
-                                      np.array(self.model.history_.epoch) + 1,
-                                      self.model.history_.history[value],
+                                      np.array(self.model.history.epoch) + 1,
+                                      self.model.history.history[value],
                                       label=self.monitor[i]['labels'][j] if 'labels' in
                                                                             self.monitor[
                                                                                 i] else value,
@@ -304,7 +306,7 @@ class Display(Callback):
                               'interpolation'] if 'interpolation' in kwargs else 'none')
 
     def on_train_end(self, logs={}):
-        plt.show(block=True)
+        plt.show(block=self.block_on_end)
 
 
 class History(Callback):
@@ -493,14 +495,14 @@ class EarlyStopping(Callback):
         if self.monitor_op(current - self.min_delta, self.best):
             self.best = current
             self.best_idx = epoch + 1
-            self.model.best_ = current
-            self.model.best_params_ = self.model.get_all_params()
+            self.model.best = current
+            self.model.best_params = self.model.get_all_params()
             self.wait = 0
         else:
             if self.wait >= self.patience:
                 self.stopped_epoch = epoch
-                self.model.set_params(**self.model.best_params_)
-                self.model.stop_training_ = self.best_idx
+                self.model.set_all_params(**self.model.best_params)
+                self.model.stop_training = self.best_idx
             self.wait += 1
 
     def on_train_end(self, logs={}):

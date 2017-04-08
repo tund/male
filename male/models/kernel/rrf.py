@@ -2,7 +2,6 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
-import copy
 import numpy as np
 
 np.seterr(all='raise')
@@ -12,6 +11,8 @@ from scipy.optimize import check_grad
 from . import FOGD
 from ...utils.generic_utils import make_batches
 
+INF = 1e+8
+
 
 class RRF(FOGD):
     """Reparameterized Random Features
@@ -19,30 +20,31 @@ class RRF(FOGD):
 
     def __init__(self,
                  model_name="RRF",
+                 mode='batch',  # {'batch', 'online'}
                  learning_rate_gamma=0.005,
-                 *args, **kwargs):
-        kwargs['model_name'] = model_name
-        super(RRF, self).__init__(**kwargs)
+                 **kwargs):
+        super(RRF, self).__init__(model_name=model_name, **kwargs)
+        self.mode = mode
         self.learning_rate_gamma = learning_rate_gamma
 
     def _init(self):
         super(RRF, self)._init()
         self.gamma_ = None
-        self.e_ = None
-        self.num_features_ = 0  # number of data features
+        self.e = None
+        self.num_features = 0  # number of data features
 
     def _init_params(self, x):
         super(RRF, self)._init_params(x)
-        self.num_features_ = x.shape[1]
-        self.gamma_ = np.log(self.gamma) * np.ones(self.num_features_)  # Nx1
-        self.e_ = self.random_state_.randn(self.num_features_, self.D)  # NxD (\epsilon ~ N(0, 1))
+        self.num_features = x.shape[1]
+        self.gamma_ = np.log(self.gamma) * np.ones(self.num_features)  # Nx1
+        self.e = self.random_engine.randn(self.num_features, self.D)  # NxD (\epsilon ~ N(0, 1))
 
     def _get_wxy(self, wx, y):
         m = len(y)  # batch size
         idx = range(m)
-        mask = np.ones([m, self.num_classes_], np.bool)
+        mask = np.ones([m, self.num_classes], np.bool)
         mask[idx, y] = False
-        z = np.argmax(wx[mask].reshape([m, self.num_classes_ - 1]), axis=1)
+        z = np.argmax(wx[mask].reshape([m, self.num_classes - 1]), axis=1)
         z += (z >= y)
         return wx[idx, y] - wx[idx, z], z
 
@@ -51,7 +53,7 @@ class RRF(FOGD):
 
         m = x.shape[0]  # batch size
         # gradient of \phi w.r.t \omega
-        dpo = np.zeros([m, 2 * self.D, self.num_features_])  # (M,2D,N)
+        dpo = np.zeros([m, 2 * self.D, self.num_features])  # (M,2D,N)
         coswx, sinwx = phi[:, :self.D], phi[:, self.D:]  # (M,D)
 
         # broadcasting
@@ -60,22 +62,22 @@ class RRF(FOGD):
         # dlg = drw.reshape([M * 2 * self.D, self.N_]).T.dot(dr.reshape(M * 2 * self.D)) * np.exp(g)
 
         # einsum
-        dpo[:, :self.D, :] = np.einsum("mn,md,nd->mdn", -x, sinwx, self.e_)  # (M,D,N)
-        dpo[:, self.D:, :] = np.einsum("mn,md,nd->mdn", x, coswx, self.e_)  # (M,D,N)
+        dpo[:, :self.D, :] = np.einsum("mn,md,nd->mdn", -x, sinwx, self.e)  # (M,D,N)
+        dpo[:, self.D:, :] = np.einsum("mn,md,nd->mdn", x, coswx, self.e)  # (M,D,N)
         dlg = np.einsum("mdn,md->n", dpo, dphi) * np.exp(gamma)
 
         return dlg
 
     def get_grad(self, x, y, *args, **kwargs):
         m = x.shape[0]  # batch size
-        w = kwargs['w'] if 'w' in kwargs else self.w_  # (2D,C)
+        w = kwargs['w'] if 'w' in kwargs else self.w  # (2D,C)
         gamma = kwargs['gamma'] if 'gamma' in kwargs else self.gamma_  # (N,)
         phi = kwargs['phi'] if 'phi' in kwargs else self._get_phi(x, **kwargs)  # (M,2D)
         wx = kwargs['wx'] if 'wx' in kwargs else phi.dot(w)  # (M,C)
 
         dw = self.lbd * w  # (2D,C)
         dgamma = np.zeros(gamma.shape)  # (N,)
-        if self.num_classes_ > 2:
+        if self.num_classes > 2:
             wxy, z = self._get_wxy(wx, y)
             if self.loss == 'hinge':
                 d = (wxy[:, np.newaxis] < 1) * phi  # (M,2D)
@@ -86,7 +88,7 @@ class RRF(FOGD):
                 d = c * phi
                 dphi = -c * (w[:, y].T - w[:, z].T)  # (M,2D)
                 dgamma += self.get_gamma_grad(x, phi, dphi, gamma=gamma) / m
-            for i in range(self.num_classes_):
+            for i in range(self.num_classes):
                 dw[:, i] += -d[y == i].sum(axis=0) / m
                 dw[:, i] += d[z == i].sum(axis=0) / m
         else:
@@ -116,7 +118,7 @@ class RRF(FOGD):
                 c = np.sign(wx - y)[:, np.newaxis]
                 d = c * phi
                 dw += d[wxy].sum(axis=0) / m
-                dphi = c * w  # (M,2D)
+                dphi = c[wxy] * w  # (M,2D)
                 dgamma += self.get_gamma_grad(x[wxy], phi[wxy], dphi, gamma=gamma) / m
         return dw, dgamma
 
@@ -134,9 +136,9 @@ class RRF(FOGD):
             for t in range(x.shape[0]):
                 phi = self._get_phi(x[[t]])
 
-                wx = phi.dot(self.w_)  # (x,)
+                wx = phi.dot(self.w)  # (x,)
                 if self.task == 'classification':
-                    if self.num_classes_ == 2:
+                    if self.num_classes == 2:
                         y_pred = self._decode_labels(np.uint8(wx >= 0))[0]
                     else:
                         y_pred = self._decode_labels(np.argmax(wx))
@@ -146,23 +148,23 @@ class RRF(FOGD):
                 dw, dgamma = self.get_grad(x[[t]], y[[t]], phi=phi, wx=wx)  # compute gradients
 
                 # update parameters
-                self.w_ -= self.learning_rate * dw
+                self.w -= self.learning_rate * dw
                 self.gamma_ -= self.learning_rate_gamma * dgamma
 
                 # update the average of parameters
                 if self.avg_weight:
-                    w_avg += self.w_
+                    w_avg += self.w
 
             if self.avg_weight:
-                self.w_ = w_avg / x.shape[0]
+                self.w = w_avg / x.shape[0]
 
-            self.mistake_ = mistake / x.shape[0]
+            self.mistake = mistake / x.shape[0]
 
         else:  # batch setting
             batches = make_batches(x.shape[0], self.batch_size)
-            while (self.epoch_ < self.num_epochs) and (not self.stop_training_):
+            while (self.epoch < self.num_epochs) and (not self.stop_training):
                 epoch_logs = {}
-                callbacks.on_epoch_begin(self.epoch_)
+                callbacks.on_epoch_begin(self.epoch)
 
                 for batch_idx, (batch_start, batch_end) in enumerate(batches):
                     batch_logs = {'batch': batch_idx,
@@ -174,7 +176,7 @@ class RRF(FOGD):
 
                     dw, dgamma = self.get_grad(x_batch, y_batch)
 
-                    self.w_ -= self.learning_rate * dw
+                    self.w -= self.learning_rate * dw
                     self.gamma_ -= self.learning_rate_gamma * dgamma
 
                     batch_logs.update(self._on_batch_end(x_batch, y_batch))
@@ -185,12 +187,12 @@ class RRF(FOGD):
                     for key, value in outs.items():
                         epoch_logs['val_' + key] = value
 
-                callbacks.on_epoch_end(self.epoch_, epoch_logs)
+                callbacks.on_epoch_end(self.epoch, epoch_logs)
                 self._on_epoch_end()
 
     def _get_phi(self, x, **kwargs):
         gamma = kwargs['gamma'] if 'gamma' in kwargs else self.gamma_
-        omega = np.exp(gamma)[:, np.newaxis] * self.e_  # NxD
+        omega = np.exp(gamma)[:, np.newaxis] * self.e  # NxD
 
         phi = np.zeros([x.shape[0], 2 * self.D])  # Mx2D
         xo = x.dot(omega)
@@ -205,7 +207,7 @@ class RRF(FOGD):
     def _unroll_params(self, w):
         ww = super(RRF, self)._unroll_params(w)
         ww = tuple([ww]) if not isinstance(ww, tuple) else ww
-        idx = np.sum([i.size for i in ww])
+        idx = np.sum([i.size for i in ww], dtype=np.int)
         gamma = w[idx:idx + self.gamma_.size].reshape(self.gamma_.shape).copy()
         return ww + (gamma,)
 
@@ -245,23 +247,23 @@ class RRF(FOGD):
                             x[[t]], y[[t]])
 
             dw, dgamma = self.get_grad(x[[t]], y[[t]])
-            self.w_ -= self.learning_rate * dw
+            self.w -= self.learning_rate * dw
             self.gamma_ -= self.learning_rate_gamma * dgamma
 
-        print("diff = %.8f" % (s / x.shape[0]))
+        s /= x.shape[0]
+        print("diff = %.8f" % s)
+        return s
+
+    def score(self, x, y, sample_weight=None):
+        if self.exception:
+            return -INF
+        if self.mode == 'online':
+            return -self.mistake
+        else:
+            return super(FOGD, self).score(x, y)
 
     def get_params(self, deep=True):
         out = super(RRF, self).get_params(deep=deep)
-        out.update({
-            'learning_rate_gamma': self.learning_rate_gamma,
-        })
-        return out
-
-    def get_all_params(self, deep=True):
-        out = super(RRF, self).get_all_params(deep=deep)
-        out.update({
-            'gamma_': copy.deepcopy(self.gamma_),
-            'e_': copy.deepcopy(self.e_),
-            'num_features_': self.num_features_,
-        })
+        param_names = RRF._get_param_names()
+        out.update(self._get_params(param_names=param_names, deep=deep))
         return out

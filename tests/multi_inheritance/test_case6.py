@@ -1,16 +1,21 @@
 __metaclass__ = type
+
+
 class A:
     def __init__(self):
         print("A")
+
 
 class B:
     def __init__(self):
         print("B")
 
+
 class C(A, B):
     def __init__(self):
         super(C, self).__init__()
         print("C")
+
 
 class D(A, B):
     def __init__(self):
@@ -22,6 +27,8 @@ class X(C, D):
     def __init__(self):
         super(X, self).__init__()
         print("X")
+
+
 print("Inheritance structure:")
 print("[ * means calling super.]")
 print("       A    B            ")

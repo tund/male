@@ -2,7 +2,6 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
-import copy
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
@@ -29,9 +28,8 @@ class GAN1D(TensorFlowModel):
                  minibatch_discriminator=False,
                  generator_learning_rate=0.001,
                  discriminator_learning_rate=0.001,
-                 *args, **kwargs):
-        kwargs['model_name'] = model_name
-        super(GAN1D, self).__init__(**kwargs)
+                 **kwargs):
+        super(GAN1D, self).__init__(model_name=model_name, **kwargs)
         self.data = data
         self.generator = generator
         self.loglik_freq = loglik_freq
@@ -45,8 +43,8 @@ class GAN1D(TensorFlowModel):
     def _init(self):
         super(GAN1D, self)._init()
 
-        self.last_loglik_ = 0.0
-        self.g_avg_hist_ = {'count': 0, 'hist': []}
+        self.last_loglik = 0.0
+        self.g_avg_hist = {'count': 0, 'hist': []}
 
         if self.data is None:
             self.data = Gaussian1D()
@@ -57,8 +55,8 @@ class GAN1D(TensorFlowModel):
         # This defines the generator network - it takes samples from a noise
         # distribution as input, and passes them through an MLP.
         with tf.variable_scope('generator'):
-            self.z_ = tf.placeholder(tf.float32, shape=[None, 1])
-            self.g_ = self._create_generator(self.z_, self.hidden_size)
+            self.z = tf.placeholder(tf.float32, shape=[None, 1])
+            self.g = self._create_generator(self.z, self.hidden_size)
 
         # The discriminator tries to tell the difference between samples from the
         # true data distribution (self.x) and the generated samples (self.z).
@@ -66,32 +64,31 @@ class GAN1D(TensorFlowModel):
         # Here we create two copies of the discriminator network (that share parameters),
         # as you cannot use the same network with different inputs in TensorFlow.
         with tf.variable_scope('discriminator') as scope:
-            self.x_ = tf.placeholder(tf.float32, shape=[None, 1])
-            self.d1_ = self._create_discriminator(self.x_, self.hidden_size)
+            self.x = tf.placeholder(tf.float32, shape=[None, 1])
+            self.d1 = self._create_discriminator(self.x, self.hidden_size)
             scope.reuse_variables()
-            self.d2_ = self._create_discriminator(self.g_, self.hidden_size)
+            self.d2 = self._create_discriminator(self.g, self.hidden_size)
 
         # Define the loss for discriminator and generator networks (see the original
         # paper for details), and create optimizers for both
-        self.d_loss_ = tf.reduce_mean(-tf.log(self.d1_) - tf.log(1 - self.d2_))
-        self.g_loss_ = tf.reduce_mean(-tf.log(self.d2_))
+        self.d_loss = tf.reduce_mean(-tf.log(self.d1) - tf.log(1 - self.d2))
+        self.g_loss = tf.reduce_mean(-tf.log(self.d2))
 
-        self.d_params_ = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='discriminator')
-        self.g_params_ = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='generator')
+        self.d_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='discriminator')
+        self.g_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='generator')
 
-        self.d_opt_ = self._create_optimizer(self.d_loss_, self.d_params_,
-                                             self.discriminator_learning_rate)
-        self.g_opt_ = self._create_optimizer(self.g_loss_, self.g_params_,
-                                             self.generator_learning_rate)
-        self.tf_session_.run(tf.global_variables_initializer())
+        self.d_opt = self._create_optimizer(self.d_loss, self.d_params,
+                                            self.discriminator_learning_rate)
+        self.g_opt = self._create_optimizer(self.g_loss, self.g_params,
+                                            self.generator_learning_rate)
 
     def _fit_loop(self, x, y,
                   do_validation=False,
                   x_valid=None, y_valid=None,
                   callbacks=None, callback_metrics=None):
-        while (self.epoch_ < self.num_epochs) and (not self.stop_training_):
+        while (self.epoch < self.num_epochs) and (not self.stop_training):
             epoch_logs = {}
-            callbacks.on_epoch_begin(self.epoch_)
+            callbacks.on_epoch_begin(self.epoch)
 
             batch_logs = {'batch': 0,
                           'size': self.batch_size}
@@ -101,40 +98,40 @@ class GAN1D(TensorFlowModel):
             x = self.data.sample(self.batch_size)
             x.sort()
             z = self.generator.stratified_sample(self.batch_size)
-            d_loss, _ = self.tf_session_.run(
-                [self.d_loss_, self.d_opt_],
-                feed_dict={self.x_: np.reshape(x, [self.batch_size, 1]),
-                           self.z_: np.reshape(z, [self.batch_size, 1])})
+            d_loss, _ = self.tf_session.run(
+                [self.d_loss, self.d_opt],
+                feed_dict={self.x: np.reshape(x, [self.batch_size, 1]),
+                           self.z: np.reshape(z, [self.batch_size, 1])})
 
             # update generator
             z = self.generator.stratified_sample(self.batch_size)
-            g_loss, _ = self.tf_session_.run(
-                [self.g_loss_, self.g_opt_],
-                feed_dict={self.z_: np.reshape(z, [self.batch_size, 1])})
+            g_loss, _ = self.tf_session.run(
+                [self.g_loss, self.g_opt],
+                feed_dict={self.z: np.reshape(z, [self.batch_size, 1])})
 
             batch_logs['d_loss'] = d_loss
             batch_logs['g_loss'] = g_loss
             batch_logs.update(self._on_batch_end(x))
             callbacks.on_batch_end(0, batch_logs)
 
-            callbacks.on_epoch_end(self.epoch_, epoch_logs)
+            callbacks.on_epoch_end(self.epoch, epoch_logs)
             self._on_epoch_end()
 
     def _on_batch_end(self, x, y=None):
         outs = super(GAN1D, self)._on_batch_end(x, y)
         if self.loglik_freq != 0:
-            if (self.epoch_ + 1) % self.loglik_freq == 0:
-                self.last_loglik_ = self.data.logpdf(self.generate())
-            outs['loglik'] = self.last_loglik_
+            if (self.epoch + 1) % self.loglik_freq == 0:
+                self.last_loglik = self.data.logpdf(self.generate())
+            outs['loglik'] = self.last_loglik
         return outs
 
     def _update_avg_hist(self, hist):
-        c = self.g_avg_hist_['count']
+        c = self.g_avg_hist['count']
         if c == 0:
-            self.g_avg_hist_['hist'] = hist
+            self.g_avg_hist['hist'] = hist
         else:
-            self.g_avg_hist_['hist'] = (self.g_avg_hist_['hist'] * c + hist) / (c + 1)
-        self.g_avg_hist_['count'] += 1
+            self.g_avg_hist['hist'] = (self.g_avg_hist['hist'] * c + hist) / (c + 1)
+        self.g_avg_hist['count'] += 1
 
     def generate(self, num_samples=10000):
         sess = self._get_session()
@@ -143,12 +140,12 @@ class GAN1D(TensorFlowModel):
         batches = make_batches(num_samples, self.batch_size)
         for batch_idx, (batch_start, batch_end) in enumerate(batches):
             g[batch_start:batch_end] = sess.run(
-                self.g_,
+                self.g,
                 feed_dict={
-                    self.z_: np.reshape(zs[batch_start:batch_end], [batch_end - batch_start, 1])
+                    self.z: np.reshape(zs[batch_start:batch_end], [batch_end - batch_start, 1])
                 }
             )
-        if sess != self.tf_session_:
+        if sess != self.tf_session:
             sess.close()
         return g
 
@@ -168,9 +165,9 @@ class GAN1D(TensorFlowModel):
         batches = make_batches(num_samples, self.batch_size)
         for batch_idx, (batch_start, batch_end) in enumerate(batches):
             db[batch_start:batch_end] = sess.run(
-                self.d1_,
+                self.d1,
                 feed_dict={
-                    self.x_: np.reshape(xs[batch_start:batch_end], [batch_end - batch_start, 1])
+                    self.x: np.reshape(xs[batch_start:batch_end], [batch_end - batch_start, 1])
                 }
             )
 
@@ -184,7 +181,7 @@ class GAN1D(TensorFlowModel):
         pg, _ = np.histogram(g, bins=bins, density=True)
         pg /= np.sum(pg)
 
-        if sess != self.tf_session_:
+        if sess != self.tf_session:
             sess.close()
 
         return db, pd, pg
@@ -195,7 +192,7 @@ class GAN1D(TensorFlowModel):
 
             if param == 'avg_distribution':
                 self._update_avg_hist(pg)
-                pg = self.g_avg_hist_['hist']
+                pg = self.g_avg_hist['hist']
 
             db_x = np.linspace(self.generator.low, self.generator.high, len(db))
             p_x = np.linspace(self.generator.low, self.generator.high, len(pd))
@@ -253,20 +250,6 @@ class GAN1D(TensorFlowModel):
 
     def get_params(self, deep=True):
         out = super(GAN1D, self).get_params(deep=deep)
-        out.update({
-            'data': self.data,
-            'generator': self.generator,
-            'loglik_freq': self.loglik_freq,
-            'hidden_size': self.hidden_size,
-            'minibatch_discriminator': self.minibatch_discriminator,
-            'generator_learning_rate': self.generator_learning_rate,
-            'discriminator_learning_rate': self.discriminator_learning_rate,
-        })
-        return out
-
-    def get_all_params(self, deep=True):
-        out = super(GAN1D, self).get_all_params(deep=deep)
-        out.update(self.get_params(deep=deep))
-        out.update({'last_loglik_': self.last_loglik_,
-                    'g_avg_hist_': copy.deepcopy(self.g_avg_hist_)})
+        param_names = GAN1D._get_param_names()
+        out.update(self._get_params(param_names=param_names, deep=deep))
         return out

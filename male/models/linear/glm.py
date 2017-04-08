@@ -2,8 +2,8 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
-import copy
 import numpy as np
+
 from scipy.optimize import minimize
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.utils.validation import check_is_fitted
@@ -28,16 +28,27 @@ class GLM(Model):
 
     def __init__(self,
                  model_name='GLM',
-                 link='logit',  # link function
-                 loss='logit',  # loss function
+                 link='logit',
+                 loss='logit',
                  optimizer='L-BFGS-B',
-                 l2_penalty=0.0,  # ridge regularization
-                 l1_penalty=0.0,  # Lasso regularization
-                 l1_smooth=1E-5,  # smoothing for Lasso regularization
-                 l1_method='pseudo_huber',  # approximation method for L1-norm
-                 *args, **kwargs):
-        kwargs['model_name'] = model_name
-        super(GLM, self).__init__(**kwargs)
+                 l2_penalty=0.0,
+                 l1_penalty=0.0,
+                 l1_smooth=1E-5,
+                 l1_method='pseudo_huber',
+                 **kwargs
+                 ):
+        """
+        
+        :param model_name: 
+        :param link: link function
+        :param loss: loss function
+        :param optimizer: 
+        :param l2_penalty: ridge regularization
+        :param l1_penalty: Lasso regularization
+        :param l1_smooth: smoothing for Lasso regularization
+        :param l1_method: approximation method for L1-norm
+        """
+        super(GLM, self).__init__(model_name=model_name, **kwargs)
         self.link = link
         self.loss = loss
         self.optimizer = optimizer
@@ -48,26 +59,26 @@ class GLM(Model):
 
     def _init(self):
         super(GLM, self)._init()
-        self.w_ = None
-        self.b_ = None
-        self.onehot_encoder_ = None
+        self.w = None
+        self.b = None
+        self.onehot_encoder = None
 
     def _init_params(self, x):
         # initialize weights
-        if self.num_classes_ > 2:
-            self.w_ = 0.01 * self.random_state_.randn(x.shape[1], self.num_classes_)
-            self.b_ = np.zeros(self.num_classes_)
+        if self.num_classes > 2:
+            self.w = 0.01 * self.random_engine.randn(x.shape[1], self.num_classes)
+            self.b = np.zeros(self.num_classes)
         else:
-            self.w_ = 0.01 * self.random_state_.randn(x.shape[1])
-            self.b_ = np.zeros(1)
+            self.w = 0.01 * self.random_engine.randn(x.shape[1])
+            self.b = np.zeros(1)
         self._create_optimizer()
 
     def _create_optimizer(self):
-        self.optimizer_ = optz.get(self.optimizer)
-        if issubclass(type(self.optimizer_), optz.Optimizer):
-            self.optimizer_.init_params(obj_func=self.get_loss,
-                                        grad_func=self.get_grad,
-                                        params=[self.w_, self.b_])
+        self.optz_engine = optz.get(self.optimizer)  # optimization engine
+        if issubclass(type(self.optz_engine), optz.Optimizer):
+            self.optz_engine.init_params(obj_func=self.get_loss,
+                                         grad_func=self.get_grad,
+                                         params=[self.w, self.b])
 
     def _fit_loop(self, x, y,
                   do_validation=False,
@@ -75,15 +86,15 @@ class GLM(Model):
                   callbacks=None, callback_metrics=None):
         if self.optimizer == 'L-BFGS-B':
             optimizer = minimize(self._get_loss_check_grad, self._roll_params(), args=(x, y),
-                            jac=self._get_grad_check_grad, method=self.optimizer,
-                            options={'disp': (self.verbose != 0)})
-            self.w_, self.b_ = self._unroll_params(optimizer.x)
+                                 jac=self._get_grad_check_grad, method=self.optimizer,
+                                 options={'disp': (self.verbose != 0)})
+            self.w, self.b = self._unroll_params(optimizer.x)
         else:
             batches = make_batches(x.shape[0], self.batch_size)
 
-            while (self.epoch_ < self.num_epochs) and (not self.stop_training_):
+            while (self.epoch < self.num_epochs) and (not self.stop_training):
                 epoch_logs = {}
-                callbacks.on_epoch_begin(self.epoch_)
+                callbacks.on_epoch_begin(self.epoch)
 
                 for batch_idx, (batch_start, batch_end) in enumerate(batches):
                     batch_logs = {'batch': batch_idx,
@@ -93,7 +104,7 @@ class GLM(Model):
                     x_batch = x[batch_start:batch_end]
                     y_batch = y[batch_start:batch_end]
 
-                    self.optimizer_.update_params(x_batch, y_batch)
+                    self.optz_engine.update_params(x_batch, y_batch)
 
                     batch_logs.update(self._on_batch_end(x_batch, y_batch))
 
@@ -104,15 +115,15 @@ class GLM(Model):
                     for key, value in outs.items():
                         epoch_logs['val_' + key] = value
 
-                callbacks.on_epoch_end(self.epoch_, epoch_logs)
+                callbacks.on_epoch_end(self.epoch, epoch_logs)
                 self._on_epoch_end()
 
     def _encode_labels(self, y):
         yy = y.copy()
         yy = super(GLM, self)._encode_labels(yy)
         if self.loss == 'softmax':
-            self.onehot_encoder_ = OneHotEncoder()
-            yy = self.onehot_encoder_.fit_transform(yy.reshape(-1, 1)).toarray()
+            self.onehot_encoder = OneHotEncoder()
+            yy = self.onehot_encoder.fit_transform(yy.reshape(-1, 1)).toarray()
         return yy
 
     def _decode_labels(self, y):
@@ -125,12 +136,12 @@ class GLM(Model):
         yy = y.copy()
         yy = super(GLM, self)._transform_labels(yy)
         if self.loss == 'softmax':
-            yy = self.onehot_encoder_.transform(yy.reshape(-1, 1)).toarray()
+            yy = self.onehot_encoder.transform(yy.reshape(-1, 1)).toarray()
         return yy
 
-    def get_loss(self, x, y, *args, **kwargs):
-        w = kwargs['w'] if 'w' in kwargs else self.w_
-        b = kwargs['b'] if 'b' in kwargs else self.b_
+    def get_loss(self, x, y, **kwargs):
+        w = kwargs['w'] if 'w' in kwargs else self.w
+        b = kwargs['b'] if 'b' in kwargs else self.b
 
         # compute p(y|x) basing on link function
         t = self.get_link(x, w=w, b=b)
@@ -157,9 +168,9 @@ class GLM(Model):
                 f += self.l1_penalty * np.sum(w2sqrt)
         return f
 
-    def get_link(self, x, *args, **kwargs):
-        w = kwargs['w'] if 'w' in kwargs else self.w_
-        b = kwargs['b'] if 'b' in kwargs else self.b_
+    def get_link(self, x, **kwargs):
+        w = kwargs['w'] if 'w' in kwargs else self.w
+        b = kwargs['b'] if 'b' in kwargs else self.b
 
         y = x.dot(w) + b
         if self.link == 'logit':
@@ -168,9 +179,9 @@ class GLM(Model):
             y = softmax(y)
         return y
 
-    def get_grad(self, x, y, *args, **kwargs):
-        w = kwargs['w'] if 'w' in kwargs else self.w_
-        b = kwargs['b'] if 'b' in kwargs else self.b_
+    def get_grad(self, x, y, **kwargs):
+        w = kwargs['w'] if 'w' in kwargs else self.w
+        b = kwargs['b'] if 'b' in kwargs else self.b
 
         # compute p(y|x) basing on link function
         t = self.get_link(x, w=w, b=b)
@@ -198,8 +209,8 @@ class GLM(Model):
         return np.concatenate([np.ravel(dw), np.ravel(db)])
 
     def predict(self, x):
-        check_is_fitted(self, "w_")
-        check_is_fitted(self, "b_")
+        check_is_fitted(self, "w")
+        check_is_fitted(self, "b")
 
         y = self.predict_proba(x)
         if self.loss == 'logit':
@@ -209,28 +220,28 @@ class GLM(Model):
         return self._decode_labels(y)
 
     def predict_proba(self, x):
-        check_is_fitted(self, "w_")
-        check_is_fitted(self, "b_")
+        check_is_fitted(self, "w")
+        check_is_fitted(self, "b")
 
         return self.get_link(x)
 
     def _roll_params(self):
         return np.concatenate([super(GLM, self)._roll_params(),
-                               np.ravel(self.w_.copy()),
-                               np.ravel(self.b_.copy())])
+                               np.ravel(self.w.copy()),
+                               np.ravel(self.b.copy())])
 
     def _unroll_params(self, w):
         ww = super(GLM, self)._unroll_params(w)
         ww = tuple([ww]) if not isinstance(ww, tuple) else ww
         idx = np.sum([i.size for i in ww], dtype=np.int32)
-        w_ = w[idx:idx + self.w_.size].reshape(self.w_.shape).copy()
-        idx += self.w_.size
-        b_ = w[idx:idx + self.b_.size].reshape(self.b_.shape).copy()
+        w_ = w[idx:idx + self.w.size].reshape(self.w.shape).copy()
+        idx += self.w.size
+        b_ = w[idx:idx + self.b.size].reshape(self.b.shape).copy()
         return ww + (w_, b_)
 
     def disp_weights(self, disp_dim=None, tile_shape=None,
                      output_pixel_vals=False, **kwargs):
-        w = self.w_.copy()
+        w = self.w.copy()
         if w.ndim < 2:
             w = w[..., np.newaxis]
 
@@ -280,24 +291,6 @@ class GLM(Model):
 
     def get_params(self, deep=True):
         out = super(GLM, self).get_params(deep=deep)
-        out.update({
-            'link': self.link,
-            'loss': self.loss,
-            'optimizer': self.optimizer,
-            'l1_penalty': self.l1_penalty,
-            'l1_method': self.l1_method,
-            'l1_smooth': self.l1_smooth,
-            'l2_penalty': self.l2_penalty,
-        })
-        return out
-
-    def get_all_params(self, deep=True):
-        out = super(GLM, self).get_all_params(deep=deep)
-        out.update(self.get_params(deep=deep))
-        out.update({
-            'w_': copy.deepcopy(self.w_),
-            'b_': copy.deepcopy(self.b_),
-            'onehot_encoder_': copy.deepcopy(self.onehot_encoder_),
-            'optimizer_': self.optimizer_,
-        })
+        param_names = GLM._get_param_names()
+        out.update(self._get_params(param_names=param_names, deep=deep))
         return out

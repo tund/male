@@ -6,42 +6,136 @@ import os
 import pytest
 import numpy as np
 
-from sklearn import metrics
-from sklearn.base import clone
-from sklearn.datasets import load_svmlight_file
-from sklearn.model_selection import GridSearchCV
-from sklearn.model_selection import PredefinedSplit
-
+from male import Model
 from male import model_dir
 from male import random_seed
+from male.datasets import demo
+from male.optimizers import SGD
 from male.models.linear import GLM
 from male.callbacks import Display
 from male.callbacks import EarlyStopping
 from male.callbacks import ModelCheckpoint
 
 
-def test_display_callbacks():
+def test_early_stopping():
     np.random.seed(random_seed())
 
-    x_train = np.random.randn(10000, 10)
-    y_train = np.random.randint(0, 10, size=(10000))
-    x_test = np.random.randn(1000, 10)
-    y_test = np.random.randint(0, 10, size=(1000))
+    (x_train, y_train), (x_test, y_test) = demo.load_iris()
+    print("Number of training samples = {}".format(x_train.shape[0]))
+    print("Number of testing samples = {}".format(x_test.shape[0]))
 
     x = np.vstack([x_train, x_test])
     y = np.concatenate([y_train, y_test])
 
-    early_stopping = EarlyStopping(monitor='val_loss', patience=2, verbose=1)
+    early_stopping = EarlyStopping(monitor='val_err', patience=2, verbose=1)
+    optz = SGD(learning_rate=0.01)
+    clf = GLM(model_name="early_stopping_callback",
+              link='softmax',
+              loss='softmax',
+              optimizer=optz,
+              num_epochs=20,
+              batch_size=10,
+              task='classification',
+              metrics=['loss', 'err'],
+              callbacks=[early_stopping],
+              cv=[-1] * x_train.shape[0] + [0] * x_test.shape[0],
+              random_state=random_seed(),
+              verbose=1)
+
+    clf.fit(x, y)
+    train_err = 1.0 - clf.score(x_train, y_train)
+    test_err = 1.0 - clf.score(x_test, y_test)
+    print("Model has been stopped at epoch #{0:d}".format(clf.epoch))
+    print("Training error = %.4f" % train_err)
+    print("Testing error = %.4f" % test_err)
+
+    print("Continue training...")
+    clf.fit(x, y)
+    train_err = 1.0 - clf.score(x_train, y_train)
+    test_err = 1.0 - clf.score(x_test, y_test)
+    print("Model has been stopped at epoch #{0:d}".format(clf.epoch))
+    print("Training error = %.4f" % train_err)
+    print("Testing error = %.4f" % test_err)
+
+    print("Disable early stopping and continue training to the end...")
+    clf.callbacks = []
+    clf.fit(x, y)
+    train_err = 1.0 - clf.score(x_train, y_train)
+    test_err = 1.0 - clf.score(x_test, y_test)
+    print("Training error = %.4f" % train_err)
+    print("Testing error = %.4f" % test_err)
+
+
+def test_checkpoint():
+    np.random.seed(random_seed())
+
+    (x_train, y_train), (x_test, y_test) = demo.load_iris()
+    print("Number of training samples = {}".format(x_train.shape[0]))
+    print("Number of testing samples = {}".format(x_test.shape[0]))
+
+    x = np.vstack([x_train, x_test])
+    y = np.concatenate([y_train, y_test])
+
     filepath = os.path.join(model_dir(), "male/glm/checkpoint_{epoch:04d}_{val_loss:.6f}.pkl")
     checkpoint = ModelCheckpoint(filepath,
                                  mode='min',
                                  monitor='val_loss',
                                  verbose=0,
                                  save_best_only=True)
+    optz = SGD(learning_rate=0.01)
+    clf = GLM(model_name="checkpoint_callback",
+              link='softmax',
+              loss='softmax',
+              optimizer=optz,
+              num_epochs=5,
+              batch_size=10,
+              task='classification',
+              metrics=['loss', 'err'],
+              callbacks=[checkpoint],
+              cv=[-1] * x_train.shape[0] + [0] * x_test.shape[0],
+              random_state=random_seed(),
+              verbose=1)
+
+    clf.fit(x, y)
+    train_err = 1.0 - clf.score(x_train, y_train)
+    test_err = 1.0 - clf.score(x_test, y_test)
+    print("Training error = %.4f" % train_err)
+    print("Testing error = %.4f" % test_err)
+
+    model_filepath = filepath.format(epoch=5, val_loss=0.968786)
+    print("Load model at checkpoint: ", model_filepath, ", and predict:")
+    clf1 = Model.load_model(model_filepath)
+    train_err = 1.0 - clf1.score(x_train, y_train)
+    test_err = 1.0 - clf1.score(x_test, y_test)
+    print("Training error = %.4f" % train_err)
+    print("Testing error = %.4f" % test_err)
+
+
+def test_display_callbacks(block_figure_on_end=False):
+    np.random.seed(random_seed())
+
+    (x_train, y_train), (x_test, y_test) = demo.load_mnist()
+
+    x_train /= 255.0
+    idx_train = np.random.permutation(x_train.shape[0])
+    x_train = x_train[idx_train]
+    y_train = y_train[idx_train]
+    print("Number of training samples = {}".format(x_train.shape[0]))
+
+    x_test /= 255.0
+    idx_test = np.random.permutation(x_test.shape[0])
+    x_test = x_test[idx_test]
+    y_test = y_test[idx_test]
+    print("Number of testing samples = {}".format(x_test.shape[0]))
+
+    x = np.vstack([x_train, x_test])
+    y = np.concatenate([y_train, y_test])
+
     loss_display = Display(title="Learning curves",
                            dpi='auto',
                            layout=(3, 1),
                            freq=1,
+                           block_on_end=block_figure_on_end,
                            monitor=[{'metrics': ['loss', 'val_loss'],
                                      'type': 'line',
                                      'labels': ["training loss", "validation loss"],
@@ -70,37 +164,35 @@ def test_display_callbacks():
                              layout=(1, 1),
                              figsize=(6, 15),
                              freq=1,
+                             block_on_end=block_figure_on_end,
                              monitor=[{'metrics': ['weights'],
                                        'title': "Learned weights",
                                        'type': 'img',
-                                       'disp_dim': (5, 2),
                                        'tile_shape': (5, 2),
                                        },
                                       ])
 
-    clf = GLM(model_name="checkpoint_glm_softmax",
+    optz = SGD(learning_rate=0.001)
+    clf = GLM(model_name="display_callbacks",
               link='softmax',
               loss='softmax',
-              optimizer='sgd',
-              num_epochs=100,
+              optimizer=optz,
+              num_epochs=20,
               batch_size=100,
-              learning_rate=0.001,
               task='classification',
               metrics=['loss', 'err'],
-              callbacks=[early_stopping, checkpoint, loss_display, weight_display],
+              callbacks=[loss_display, weight_display],
               cv=[-1] * x_train.shape[0] + [0] * x_test.shape[0],
-              random_state=6789,
+              random_state=random_seed(),
               verbose=1)
 
     clf.fit(x, y)
-
-    y_train_pred = clf.predict(x_train)
-    y_test_pred = clf.predict(x_test)
-
-    print("Training error = %.4f" % (1 - metrics.accuracy_score(y_train, y_train_pred)))
-    print("Testing error = %.4f" % (1 - metrics.accuracy_score(y_test, y_test_pred)))
+    print("Training error = %.4f" % (1.0 - clf.score(x_train, y_train)))
+    print("Testing error = %.4f" % (1.0 - clf.score(x_test, y_test)))
 
 
 if __name__ == '__main__':
     pytest.main([__file__])
-    # test_display_callbacks()
+    # test_early_stopping()
+    # test_checkpoint()
+    # test_display_callbacks(block_figure_on_end=True)

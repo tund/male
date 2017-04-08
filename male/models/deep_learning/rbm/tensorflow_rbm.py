@@ -2,9 +2,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
-import time
 import abc
-import copy
 
 import numpy as np
 import tensorflow as tf
@@ -57,10 +55,9 @@ class TensorFlowRBM(TensorFlowModel):
                  sparse_weight=0.0,
                  sparse_level=0.1,
                  sparse_decay=0.9,
-                 *args, **kwargs):
+                 **kwargs):
 
-        kwargs["model_name"] = model_name
-        super(TensorFlowRBM, self).__init__(**kwargs)
+        super(TensorFlowRBM, self).__init__(model_name=model_name, **kwargs)
 
         self.num_hidden = num_hidden
         self.num_visible = num_visible
@@ -107,42 +104,42 @@ class TensorFlowRBM(TensorFlowModel):
         except KeyError:
             raise ValueError("Momentum method %s is not supported." % self.momentum_method)
 
-        self.learning_rate0_ = self.learning_rate
-        with self.tf_graph_.as_default():
-            self.learning_rate_ = tf.get_variable(
+        self.learning_rate0 = self.learning_rate
+        with self.tf_graph.as_default():
+            self.tf_learning_rate = tf.get_variable(
                 "learning_rate", shape=[1],
                 initializer=tf.constant_initializer(self.learning_rate))
-            self.momentum_ = tf.get_variable(
+            self.momentum = tf.get_variable(
                 "momentum", shape=[1],
                 initializer=tf.constant_initializer(self.initial_momentum))
 
     def _init_params(self, x):
         # initialize parameters
         k, n = self.num_hidden, self.num_visible
-        self.h_ = tf.get_variable("hidden_bias", shape=[1, k],
-                                  initializer=tf.random_normal_initializer(stddev=self.h_init))
-        self.v_ = tf.get_variable("visible_bias", shape=[1, n],
-                                  initializer=tf.random_normal_initializer(stddev=self.v_init))
-        self.w_ = tf.get_variable("weight", shape=[n, k],
-                                  initializer=tf.random_normal_initializer(stddev=self.w_init))
-        self.hgrad_inc_ = tf.get_variable("hidden_grad_inc", shape=[1, k],
-                                          initializer=tf.constant_initializer(0.0))
-        self.vgrad_inc_ = tf.get_variable("visible_grad_inc", shape=[1, n],
-                                          initializer=tf.constant_initializer(0.0))
-        self.wgrad_inc_ = tf.get_variable("weight_grad_inc", shape=[n, k],
-                                          initializer=tf.constant_initializer(0.0))
+        self.h = tf.get_variable("hidden_bias", shape=[1, k],
+                                 initializer=tf.random_normal_initializer(stddev=self.h_init))
+        self.v = tf.get_variable("visible_bias", shape=[1, n],
+                                 initializer=tf.random_normal_initializer(stddev=self.v_init))
+        self.w = tf.get_variable("weight", shape=[n, k],
+                                 initializer=tf.random_normal_initializer(stddev=self.w_init))
+        self.hgrad_inc = tf.get_variable("hidden_grad_inc", shape=[1, k],
+                                         initializer=tf.constant_initializer(0.0))
+        self.vgrad_inc = tf.get_variable("visible_grad_inc", shape=[1, n],
+                                         initializer=tf.constant_initializer(0.0))
+        self.wgrad_inc = tf.get_variable("weight_grad_inc", shape=[n, k],
+                                         initializer=tf.constant_initializer(0.0))
 
     def _build_model(self, x):
-        self.x_ = tf.placeholder(tf.float32, shape=[None, self.num_visible], name="data")
+        self.x = tf.placeholder(tf.float32, shape=[None, self.num_visible], name="data")
 
-        self.hidden_prob_ = self._get_hidden_prob(self.x_)
-        self.reconstruction_ = self._create_reconstruction(self.x_)
-        self.reconstruction_error_ = self._create_reconstruction_error(self.x_,
-                                                                       rdata=self.reconstruction_)
-        self.free_energy_ = self._create_free_energy(self.x_)
+        self.hidden_prob = self._get_hidden_prob(self.x)
+        self.reconstruction = self._create_reconstruction(self.x)
+        self.reconstruction_error = self._create_reconstruction_error(self.x,
+                                                                      rdata=self.reconstruction)
+        self.free_energy = self._create_free_energy(self.x)
 
-        self.reconstruction_loglik_ = self._create_reconstruction_loglik(self.x_,
-                                                                         rdata=self.reconstruction_)
+        self.reconstruction_loglik = self._create_reconstruction_loglik(self.x,
+                                                                        rdata=self.reconstruction)
 
         pos_hgrad, pos_vgrad, pos_wgrad = self._initialize_grad()
 
@@ -151,15 +148,15 @@ class TensorFlowRBM(TensorFlowModel):
                                      initializer=tf.constant_initializer(0.0))
 
         # ======= clamp phase ========
-        hprob = self._get_hidden_prob(self.x_)
+        hprob = self._get_hidden_prob(self.x)
 
         # sparsity
         if self.sparse_weight > 0:
-            hg, wg, prev_hprob = self._hidden_sparsity(self.x_, prev_hprob, hprob)
+            hg, wg, prev_hprob = self._hidden_sparsity(self.x, prev_hprob, hprob)
             pos_hgrad += hg
             pos_wgrad += wg
 
-        hg, vg, wg = self._get_positive_grad(self.x_, hprob)
+        hg, vg, wg = self._get_positive_grad(self.x, hprob)
         pos_hgrad += hg
         pos_vgrad += vg
         pos_wgrad += wg
@@ -175,20 +172,18 @@ class TensorFlowRBM(TensorFlowModel):
         # ======== negative phase =========
         neg_hgrad, neg_vgrad, neg_wgrad = self._get_negative_grad(vprob, hprob)
 
-        self.hgrad_inc_ = self.momentum_ * self.hgrad_inc_ + self.learning_rate_ * (
+        self.hgrad_inc = self.momentum * self.hgrad_inc + self.tf_learning_rate * (
             pos_hgrad - neg_hgrad)
-        self.vgrad_inc_ = self.momentum_ * self.vgrad_inc_ + self.learning_rate_ * (
+        self.vgrad_inc = self.momentum * self.vgrad_inc + self.tf_learning_rate * (
             pos_vgrad - neg_vgrad)
-        self.wgrad_inc_ = self.momentum_ * self.wgrad_inc_ \
-                          + self.learning_rate_ * (
-            pos_wgrad - neg_wgrad - self.weight_cost * self.w_)
+        self.wgrad_inc = self.momentum * self.wgrad_inc \
+                         + self.tf_learning_rate * (
+            pos_wgrad - neg_wgrad - self.weight_cost * self.w)
 
         # update params
-        self.h_update_ = self.h_.assign_add(self.hgrad_inc_)
-        self.v_update_ = self.v_.assign_add(self.vgrad_inc_)
-        self.w_update_ = self.w_.assign_add(self.wgrad_inc_)
-
-        self.tf_session_.run(tf.global_variables_initializer())
+        self.h_update = self.h.assign_add(self.hgrad_inc)
+        self.v_update = self.v.assign_add(self.vgrad_inc)
+        self.w_update = self.w.assign_add(self.wgrad_inc)
 
     @abc.abstractmethod
     def transform(self, x):
@@ -204,7 +199,7 @@ class TensorFlowRBM(TensorFlowModel):
         h : array, shape (num_samples, num_hidden)
             Latent representations of the data.
         """
-        check_is_fitted(self, "w_")
+        check_is_fitted(self, "w")
         return None
 
     def _fit_loop(self, x, y,
@@ -225,9 +220,9 @@ class TensorFlowRBM(TensorFlowModel):
         """
 
         batches = make_batches(x.shape[0], self.batch_size)
-        while (self.epoch_ < self.num_epochs) and (not self.stop_training_):
+        while (self.epoch < self.num_epochs) and (not self.stop_training):
             epoch_logs = {}
-            callbacks.on_epoch_begin(self.epoch_)
+            callbacks.on_epoch_begin(self.epoch)
 
             for batch_idx, (batch_start, batch_end) in enumerate(batches):
                 batch_logs = {'batch': batch_idx,
@@ -236,9 +231,9 @@ class TensorFlowRBM(TensorFlowModel):
 
                 x_batch = x[batch_start:batch_end]
 
-                self.tf_session_.run(
-                    [self.w_update_, self.h_update_, self.v_update_],
-                    feed_dict={self.x_: x_batch})
+                self.tf_session.run(
+                    [self.w_update, self.h_update, self.v_update],
+                    feed_dict={self.x: x_batch})
 
                 batch_logs.update(self._on_batch_end(x_batch))
                 callbacks.on_batch_end(batch_idx, batch_logs)
@@ -248,7 +243,7 @@ class TensorFlowRBM(TensorFlowModel):
                 for key, value in outs.items():
                     epoch_logs['val_' + key] = value
 
-            callbacks.on_epoch_end(self.epoch_, epoch_logs)
+            callbacks.on_epoch_end(self.epoch, epoch_logs)
             self._on_epoch_end()
 
     def _gibbs_sampling(self, hprob, sampling=CD_SAMPLING['hidden_visible']):
@@ -324,8 +319,8 @@ class TensorFlowRBM(TensorFlowModel):
 
     def get_free_energy(self, x, **kwargs):
         sess = self._get_session(**kwargs)
-        fe = sess.run(self.free_energy_, feed_dict={self.x_: x})
-        if sess != self.tf_session_:
+        fe = sess.run(self.free_energy, feed_dict={self.x: x})
+        if sess != self.tf_session:
             sess.close()
         return fe
 
@@ -368,8 +363,8 @@ class TensorFlowRBM(TensorFlowModel):
 
     def get_reconstruction_error(self, x, **kwargs):
         sess = self._get_session(**kwargs)
-        err = sess.run(self.reconstruction_error_, feed_dict={self.x_: x})
-        if sess != self.tf_session_:
+        err = sess.run(self.reconstruction_error, feed_dict={self.x: x})
+        if sess != self.tf_session:
             sess.close()
         return err
 
@@ -378,8 +373,8 @@ class TensorFlowRBM(TensorFlowModel):
 
     def get_reconstruction_loglik(self, x, **kwargs):
         sess = self._get_session(**kwargs)
-        err = sess.run(self.reconstruction_loglik_, feed_dict={self.x_: x})
-        if sess != self.tf_session_:
+        err = sess.run(self.reconstruction_loglik, feed_dict={self.x: x})
+        if sess != self.tf_session:
             sess.close()
         return err
 
@@ -388,8 +383,8 @@ class TensorFlowRBM(TensorFlowModel):
 
     def get_reconstruction(self, x, **kwargs):
         sess = self._get_session(**kwargs)
-        x_recon = sess.run(self.reconstruction_, feed_dict={self.x_: x})
-        if sess != self.tf_session_:
+        x_recon = sess.run(self.reconstruction, feed_dict={self.x: x})
+        if sess != self.tf_session:
             sess.close()
         return x_recon
 
@@ -416,17 +411,18 @@ class TensorFlowRBM(TensorFlowModel):
 
         # adjust learning rate
         if self.learning_rate_decay == DECAY_METHOD['linear']:
-            self.learning_rate = (self.learning_rate0_
-                                  - self.learning_rate_decay_rate * self.learning_rate0_ / self.num_epochs)
+            self.learning_rate = (self.learning_rate0
+                                  - self.learning_rate_decay_rate * self.learning_rate0
+                                  / self.num_epochs)
         elif self.learning_rate_decay == DECAY_METHOD['div_sqrt']:
-            self.learning_rate = self.learning_rate0_ / np.sqrt(self.epoch_)
+            self.learning_rate = self.learning_rate0 / np.sqrt(self.epoch)
         elif self.learning_rate_decay == DECAY_METHOD['exp']:
             self.learning_rate *= self.learning_rate_decay_rate
 
         # adjust momentum
         if self.momentum_method == MOMENTUM_METHOD['sudden']:
-            if self.epoch_ >= self.momentum_iteration:
-                self.momentum_ = self.final_momentum
+            if self.epoch >= self.momentum_iteration:
+                self.momentum = self.final_momentum
 
     def disp_filters(self, num_filters=100, filter_idx=None, disp_dim=None,
                      tile_shape=(10, 10), output_pixel_vals=False, **kwargs):
@@ -443,8 +439,8 @@ class TensorFlowRBM(TensorFlowModel):
             filter_idx = np.random.permutation(self.num_hidden)[:num_filters]
 
         sess = self._get_session(**kwargs)
-        w = sess.run(self.w_).T[filter_idx, :n]
-        if sess != self.tf_session_:
+        w = sess.run(self.w).T[filter_idx, :n]
+        if sess != self.tf_session:
             sess.close()
 
         img = tile_raster_images(w, img_shape=disp_dim, tile_shape=tile_shape, tile_spacing=(1, 1),
@@ -481,35 +477,6 @@ class TensorFlowRBM(TensorFlowModel):
 
     def get_params(self, deep=True):
         out = super(TensorFlowRBM, self).get_params(deep=deep)
-        out.update({'num_hidden': self.num_hidden,
-                    'num_visible': self.num_visible,
-                    'learning_method': self.learning_method,
-                    'num_cd': self.num_cd,
-                    'sampling_in_last_cd': self.sampling_in_last_cd,
-                    'num_pcd': self.num_pcd,
-                    'learning_rate': self.learning_rate,
-                    'learning_rate_decay': self.learning_rate_decay,
-                    'learning_rate_decay_rate': self.learning_rate_decay_rate,
-                    'h_init': self.h_init, 'v_init': self.v_init, 'w_init': self.w_init,
-                    'momentum_method': self.momentum_method,
-                    'initial_momentum': self.initial_momentum,
-                    'final_momentum': self.final_momentum,
-                    'momentum_iteration': self.momentum_iteration,
-                    'weight_cost': self.weight_cost,
-                    'sparse_weight': self.sparse_weight,
-                    'sparse_level': self.sparse_level,
-                    'sparse_decay': self.sparse_decay})
-        return out
-
-    def get_all_params(self, deep=True):
-        out = super(TensorFlowRBM, self).get_all_params(deep=deep)
-        out.update(self.get_params(deep=deep))
-        out.update({'learning_rate0_': self.learning_rate0_,
-                    'momentum_': self.momentum_,
-                    'h_': copy.deepcopy(self.h_),
-                    'v_': copy.deepcopy(self.v_),
-                    'w_': copy.deepcopy(self.w_),
-                    'hgrad_inc_': copy.deepcopy(self.hgrad_inc_),
-                    'vgrad_inc_': copy.deepcopy(self.vgrad_inc_),
-                    'wgrad_inc_': copy.deepcopy(self.wgrad_inc_)})
+        param_names = TensorFlowRBM._get_param_names()
+        out.update(self._get_params(param_names=param_names, deep=deep))
         return out

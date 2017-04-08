@@ -2,7 +2,6 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
-import copy
 import numpy as np
 
 from ... import Model
@@ -22,9 +21,8 @@ class KSGD(Model):
                  loss='hinge',
                  batch_size=100,
                  avg_weight=False,
-                 *args, **kwargs):
-        kwargs['model_name'] = model_name
-        super(KSGD, self).__init__(**kwargs)
+                 **kwargs):
+        super(KSGD, self).__init__(model_name=model_name, **kwargs)
         self.loss = loss
         self.eps = eps
         self.kernel = kernel
@@ -35,32 +33,33 @@ class KSGD(Model):
 
     def _init(self):
         super(KSGD, self)._init()
-        self.w_ = None
-        self.x_ = None
+        self.w = None
+        self.sv = None  # support vectors
         if self.loss == 'hinge' or self.loss == 'logit':
             self.task = 'classification'
         else:
             self.task = 'regression'
 
     def _init_params(self, x):
-        if self.num_classes_ > 2:
-            self.w_ = 0.01 * self.random_state_.randn(x.shape[0], self.num_classes_)
+        if self.num_classes > 2:
+            self.w = 0.01 * self.random_engine.randn(x.shape[0], self.num_classes)
         else:
-            self.w_ = 0.01 * self.random_state_.randn(x.shape[0])
+            self.w = 0.01 * self.random_engine.randn(x.shape[0])
 
     def _get_wx(self, t, x):
         if t == 0:
             return [0]
         else:
             if self.kernel == 'gaussian':
-                xx = (self.x_[:t, :] - x)
-                if self.num_classes_ > 2:
+                xx = (self.sv[:t, :] - x)
+                if self.num_classes > 2:
                     return np.sum(
-                        self.w_[:t] * np.exp(-self.gamma * np.sum(xx * xx, axis=1, keepdims=True)),
+                        self.w[:t] * np.exp(-self.gamma * np.sum(xx * xx, axis=1, keepdims=True)),
                         axis=0)
                 else:
                     return np.sum(
-                        self.w_[:t, np.newaxis] * np.exp(-self.gamma * np.sum(xx * xx, axis=1, keepdims=True)),
+                        self.w[:t, np.newaxis] * np.exp(
+                            -self.gamma * np.sum(xx * xx, axis=1, keepdims=True)),
                         axis=0)
             else:
                 return [0]
@@ -70,11 +69,11 @@ class KSGD(Model):
             return (0, -1)
         else:
             if self.kernel == 'gaussian':
-                xx = (self.x_[:t, :] - x)
+                xx = (self.sv[:t, :] - x)
                 k = np.sum(
-                    self.w_[:t, :] * np.exp(-self.gamma * np.sum(xx * xx, axis=1, keepdims=True)),
+                    self.w[:t, :] * np.exp(-self.gamma * np.sum(xx * xx, axis=1, keepdims=True)),
                     axis=0)
-                idx = np.ones(self.num_classes_, np.bool)
+                idx = np.ones(self.num_classes, np.bool)
                 idx[y] = False
                 z = np.argmax(k[idx])
                 z += (z >= y)
@@ -83,7 +82,7 @@ class KSGD(Model):
                 return (0, -1)
 
     def get_grad(self, t, x, y):
-        if self.num_classes_ > 2:
+        if self.num_classes > 2:
             wxy, z = self._get_wxy(t, x, y)
             if self.loss == 'hinge':
                 return (-1, z) if wxy <= 1 else (0, z)
@@ -114,55 +113,56 @@ class KSGD(Model):
         if self.avg_weight:
             w_avg = np.zeros(self.w_.shape)
 
+        self.sv = x
         self.x_ = x
         self.y_ = y
         for t in range(n):
-            callbacks.on_epoch_begin(self.epoch_)
+            callbacks.on_epoch_begin(self.epoch)
 
             alpha_t, z = self.get_grad(t, x[t], y[t])  # compute \alpha_t
-            self.w_ *= (1.0 * t) / (t + 1)
-            if self.num_classes_ > 2:
-                self.w_[t, y[t]] = -alpha_t / (self.lbd * (t + 1))
+            self.w *= (1.0 * t) / (t + 1)
+            if self.num_classes > 2:
+                self.w[t, y[t]] = -alpha_t / (self.lbd * (t + 1))
                 if z >= 0:
-                    self.w_[t, z] = alpha_t / (self.lbd * (t + 1))
+                    self.w[t, z] = alpha_t / (self.lbd * (t + 1))
             else:
-                self.w_[t] = -alpha_t / (self.lbd * (t + 1))
+                self.w[t] = -alpha_t / (self.lbd * (t + 1))
 
             if self.avg_weight:
-                w_avg += self.w_
+                w_avg += self.w
 
-            self.epoch_ += 1
-            callbacks.on_epoch_end(self.epoch_)
+            self.epoch += 1
+            callbacks.on_epoch_end(self.epoch)
 
         if self.avg_weight:
-            self.w_ = w_avg / n
+            self.w = w_avg / n
 
     def _encode_labels(self, y):
         yy = y.copy()
         yy = super(KSGD, self)._encode_labels(yy)
-        if self.num_classes_ == 2:
+        if self.num_classes == 2:
             yy[yy == 0] = -1
         return yy
 
     def _decode_labels(self, y):
         yy = y.copy()
-        if self.num_classes_ == 2:
+        if self.num_classes == 2:
             yy[yy == -1] = 0
         return super(KSGD, self)._decode_labels(yy)
 
     def _transform_labels(self, y):
         yy = y.copy()
         yy = super(KSGD, self)._transform_labels(yy)
-        if self.num_classes_ == 2:
+        if self.num_classes == 2:
             yy[yy == 0] = -1
         return yy
 
     def predict(self, x):
         y = np.zeros(x.shape[0])
         for i in range(x.shape[0]):
-            wx = self._get_wx(len(self.w_), x[i])
+            wx = self._get_wx(len(self.w), x[i])
             if self.task == 'classification':
-                if self.num_classes_ == 2:
+                if self.num_classes == 2:
                     y[i] = self._decode_labels(np.uint8(wx >= 0))
                 else:
                     y[i] = self._decode_labels(np.argmax(wx))
@@ -181,21 +181,6 @@ class KSGD(Model):
 
     def get_params(self, deep=True):
         out = super(KSGD, self).get_params(deep=deep)
-        out.update({
-            'loss': self.loss,
-            'eps': self.eps,
-            'kernel': self.kernel,
-            'gamma': self.gamma,
-            'lbd': self.lbd,
-            'batch_size': self.batch_size,
-            'avg_weight': self.avg_weight
-        })
-        return out
-
-    def get_all_params(self, deep=True):
-        out = super(KSGD, self).get_all_params(deep=deep)
-        out.update({
-            'w_': copy.deepcopy(self.w_),
-            'x_': copy.deepcopy(self.x_),
-        })
+        param_names = KSGD._get_param_names()
+        out.update(self._get_params(param_names=param_names, deep=deep))
         return out

@@ -2,9 +2,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
-import time
 import abc
-import copy
 
 import numpy as np
 
@@ -13,7 +11,6 @@ from sklearn.utils.validation import check_is_fitted
 from ....model import Model
 from ....utils.generic_utils import make_batches
 from ....utils.disp_utils import tile_raster_images
-from ....utils.func_utils import logsumone
 
 import matplotlib.pyplot as plt
 
@@ -57,10 +54,9 @@ class RBM(Model):
                  sparse_weight=0.0,
                  sparse_level=0.1,
                  sparse_decay=0.9,
-                 *args, **kwargs):
+                 **kwargs):
 
-        kwargs["model_name"] = model_name
-        super(RBM, self).__init__(**kwargs)
+        super(RBM, self).__init__(model_name=model_name, **kwargs)
 
         self.num_hidden = num_hidden
         self.num_visible = num_visible
@@ -108,18 +104,18 @@ class RBM(Model):
         except KeyError:
             raise ValueError("Momentum method %s is not supported." % self.momentum_method)
 
-        self.learning_rate0_ = self.learning_rate
-        self.momentum_ = self.initial_momentum
+        self.learning_rate0 = self.learning_rate
+        self.momentum = self.initial_momentum
 
     def _init_params(self, x):
         # initialize parameters
         k, n = self.num_hidden, self.num_visible
-        self.h_ = self.h_init * np.random.randn(1, k)
-        self.v_ = self.v_init * np.random.randn(1, n)
-        self.w_ = self.w_init * np.random.randn(n, k)
-        self.hgrad_inc_ = np.zeros([1, k])
-        self.vgrad_inc_ = np.zeros([1, n])
-        self.wgrad_inc_ = np.zeros([n, k])
+        self.h = self.h_init * np.random.randn(1, k)
+        self.v = self.v_init * np.random.randn(1, n)
+        self.w = self.w_init * np.random.randn(n, k)
+        self.hgrad_inc = np.zeros([1, k])
+        self.vgrad_inc = np.zeros([1, n])
+        self.wgrad_inc = np.zeros([n, k])
 
     @abc.abstractmethod
     def transform(self, x):
@@ -135,7 +131,7 @@ class RBM(Model):
         h : array, shape (num_samples, num_hidden)
             Latent representations of the data.
         """
-        check_is_fitted(self, "w_")
+        check_is_fitted(self, "w")
         return None
 
     def _fit_loop(self, x, y,
@@ -154,14 +150,13 @@ class RBM(Model):
         self : RBM
             The fitted model.
         """
-        num_data = x.shape[0]
         k, n = self.num_hidden, self.num_visible
         prev_hprob = np.zeros([1, k])
 
         batches = make_batches(x.shape[0], self.batch_size)
-        while (self.epoch_ < self.num_epochs) and (not self.stop_training_):
+        while (self.epoch < self.num_epochs) and (not self.stop_training):
             epoch_logs = {}
-            callbacks.on_epoch_begin(self.epoch_)
+            callbacks.on_epoch_begin(self.epoch)
 
             for batch_idx, (batch_start, batch_end) in enumerate(batches):
                 batch_logs = {'batch': batch_idx,
@@ -206,19 +201,19 @@ class RBM(Model):
                 neg_hgrad, neg_vgrad, neg_wgrad = self._get_negative_grad(vprob, hprob)
 
                 # update params
-                self.hgrad_inc_ = self.momentum_ * self.hgrad_inc_ \
-                                  + self.learning_rate * (pos_hgrad - neg_hgrad)
-                self.vgrad_inc_ = self.momentum_ * self.vgrad_inc_ \
-                                  + self.learning_rate * (pos_vgrad - neg_vgrad)
-                self.wgrad_inc_ = self.momentum_ * self.wgrad_inc_ \
-                                  + self.learning_rate * (pos_wgrad - neg_wgrad
-                                                          - self.weight_cost * self.w_)
+                self.hgrad_inc = self.momentum * self.hgrad_inc \
+                                 + self.learning_rate * (pos_hgrad - neg_hgrad)
+                self.vgrad_inc = self.momentum * self.vgrad_inc \
+                                 + self.learning_rate * (pos_vgrad - neg_vgrad)
+                self.wgrad_inc = self.momentum * self.wgrad_inc \
+                                 + self.learning_rate * (pos_wgrad - neg_wgrad
+                                                         - self.weight_cost * self.w)
 
-                self.h_ += self.hgrad_inc_
-                self.v_ += self.vgrad_inc_
-                self.w_ += self.wgrad_inc_
+                self.h += self.hgrad_inc
+                self.v += self.vgrad_inc
+                self.w += self.wgrad_inc
 
-                batch_logs.update(self._on_batch_end(x_batch, rdata=vprob))
+                batch_logs.update(self._on_batch_end(x_batch))
                 callbacks.on_batch_end(batch_idx, batch_logs)
 
             if do_validation:
@@ -226,7 +221,7 @@ class RBM(Model):
                 for key, value in outs.items():
                     epoch_logs['val_' + key] = value
 
-            callbacks.on_epoch_end(self.epoch_, epoch_logs)
+            callbacks.on_epoch_end(self.epoch, epoch_logs)
             self._on_epoch_end()
 
     def _gibbs_sampling(self, hprob, sampling=CD_SAMPLING['hidden_visible']):
@@ -300,6 +295,8 @@ class RBM(Model):
         pass
 
     def get_csl(self, x, num_hidden_samples=1000, num_steps=100):
+        """Conservative Sampling-based Likelihood
+        """
         hprob = 0.5 * np.ones([num_hidden_samples, self.num_hidden])
         hsample = self._sample_hidden(hprob)
         for i in range(num_steps):
@@ -327,7 +324,6 @@ class RBM(Model):
             # hprob = np.random.rand(num_samples, self.num_hidden)
             hprob = 0.5 * np.ones((num_samples, self.num_hidden))
             for i in range(num_gibbs_steps + 1):
-                print(i)
                 hsample, vprob, vsample, hprob = self._gibbs_sampling(hprob)
             return vsample
         else:
@@ -364,18 +360,18 @@ class RBM(Model):
 
         # adjust learning rate
         if self.learning_rate_decay == DECAY_METHOD['linear']:
-            self.learning_rate = (self.learning_rate0_
-                                  - self.learning_rate_decay_rate * self.learning_rate0_
+            self.learning_rate = (self.learning_rate0
+                                  - self.learning_rate_decay_rate * self.learning_rate0
                                   / self.num_epochs)
         elif self.learning_rate_decay == DECAY_METHOD['div_sqrt']:
-            self.learning_rate = self.learning_rate0_ / np.sqrt(self.epoch_)
+            self.learning_rate = self.learning_rate0 / np.sqrt(self.epoch)
         elif self.learning_rate_decay == DECAY_METHOD['exp']:
             self.learning_rate *= self.learning_rate_decay_rate
 
         # adjust momentum
         if self.momentum_method == MOMENTUM_METHOD['sudden']:
-            if self.epoch_ >= self.momentum_iteration:
-                self.momentum_ = self.final_momentum
+            if self.epoch >= self.momentum_iteration:
+                self.momentum = self.final_momentum
 
     def disp_filters(self, num_filters=100, filter_idx=None, disp_dim=None,
                      tile_shape=(10, 10), output_pixel_vals=False, **kwargs):
@@ -390,7 +386,7 @@ class RBM(Model):
 
         if filter_idx is None:
             filter_idx = np.random.permutation(self.num_hidden)[:num_filters]
-        w = self.w_.T[filter_idx, :n]
+        w = self.w.T[filter_idx, :n]
         img = tile_raster_images(w, img_shape=disp_dim,
                                  tile_shape=tile_shape, tile_spacing=(1, 1),
                                  scale_rows_to_unit_interval=False,
@@ -453,34 +449,6 @@ class RBM(Model):
 
     def get_params(self, deep=True):
         out = super(RBM, self).get_params(deep=deep)
-        out.update({'num_hidden': self.num_hidden,
-                    'num_visible': self.num_visible,
-                    'learning_method': self.learning_method,
-                    'num_cd': self.num_cd,
-                    'sampling_in_last_cd': self.sampling_in_last_cd,
-                    'num_pcd': self.num_pcd,
-                    'learning_rate': self.learning_rate,
-                    'learning_rate_decay': self.learning_rate_decay,
-                    'learning_rate_decay_rate': self.learning_rate_decay_rate,
-                    'h_init': self.h_init, 'v_init': self.v_init, 'w_init': self.w_init,
-                    'momentum_method': self.momentum_method,
-                    'initial_momentum': self.initial_momentum,
-                    'final_momentum': self.final_momentum,
-                    'momentum_iteration': self.momentum_iteration,
-                    'weight_cost': self.weight_cost,
-                    'sparse_weight': self.sparse_weight,
-                    'sparse_level': self.sparse_level,
-                    'sparse_decay': self.sparse_decay})
-        return out
-
-    def get_all_params(self, deep=True):
-        out = self.get_params(deep=deep)
-        out.update({'learning_rate0_': self.learning_rate0_,
-                    'momentum_': self.momentum_,
-                    'h_': copy.deepcopy(self.h_),
-                    'v_': copy.deepcopy(self.v_),
-                    'w_': copy.deepcopy(self.w_),
-                    'hgrad_inc_': copy.deepcopy(self.hgrad_inc_),
-                    'vgrad_inc_': copy.deepcopy(self.vgrad_inc_),
-                    'wgrad_inc_': copy.deepcopy(self.wgrad_inc_)})
+        param_names = RBM._get_param_names()
+        out.update(self._get_params(param_names=param_names, deep=deep))
         return out

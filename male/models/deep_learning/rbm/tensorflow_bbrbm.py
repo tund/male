@@ -14,27 +14,26 @@ EPSILON = np.finfo(np.float32).eps
 
 class BernoulliBernoulliTensorFlowRBM(TensorFlowRBM):
     def __init__(self, model_name="TensorFlow_BBRBM", **kwargs):
-        kwargs["model_name"] = model_name
-        super(BernoulliBernoulliTensorFlowRBM, self).__init__(**kwargs)
+        super(BernoulliBernoulliTensorFlowRBM, self).__init__(model_name=model_name, **kwargs)
 
     def _init(self):
         super(BernoulliBernoulliTensorFlowRBM, self)._init()
 
     def _get_hidden_prob(self, vsample, **kwargs):
-        return tf.nn.sigmoid(tf.matmul(vsample, self.w_) + self.h_)
+        return tf.nn.sigmoid(tf.matmul(vsample, self.w) + self.h)
 
     def _sample_hidden(self, hprob):
         return tf.to_float(tf.less(tf.random_uniform(hprob.get_shape()), hprob))
 
     def _get_visible_prob(self, hsample):
-        return tf.nn.sigmoid(tf.matmul(hsample, tf.transpose(self.w_)) + self.v_)
+        return tf.nn.sigmoid(tf.matmul(hsample, tf.transpose(self.w)) + self.v)
 
     def _sample_visible(self, vprob):
         return tf.to_float(tf.less(tf.random_uniform(vprob.get_shape()), vprob))
 
     def _create_free_energy(self, x):
-        wx = tf.matmul(x, self.w_) + self.h_
-        return - tf.matmul(x, tf.transpose(self.v_)) \
+        wx = tf.matmul(x, self.w) + self.h
+        return - tf.matmul(x, tf.transpose(self.v)) \
                - tf.reduce_sum(tf_logsumone(wx), axis=1, keep_dims=True)
         # return - x.dot(self.v_.T) - logsumone(wx).sum(axis=1, keepdims=True)
         # return - x.dot(self.v_.T) - np.logaddexp(np.zeros(wx.shape), wx).sum(axis=1, keepdims=True)
@@ -58,23 +57,29 @@ class BernoulliBernoulliTensorFlowRBM(TensorFlowRBM):
                 hsample = np.zeros((2 ** self.num_hidden, self.num_hidden))
                 for i in range(2 ** self.num_hidden):
                     hsample[i] = [int(j) for j in list("{0:b}".format(i).zfill(self.num_hidden))]
-                log_hprob = (hsample.dot(self.h_.T)
-                             + logsumone(self.v_ + hsample.dot(self.w_.T)).sum(axis=1,
-                                                                               keepdims=True))
+                log_hprob = (hsample.dot(self.h.T)
+                             + logsumone(self.v + hsample.dot(self.w.T)).sum(axis=1,
+                                                                             keepdims=True))
                 return logsumexp(log_hprob)
             else:
                 vsample = np.zeros((2 ** self.num_visible, self.num_visible))
                 for i in range(2 ** self.num_visible):
                     vsample[i] = [int(j) for j in list("{0:b}".format(i).zfill(self.num_visible))]
-                log_vprob = (vsample.dot(self.v_.T)
-                             + logsumone(self.h_ + vsample.dot(self.w_)).sum(axis=1, keepdims=True))
+                log_vprob = (vsample.dot(self.v.T)
+                             + logsumone(self.h + vsample.dot(self.w)).sum(axis=1, keepdims=True))
                 return logsumexp(log_vprob)
         else:
             raise NotImplementedError
 
     def transform(self, x, **kwargs):
         sess = self._get_session(**kwargs)
-        hprob = sess.run(self.hidden_prob_, feed_dict={self.x_: x})
-        if sess != self.tf_session_:
+        hprob = sess.run(self.hidden_prob, feed_dict={self.x: x})
+        if sess != self.tf_session:
             sess.close()
         return hprob
+
+    def get_params(self, deep=True):
+        out = super(BernoulliBernoulliTensorFlowRBM, self).get_params(deep=deep)
+        param_names = BernoulliBernoulliTensorFlowRBM._get_param_names()
+        out.update(self._get_params(param_names=param_names, deep=deep))
+        return out

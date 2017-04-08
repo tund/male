@@ -144,12 +144,14 @@ def validate_file(fpath, md5_hash):
 
 
 def scp_file(filepath):
-    from paramiko import SSHClient, AutoAddPolicy
-    from scp import SCPClient
-    '''Installation:
-    $ conda install paramiko
-    $ pip install scp
-    '''
+    try:
+        from paramiko import SSHClient, AutoAddPolicy
+        from scp import SCPClient
+    except ImportError:
+        print("Import Error! Please install paramiko and scp packages if not available:\n"
+              "$ conda install paramiko\n"
+              "$ pip install scp\n")
+        sys.exit(1)  # another way: `raise SystemExit`
 
     print("Transfering files...")
     ssh = SSHClient()

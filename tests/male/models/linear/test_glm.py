@@ -6,7 +6,6 @@ import os
 import pytest
 import numpy as np
 
-from sklearn import metrics
 from sklearn.base import clone
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import PredefinedSplit
@@ -22,6 +21,7 @@ from male.callbacks import ModelCheckpoint
 
 
 def test_glm_check_grad():
+    print("========== Check gradients ==========")
     # <editor-fold desc="Binary classification">
     eps = 1e-6
     num_data = 10
@@ -30,7 +30,7 @@ def test_glm_check_grad():
     x = np.random.rand(num_data, num_features)
     y = np.random.randint(0, num_classes, num_data)
 
-    model = GLM(model_name="checkgrad_glm_logit",
+    model = GLM(model_name="checkgrad_GLM_logit",
                 task='classification',
                 link='logit',  # link function
                 loss='logit',  # loss function
@@ -38,10 +38,10 @@ def test_glm_check_grad():
                 l1_penalty=0.0,  # Lasso regularization
                 l1_smooth=1E-5,  # smoothing for Lasso regularization
                 l1_method='pseudo_huber',  # approximation method for L1-norm
-                random_state=6789)
+                random_state=random_seed())
     assert model.check_grad(x, y) < eps
 
-    model = GLM(model_name="checkgrad_glm_logit",
+    model = GLM(model_name="checkgrad_GLM_logit",
                 task='classification',
                 link='logit',  # link function
                 loss='logit',  # loss function
@@ -49,10 +49,10 @@ def test_glm_check_grad():
                 l1_penalty=0.0,  # Lasso regularization
                 l1_smooth=1E-5,  # smoothing for Lasso regularization
                 l1_method='pseudo_huber',  # approximation method for L1-norm
-                random_state=6789)
+                random_state=random_seed())
     assert model.check_grad(x, y) < eps
 
-    model = GLM(model_name="checkgrad_glm_logit",
+    model = GLM(model_name="checkgrad_GLM_logit",
                 task='classification',
                 link='logit',  # link function
                 loss='logit',  # loss function
@@ -60,10 +60,10 @@ def test_glm_check_grad():
                 l1_penalty=0.01,  # Lasso regularization
                 l1_smooth=1E-5,  # smoothing for Lasso regularization
                 l1_method='pseudo_huber',  # approximation method for L1-norm
-                random_state=6789)
+                random_state=random_seed())
     assert model.check_grad(x, y) < eps
 
-    model = GLM(model_name="checkgrad_glm_logit",
+    model = GLM(model_name="checkgrad_GLM_logit",
                 task='classification',
                 link='logit',  # link function
                 loss='logit',  # loss function
@@ -71,7 +71,7 @@ def test_glm_check_grad():
                 l1_penalty=0.01,  # Lasso regularization
                 l1_smooth=1E-5,  # smoothing for Lasso regularization
                 l1_method='pseudo_huber',  # approximation method for L1-norm
-                random_state=6789)
+                random_state=random_seed())
     assert model.check_grad(x, y) < eps
     # </editor-fold>
 
@@ -83,7 +83,7 @@ def test_glm_check_grad():
     x = np.random.rand(num_data, num_features)
     y = np.random.randint(0, num_classes, num_data)
 
-    model = GLM(model_name="checkgrad_glm_softmax",
+    model = GLM(model_name="checkgrad_GLM_softmax",
                 task='classification',
                 link='softmax',  # link function
                 loss='softmax',  # loss function
@@ -91,10 +91,10 @@ def test_glm_check_grad():
                 l1_penalty=0.0,  # Lasso regularization
                 l1_smooth=1E-5,  # smoothing for Lasso regularization
                 l1_method='pseudo_huber',  # approximation method for L1-norm
-                random_state=6789)
+                random_state=random_seed())
     assert model.check_grad(x, y) < eps
 
-    model = GLM(model_name="checkgrad_glm_softmax",
+    model = GLM(model_name="checkgrad_GLM_softmax",
                 task='classification',
                 link='softmax',  # link function
                 loss='softmax',  # loss function
@@ -102,10 +102,10 @@ def test_glm_check_grad():
                 l1_penalty=0.0,  # Lasso regularization
                 l1_smooth=1E-5,  # smoothing for Lasso regularization
                 l1_method='pseudo_huber',  # approximation method for L1-norm
-                random_state=6789)
+                random_state=random_seed())
     assert model.check_grad(x, y) < eps
 
-    model = GLM(model_name="checkgrad_glm_softmax",
+    model = GLM(model_name="checkgrad_GLM_softmax",
                 task='classification',
                 link='softmax',  # link function
                 loss='softmax',  # loss function
@@ -113,10 +113,10 @@ def test_glm_check_grad():
                 l1_penalty=0.01,  # Lasso regularization
                 l1_smooth=1E-5,  # smoothing for Lasso regularization
                 l1_method='pseudo_huber',  # approximation method for L1-norm
-                random_state=6789)
+                random_state=random_seed())
     assert model.check_grad(x, y) < eps
 
-    model = GLM(model_name="checkgrad_glm_softmax",
+    model = GLM(model_name="checkgrad_GLM_softmax",
                 task='classification',
                 link='softmax',  # link function
                 loss='softmax',  # loss function
@@ -124,7 +124,7 @@ def test_glm_check_grad():
                 l1_penalty=0.01,  # Lasso regularization
                 l1_smooth=1E-5,  # smoothing for Lasso regularization
                 l1_method='pseudo_huber',  # approximation method for L1-norm
-                random_state=6789)
+                random_state=random_seed())
     assert model.check_grad(x, y) < eps
     # </editor-fold>
 
@@ -135,7 +135,7 @@ def test_glm_check_grad():
     x = np.random.rand(num_data, num_features)
     y = np.random.rand(num_data)
 
-    model = GLM(model_name="checkgrad_glm_quad",
+    model = GLM(model_name="checkgrad_GLM_quad",
                 task='regression',
                 link='linear',  # link function
                 loss='quadratic',  # loss function
@@ -143,10 +143,10 @@ def test_glm_check_grad():
                 l1_penalty=0.0,  # Lasso regularization
                 l1_smooth=1E-5,  # smoothing for Lasso regularization
                 l1_method='pseudo_huber',  # approximation method for L1-norm
-                random_state=6789)
+                random_state=random_seed())
     assert model.check_grad(x, y) < eps
 
-    model = GLM(model_name="checkgrad_glm_quad",
+    model = GLM(model_name="checkgrad_GLM_quad",
                 task='regression',
                 link='linear',  # link function
                 loss='quadratic',  # loss function
@@ -154,10 +154,10 @@ def test_glm_check_grad():
                 l1_penalty=0.0,  # Lasso regularization
                 l1_smooth=1E-5,  # smoothing for Lasso regularization
                 l1_method='pseudo_huber',  # approximation method for L1-norm
-                random_state=6789)
+                random_state=random_seed())
     assert model.check_grad(x, y) < eps
 
-    model = GLM(model_name="checkgrad_glm_quad",
+    model = GLM(model_name="checkgrad_GLM_quad",
                 task='regression',
                 link='linear',  # link function
                 loss='quadratic',  # loss function
@@ -165,10 +165,10 @@ def test_glm_check_grad():
                 l1_penalty=0.01,  # Lasso regularization
                 l1_smooth=1E-5,  # smoothing for Lasso regularization
                 l1_method='pseudo_huber',  # approximation method for L1-norm
-                random_state=6789)
+                random_state=random_seed())
     assert model.check_grad(x, y) < eps
 
-    model = GLM(model_name="checkgrad_glm_quad",
+    model = GLM(model_name="checkgrad_GLM_quad",
                 task='regression',
                 link='linear',  # link function
                 loss='quadratic',  # loss function
@@ -176,226 +176,179 @@ def test_glm_check_grad():
                 l1_penalty=0.01,  # Lasso regularization
                 l1_smooth=1E-5,  # smoothing for Lasso regularization
                 l1_method='pseudo_huber',  # approximation method for L1-norm
-                random_state=6789)
+                random_state=random_seed())
     assert model.check_grad(x, y) < eps
     # </editor-fold>
 
 
-def test_glm_mnist_logit():
+def test_glm_logit():
+    print("========== Test GLM for binary classification ==========")
+
     np.random.seed(random_seed())
 
-    (x_train, y_train), (x_test, y_test) = demo.load_mnist()
+    (x_train, y_train), (x_test, y_test) = demo.load_pima()
+    print("Number of training samples = {}".format(x_train.shape[0]))
+    print("Number of testing samples = {}".format(x_test.shape[0]))
 
-    idx_train = np.where(np.uint8(y_train == 0) | np.uint8(y_train == 1))[0]
-    print("# training samples = {}".format(len(idx_train)))
-    x_train /= 255.0
-    x_train = x_train[idx_train]
-    y_train = y_train[idx_train]
-
-    idx_test = np.where(np.uint8(y_test == 0) | np.uint8(y_test == 1))[0]
-    print("# testing samples = {}".format(len(idx_test)))
-    x_test /= 255.0
-    x_test = x_test[idx_test]
-    y_test = y_test[idx_test]
-
-    clf = GLM(model_name="mnist_glm_logit",
+    clf = GLM(model_name="GLM_logit",
               l1_penalty=0.0,
               l2_penalty=0.0,
-              random_state=6789)
+              random_state=random_seed())
 
+    print("Use {} optimizer".format(clf.optimizer))
     clf.fit(x_train, y_train)
+    train_err = 1.0 - clf.score(x_train, y_train)
+    test_err = 1.0 - clf.score(x_test, y_test)
+    print("Training error = %.4f" % train_err)
+    print("Testing error = %.4f" % test_err)
 
-    y_train_pred = clf.predict(x_train)
-    y_test_pred = clf.predict(x_test)
-
-    print("Training error = %.4f" % (1 - metrics.accuracy_score(y_train, y_train_pred)))
-    print("Testing error = %.4f" % (1 - metrics.accuracy_score(y_test, y_test_pred)))
-
-    clf = GLM(model_name="mnist_glm_logit",
+    clf = GLM(model_name="GLM_logit",
               optimizer='sgd',
               l1_penalty=0.0,
               l2_penalty=0.0,
-              random_state=6789)
+              random_state=random_seed())
 
+    print("Use {} optimizer".format(clf.optimizer))
     clf.fit(x_train, y_train)
-
-    y_train_pred = clf.predict(x_train)
-    y_test_pred = clf.predict(x_test)
-
-    print("Training error = %.4f" % (1 - metrics.accuracy_score(y_train, y_train_pred)))
-    print("Testing error = %.4f" % (1 - metrics.accuracy_score(y_test, y_test_pred)))
+    train_err = 1.0 - clf.score(x_train, y_train)
+    test_err = 1.0 - clf.score(x_test, y_test)
+    print("Training error = %.4f" % train_err)
+    print("Testing error = %.4f" % test_err)
 
     optz = SGD(learning_rate=0.01, momentum=0.9, nesterov=True)
-    clf = GLM(model_name="mnist_glm_logit",
+    clf = GLM(model_name="GLM_logit",
               optimizer=optz,
               l1_penalty=0.0,
               l2_penalty=0.0,
-              random_state=6789)
+              random_state=random_seed())
 
+    print("Use {} optimizer".format(clf.optimizer))
     clf.fit(x_train, y_train)
-
-    y_train_pred = clf.predict(x_train)
-    y_test_pred = clf.predict(x_test)
-
-    print("Training error = %.4f" % (1 - metrics.accuracy_score(y_train, y_train_pred)))
-    print("Testing error = %.4f" % (1 - metrics.accuracy_score(y_test, y_test_pred)))
+    train_err = 1.0 - clf.score(x_train, y_train)
+    test_err = 1.0 - clf.score(x_test, y_test)
+    print("Training error = %.4f" % train_err)
+    print("Testing error = %.4f" % test_err)
 
 
-def test_glm_mnist_softmax():
+def test_glm_softmax():
+    print("========== Test GLM for multiclass classification ==========")
+
     np.random.seed(random_seed())
 
-    (x_train, y_train), (x_test, y_test) = demo.load_mnist()
+    (x_train, y_train), (x_test, y_test) = demo.load_iris()
+    print("Number of training samples = {}".format(x_train.shape[0]))
+    print("Number of testing samples = {}".format(x_test.shape[0]))
 
-    x_train /= 255.0
-    idx_train = np.random.permutation(x_train.shape[0])
-    x_train = x_train[idx_train]
-    y_train = y_train[idx_train]
-    print("# training samples = {}".format(x_train.shape[0]))
-
-    x_test /= 255.0
-    idx_test = np.random.permutation(x_test.shape[0])
-    x_test = x_test[idx_test]
-    y_test = y_test[idx_test]
-    print("# testing samples = {}".format(len(idx_test)))
-
-    clf = GLM(model_name="mnist_glm_softmax",
+    clf = GLM(model_name="GLM_softmax",
               link='softmax',
               loss='softmax',
-              random_state=6789)
+              random_state=random_seed())
 
+    print("Use {} optimizer".format(clf.optimizer))
     clf.fit(x_train, y_train)
+    train_err = 1.0 - clf.score(x_train, y_train)
+    test_err = 1.0 - clf.score(x_test, y_test)
+    print("Training error = %.4f" % train_err)
+    print("Testing error = %.4f" % test_err)
 
-    y_train_pred = clf.predict(x_train)
-    y_test_pred = clf.predict(x_test)
-
-    print("Training error = %.4f" % (1 - metrics.accuracy_score(y_train, y_train_pred)))
-    print("Testing error = %.4f" % (1 - metrics.accuracy_score(y_test, y_test_pred)))
-
-    clf = GLM(model_name="mnist_glm_softmax",
+    clf = GLM(model_name="GLM_softmax",
               optimizer='sgd',
               link='softmax',
               loss='softmax',
-              random_state=6789)
+              random_state=random_seed())
 
+    print("Use {} optimizer".format(clf.optimizer))
     clf.fit(x_train, y_train)
-
-    y_train_pred = clf.predict(x_train)
-    y_test_pred = clf.predict(x_test)
-
-    print("Training error = %.4f" % (1 - metrics.accuracy_score(y_train, y_train_pred)))
-    print("Testing error = %.4f" % (1 - metrics.accuracy_score(y_test, y_test_pred)))
+    train_err = 1.0 - clf.score(x_train, y_train)
+    test_err = 1.0 - clf.score(x_test, y_test)
+    print("Training error = %.4f" % train_err)
+    print("Testing error = %.4f" % test_err)
 
 
-def test_glm_mnist_logit_gridsearch():
+def test_glm_logit_gridsearch():
+    print("========== Tune parameters for GLM for binary classification ==========")
+
     np.random.seed(random_seed())
 
-    (x_train, y_train), (x_test, y_test) = demo.load_mnist()
-
-    idx_train = np.where(np.uint8(y_train == 0) | np.uint8(y_train == 1))[0]
-    print("# training samples = {}".format(len(idx_train)))
-    x_train /= 255.0
-    x_train = x_train[idx_train]
-    y_train = y_train[idx_train]
-
-    idx_test = np.where(np.uint8(y_test == 0) | np.uint8(y_test == 1))[0]
-    print("# testing samples = {}".format(len(idx_test)))
-    x_test /= 255.0
-    x_test = x_test[idx_test]
-    y_test = y_test[idx_test]
+    (x_train, y_train), (x_test, y_test) = demo.load_pima()
+    print("Number of training samples = {}".format(x_train.shape[0]))
+    print("Number of testing samples = {}".format(x_test.shape[0]))
 
     x = np.vstack((x_train, x_test))
     y = np.concatenate((y_train, y_test))
 
-    # params = {'l1_penalty': [0.0001, 0.001, 0.01, 0.1, 0.0],
-    #           'l2_penalty': [0.0001, 0.001, 0.01, 0.1, 0.0]}
-    params = {'l1_penalty': [0.0001, 0.001],
-              'l2_penalty': [0.0001, 0.001]}
+    params = {'l1_penalty': [0.0, 0.0001],
+              'l2_penalty': [0.0001, 0.001, 0.01]}
 
     ps = PredefinedSplit(test_fold=[-1] * x_train.shape[0] + [1] * x_test.shape[0])
 
-    clf = GLM(model_name="mnist_glm_logit_gridsearch",
-              random_state=6789)
+    clf = GLM(model_name="GLM_logit_gridsearch",
+              catch_exception=True,
+              random_state=random_seed())
 
     gs = GridSearchCV(clf, params, cv=ps, n_jobs=-1, refit=False, verbose=True)
     gs.fit(x, y)
 
-    print("Best score {} @ params {}".format(gs.best_score_, gs.best_params_))
+    print("Best error {} @ params {}".format(1 - gs.best_score_, gs.best_params_))
 
     best_clf = clone(clf).set_params(**gs.best_params_)
     best_clf.fit(x_train, y_train)
 
-    y_train_pred = best_clf.predict(x_train)
-    y_test_pred = best_clf.predict(x_test)
+    train_err = 1.0 - best_clf.score(x_train, y_train)
+    test_err = 1.0 - best_clf.score(x_test, y_test)
+    print("Training error = %.4f" % train_err)
+    print("Testing error = %.4f" % test_err)
+    assert abs(test_err - (1.0 - gs.best_score_)) < 1e-4
 
-    print("Training error = %.4f" % (1 - metrics.accuracy_score(y_train, y_train_pred)))
-    print("Testing error = %.4f" % (1 - metrics.accuracy_score(y_test, y_test_pred)))
 
+def test_glm_softmax_gridsearch():
+    print("========== Tune parameters for GLM for multiclass classification ==========")
 
-def test_glm_mnist_softmax_gridsearch():
     np.random.seed(random_seed())
 
-    (x_train, y_train), (x_test, y_test) = demo.load_mnist()
-
-    x_train /= 255.0
-    idx_train = np.random.permutation(x_train.shape[0])
-    x_train = x_train[idx_train]
-    y_train = y_train[idx_train]
-    print("# training samples = {}".format(x_train.shape[0]))
-
-    x_test /= 255.0
-    idx_test = np.random.permutation(x_test.shape[0])
-    x_test = x_test[idx_test]
-    y_test = y_test[idx_test]
-    print("# testing samples = {}".format(len(idx_test)))
+    (x_train, y_train), (x_test, y_test) = demo.load_iris()
+    print("Number of training samples = {}".format(x_train.shape[0]))
+    print("Number of testing samples = {}".format(x_test.shape[0]))
 
     x = np.vstack((x_train, x_test))
     y = np.concatenate((y_train, y_test))
 
-    # params = {'l1_penalty': [0.0001, 0.001, 0.01, 0.1, 0.0],
-    #           'l2_penalty': [0.0001, 0.001, 0.01, 0.1, 0.0]}
-    params = {'l1_penalty': [0.0001, 0.001],
-              'l2_penalty': [0.0001, 0.001]}
+    params = {'l1_penalty': [0.0, 0.0001],
+              'l2_penalty': [0.0001, 0.001, 0.01]}
 
     ps = PredefinedSplit(test_fold=[-1] * x_train.shape[0] + [1] * x_test.shape[0])
 
-    clf = GLM(model_name="mnist_glm_softmax_gridsearch",
+    clf = GLM(model_name="GLM_softmax_gridsearch",
               link='softmax',
               loss='softmax',
-              random_state=6789)
+              catch_exception=True,
+              random_state=random_seed())
 
     gs = GridSearchCV(clf, params, cv=ps, n_jobs=-1, refit=False, verbose=True)
     gs.fit(x, y)
 
-    print("Best score {} @ params {}".format(gs.best_score_, gs.best_params_))
+    print("Best error {} @ params {}".format(1 - gs.best_score_, gs.best_params_))
 
     best_clf = clone(clf).set_params(**gs.best_params_)
     best_clf.fit(x_train, y_train)
 
-    y_train_pred = best_clf.predict(x_train)
-    y_test_pred = best_clf.predict(x_test)
+    train_err = 1.0 - best_clf.score(x_train, y_train)
+    test_err = 1.0 - best_clf.score(x_test, y_test)
+    print("Training error = %.4f" % train_err)
+    print("Testing error = %.4f" % test_err)
+    assert abs(test_err - (1.0 - gs.best_score_)) < 1e-4
 
-    print("Training error = %.4f" % (1 - metrics.accuracy_score(y_train, y_train_pred)))
-    print("Testing error = %.4f" % (1 - metrics.accuracy_score(y_test, y_test_pred)))
 
+def test_glm_regression():
+    print("========== Test GLM for regression ==========")
 
-def test_glm_regression_gridsearch():
     np.random.seed(random_seed())
 
-    # regression
-    eps = 1e-6
-    num_data = 100
-    num_features = 5
-    x = np.random.rand(num_data, num_features)
-    y = np.random.rand(num_data)
+    (x_train, y_train), (x_test, y_test) = demo.load_housing()
+    print("Number of training samples = {}".format(x_train.shape[0]))
+    print("Number of testing samples = {}".format(x_test.shape[0]))
 
-    # params = {'l1_penalty': [0.0001, 0.001, 0.01, 0.1, 0.0],
-    #           'l2_penalty': [0.0001, 0.001, 0.01, 0.1, 0.0]}
-    params = {'l1_penalty': [0.0001, 0.001],
-              'l2_penalty': [0.0001, 0.001]}
-
-    ps = PredefinedSplit(test_fold=[-1] * 70 + [1] * 30)
-
-    clf = GLM(model_name="glm_regression_gridsearch",
+    clf = GLM(model_name="GLM_regression",
               task='regression',
               link='linear',  # link function
               loss='quadratic',  # loss function
@@ -403,52 +356,83 @@ def test_glm_regression_gridsearch():
               l1_penalty=0.0,  # Lasso regularization
               l1_smooth=1E-5,  # smoothing for Lasso regularization
               l1_method='pseudo_huber',  # approximation method for L1-norm
-              random_state=6789)
+              random_state=random_seed())
+
+    clf.fit(x_train, y_train)
+
+    train_err = - clf.score(x_train, y_train)
+    test_err = - clf.score(x_test, y_test)
+    print("Training MSE = %.4f" % train_err)
+    print("Testing MSE = %.4f" % test_err)
+
+
+def test_glm_regression_gridsearch():
+    print("========== Tune parameters for GLM for regression ==========")
+
+    np.random.seed(random_seed())
+
+    (x_train, y_train), (x_test, y_test) = demo.load_housing()
+    print("Number of training samples = {}".format(x_train.shape[0]))
+    print("Number of testing samples = {}".format(x_test.shape[0]))
+
+    x = np.vstack((x_train, x_test))
+    y = np.concatenate((y_train, y_test))
+
+    params = {'l1_penalty': [0.0, 0.0001],
+              'l2_penalty': [0.0001, 0.001, 0.01]}
+
+    ps = PredefinedSplit(test_fold=[-1] * x_train.shape[0] + [1] * x_test.shape[0])
+
+    clf = GLM(model_name="GLM_regression_gridsearch",
+              task='regression',
+              link='linear',  # link function
+              loss='quadratic',  # loss function
+              l2_penalty=0.0,  # ridge regularization
+              l1_penalty=0.0,  # Lasso regularization
+              l1_smooth=1E-5,  # smoothing for Lasso regularization
+              l1_method='pseudo_huber',  # approximation method for L1-norm
+              catch_exception=True,
+              random_state=random_seed())
 
     gs = GridSearchCV(clf, params, cv=ps, n_jobs=-1, refit=False, verbose=True)
     gs.fit(x, y)
 
-    print("Best score {} @ params {}".format(-gs.best_score_, gs.best_params_))
+    print("Best MSE {} @ params {}".format(-gs.best_score_, gs.best_params_))
 
     best_clf = clone(clf).set_params(**gs.best_params_)
-    best_clf.fit(x[:70], y[:70])
+    best_clf.fit(x_train, y_train)
 
-    y_train_pred = best_clf.predict(x[:70])
-    y_test_pred = best_clf.predict(x[70:])
+    train_err = - best_clf.score(x_train, y_train)
+    test_err = - best_clf.score(x_test, y_test)
+    print("Training MSE = %.4f" % train_err)
+    print("Testing MSE = %.4f" % test_err)
+    assert abs(test_err + gs.best_score_) < 1e-4
 
-    print("Training error = %.4f" % (metrics.mean_squared_error(y[:70], y_train_pred)))
-    print("Testing error = %.4f" % (metrics.mean_squared_error(y[70:], y_test_pred)))
 
+def test_glm_cv(block_figure_on_end=False):
+    print("========== Test cross-validation for GLM ==========")
 
-def test_glm_mnist_cv():
     np.random.seed(random_seed())
 
-    (x_train, y_train), (x_test, y_test) = demo.load_mnist()
-
-    x_train /= 255.0
-    idx_train = np.random.permutation(x_train.shape[0])
-    x_train = x_train[idx_train]
-    y_train = y_train[idx_train]
-
-    x_test /= 255.0
-    idx_test = np.random.permutation(x_test.shape[0])
-    x_test = x_test[idx_test]
-    y_test = y_test[idx_test]
+    (x_train, y_train), (x_test, y_test) = demo.load_iris()
+    print("Number of training samples = {}".format(x_train.shape[0]))
+    print("Number of testing samples = {}".format(x_test.shape[0]))
 
     x = np.vstack([x_train, x_test])
     y = np.concatenate([y_train, y_test])
 
-    early_stopping = EarlyStopping(monitor='val_loss', patience=2, verbose=1)
-    filepath = os.path.join(model_dir(), "male/glm/mnist_{epoch:04d}_{val_loss:.6f}.pkl")
+    early_stopping = EarlyStopping(monitor='val_err', patience=2, verbose=1)
+    filepath = os.path.join(model_dir(), "male/glm/iris_{epoch:04d}_{val_err:.6f}.pkl")
     checkpoint = ModelCheckpoint(filepath,
                                  mode='min',
-                                 monitor='val_loss',
+                                 monitor='val_err',
                                  verbose=0,
                                  save_best_only=True)
     loss_display = Display(title="Learning curves",
                            dpi='auto',
                            layout=(3, 1),
-                           freq=4,
+                           freq=1,
+                           block_on_end=block_figure_on_end,
                            monitor=[{'metrics': ['loss', 'val_loss'],
                                      'type': 'line',
                                      'labels': ["training loss", "validation loss"],
@@ -475,42 +459,44 @@ def test_glm_mnist_cv():
                              dpi='auto',
                              layout=(1, 1),
                              figsize=(6, 15),
-                             freq=10,
+                             freq=1,
+                             block_on_end=block_figure_on_end,
                              monitor=[{'metrics': ['weights'],
                                        'title': "Learned weights",
                                        'type': 'img',
-                                       'tile_shape': (5, 2),
+                                       'disp_dim': (2, 2),
+                                       'tile_shape': (3, 1),
                                        },
                                       ])
 
-    clf = GLM(model_name="mnist_glm_softmax",
+    clf = GLM(model_name="GLM_softmax_cv",
               link='softmax',
               loss='softmax',
               optimizer='sgd',
-              num_epochs=100,
-              batch_size=100,
+              num_epochs=20,
+              batch_size=10,
               task='classification',
               metrics=['loss', 'err'],
               callbacks=[early_stopping, checkpoint, loss_display, weight_display],
               cv=[-1] * x_train.shape[0] + [0] * x_test.shape[0],
-              random_state=6789,
+              random_state=random_seed(),
               verbose=1)
 
     clf.fit(x, y)
 
-    y_train_pred = clf.predict(x_train)
-    y_test_pred = clf.predict(x_test)
-
-    print("Training error = %.4f" % (1 - metrics.accuracy_score(y_train, y_train_pred)))
-    print("Testing error = %.4f" % (1 - metrics.accuracy_score(y_test, y_test_pred)))
+    train_err = 1.0 - clf.score(x_train, y_train)
+    test_err = 1.0 - clf.score(x_test, y_test)
+    print("Training error = %.4f" % train_err)
+    print("Testing error = %.4f" % test_err)
 
 
 if __name__ == '__main__':
     pytest.main([__file__])
     # test_glm_check_grad()
-    # test_glm_mnist_logit()
-    # test_glm_mnist_softmax()
-    # test_glm_mnist_logit_gridsearch()
-    # test_glm_mnist_softmax_gridsearch()
+    # test_glm_logit()
+    # test_glm_softmax()
+    # test_glm_logit_gridsearch()
+    # test_glm_softmax_gridsearch()
+    # test_glm_regression()
     # test_glm_regression_gridsearch()
-    # test_glm_mnist_cv()
+    # test_glm_cv(block_figure_on_end=True)

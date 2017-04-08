@@ -47,7 +47,7 @@ def tile_raster_images(X, img_shape, tile_shape, tile_spacing=(0, 0),
     out_shape = [
         (ishp + tsp) * tshp - tsp
         for ishp, tshp, tsp in zip(img_shape, tile_shape, tile_spacing)
-        ]
+    ]
 
     if isinstance(X, tuple):
         assert len(X) == 4
@@ -146,7 +146,8 @@ def get_figure_dpi():
     return dpi
 
 
-def visualize_classification_prediction(estimator, x_train, y_train, **kwargs):
+def visualize_classification_prediction(estimator, x_train, y_train,
+                                        block_on_end=False, **kwargs):
     if x_train.shape[1] > 2:
         print('Support only 2D datasets')
         return
@@ -176,19 +177,19 @@ def visualize_classification_prediction(estimator, x_train, y_train, **kwargs):
     x_axis_v, y_axis_v = np.meshgrid(x_axis, y_axis)
     x_test = np.vstack((x_axis_v.ravel(), y_axis_v.ravel()))
     x_test = x_test.T
-    x_scale = (right-left) / grid_size
+    x_scale = (right - left) / grid_size
     y_scale = (top - bottom) / grid_size
 
     print('Drawing at epoch {}...'.format(epoch))
     n_test = x_test.shape[0]
     y_test = estimator.predict(x_test)
-    y_test_zidx = estimator.label_encoder_.inverse_transform(y_test.astype(int))
-    y_train_zidx = estimator.label_encoder_.inverse_transform(y_train.astype(int))
+    y_test_zidx = estimator.label_encoder.inverse_transform(y_test.astype(int))
+    y_train_zidx = estimator.label_encoder.inverse_transform(y_train.astype(int))
 
     img = np.zeros((n_test, 3))
-    n_classes = estimator.num_classes_
-    bg_colors_hex = np.array(["#A6CEE3", "#B2DF8A", "#FB9A99", "#FDBF6F", "#CAB2D6"]) # Bugs
-    fore_colors_hex = np.array(["#1F78B4", "#33A02C", "#E31A1C",  "#FF7F00", "#6A3D9A"])  # Bugs
+    n_classes = estimator.num_classes
+    bg_colors_hex = np.array(["#A6CEE3", "#B2DF8A", "#FB9A99", "#FDBF6F", "#CAB2D6"])  # Bugs
+    fore_colors_hex = np.array(["#1F78B4", "#33A02C", "#E31A1C", "#FF7F00", "#6A3D9A"])  # Bugs
     converter = ColorConverter()
 
     bg_colors = np.zeros((len(bg_colors_hex), 3))
@@ -201,7 +202,7 @@ def visualize_classification_prediction(estimator, x_train, y_train, **kwargs):
     img = img.reshape((grid_size, grid_size, 3))
 
     plt.imshow(img)
-    plt.scatter((x_train[:, 0] - left) / x_scale, (x_train[:, 1] - bottom)/ y_scale,
+    plt.scatter((x_train[:, 0] - left) / x_scale, (x_train[:, 1] - bottom) / y_scale,
                 s=marker_size, color=fore_colors_hex[y_train_zidx.astype(int)])
 
     axes = plt.gca()
@@ -209,4 +210,4 @@ def visualize_classification_prediction(estimator, x_train, y_train, **kwargs):
     axes.set_ylim([0, grid_size])
     # plt.legend()
     kwargs['ax'] = axes
-    plt.show()
+    plt.show(block=block_on_end)

@@ -33,10 +33,9 @@ class KMM(RRF):
                  learning_rate_alpha=0.1,
                  alternative_update=False,
                  num_nested_epochs=5,
-                 *args, **kwargs):
-        kwargs['model_name'] = model_name
-        super(KMM, self).__init__(**kwargs)
-        self.gamma = gamma if isinstance(gamma, tuple) else (gamma,)
+                 **kwargs):
+        super(KMM, self).__init__(model_name=model_name, **kwargs)
+        self.gamma = gamma
         self.num_kernels = num_kernels
         self.temperature = temperature
         self.anneal_rate = anneal_rate
@@ -51,9 +50,10 @@ class KMM(RRF):
 
     def _init(self):
         super(KMM, self)._init()
-        self.mu_ = None
-        self.alpha_ = None
-        self.gumbel_ = None
+        self.gamma = self.gamma if isinstance(self.gamma, tuple) else (self.gamma,)
+        self.mu = None
+        self.alpha = None
+        self.gumbel = None
 
     def _init_params(self, x):
         # temporarily place \gamma for initialization of FOGD and RRF
@@ -62,41 +62,41 @@ class KMM(RRF):
         super(KMM, self)._init_params(x)
         # restore the \gamma for KMM
         self.gamma = gamma0
-        self.alpha_ = np.log(1 / self.num_kernels) * np.ones(self.num_kernels)  # (M,)
-        self.gumbel_ = self.random_state_.gumbel(0.0, 1.0, size=(self.D, self.num_kernels))  # (D,M)
-        self.mu_ = np.zeros([self.num_kernels, self.num_features_])  # (M,d)
-        self.z_ = self._get_z()
+        self.alpha = np.log(1 / self.num_kernels) * np.ones(self.num_kernels)  # (M,)
+        self.gumbel = self.random_engine.gumbel(0.0, 1.0, size=(self.D, self.num_kernels))  # (D,M)
+        self.mu = np.zeros([self.num_kernels, self.num_features])  # (M,d)
+        self.z = self._get_z()
         # self.gamma -> \sigma initial value
         self.gamma_ = (np.log(self.gamma)[:, np.newaxis]
-                       * np.ones([self.num_kernels, self.num_features_]))  # (M,d)
+                       * np.ones([self.num_kernels, self.num_features]))  # (M,d)
 
     def _get_pi(self, **kwargs):
-        alpha = kwargs['alpha'] if 'alpha' in kwargs else self.alpha_
+        alpha = kwargs['alpha'] if 'alpha' in kwargs else self.alpha
         return np.exp(alpha - logsumexp(alpha))  # include normalization
 
     def _update_z(self):
         if self.sampling_gumbel:
-            self.gumbel_ = self.random_state_.gumbel(0.0, 1.0, size=(self.D, self.num_kernels))
-        self.z_ = self._get_z()
+            self.gumbel = self.random_engine.gumbel(0.0, 1.0, size=(self.D, self.num_kernels))
+        self.z = self._get_z()
 
     def _get_z(self, **kwargs):
         return self._get_z_approx(**kwargs)
 
     def _get_z_approx(self, **kwargs):
-        alpha = kwargs['alpha'] if 'alpha' in kwargs else self.alpha_
-        x = (alpha[np.newaxis, :] + self.gumbel_) / self.temperature  # (D,M)
+        alpha = kwargs['alpha'] if 'alpha' in kwargs else self.alpha
+        x = (alpha[np.newaxis, :] + self.gumbel) / self.temperature  # (D,M)
         return np.exp(x - logsumexp(x, axis=1, keepdims=True))  # (D,M)
 
     def _sample_z(self, **kwargs):
-        alpha = kwargs['alpha'] if 'alpha' in kwargs else self.alpha_
-        gumbel = kwargs['gumbel'] if 'gumbel' in kwargs else self.gumbel_
+        alpha = kwargs['alpha'] if 'alpha' in kwargs else self.alpha
+        gumbel = kwargs['gumbel'] if 'gumbel' in kwargs else self.gumbel
         return np.argmax(gumbel + alpha[np.newaxis, :], axis=1)  # (D,)
 
-    def get_grad(self, x, y, *args, **kwargs):
+    def get_grad(self, x, y, **kwargs):
         n = x.shape[0]  # batch size
-        z = kwargs['z'] if 'z' in kwargs else self.z_  # (D,)
-        w = kwargs['w'] if 'w' in kwargs else self.w_  # (2D,C)
-        mu = kwargs['mu'] if 'mu' in kwargs else self.mu_  # (M,d)
+        z = kwargs['z'] if 'z' in kwargs else self.z  # (D,)
+        w = kwargs['w'] if 'w' in kwargs else self.w  # (2D,C)
+        mu = kwargs['mu'] if 'mu' in kwargs else self.mu  # (M,d)
         gamma = kwargs['gamma'] if 'gamma' in kwargs else self.gamma_  # (M,d)
 
         phi = kwargs['phi'] if 'phi' in kwargs else self._get_phi(x, **kwargs)  # (N,2D)
@@ -104,7 +104,7 @@ class KMM(RRF):
 
         dw = self.lbd * w  # (2D,C)
 
-        if self.num_classes_ > 2:
+        if self.num_classes > 2:
             wxy, t = self._get_wxy(wx, y)
             if self.loss == 'hinge':
                 d = (wxy[:, np.newaxis] < 1) * phi  # (N,2D)
@@ -115,7 +115,7 @@ class KMM(RRF):
                 d = c * phi
                 dphi = -c * (w[:, y].T - w[:, t].T)  # (N,2D)
                 domega = self._get_domega(x, phi)  # (N,2D,d) (gradient of \omega)
-            for i in range(self.num_classes_):
+            for i in range(self.num_classes):
                 dw[:, i] += -d[y == i].sum(axis=0) / n
                 dw[:, i] += d[t == i].sum(axis=0) / n
             dmu = self._get_dmu(domega, dphi, z) / n  # (M,d)
@@ -149,7 +149,7 @@ class KMM(RRF):
                 c = np.sign(wx - y)[:, np.newaxis]
                 d = c * phi
                 dw += d[wxy].sum(axis=0) / n
-                dphi = c * w  # (N,2D)
+                dphi = c[wxy] * w  # (N,2D)
                 domega = self._get_domega(x[wxy], phi[wxy])  # (N,2D,d) (gradient of \omega)
 
             dmu = self._get_dmu(domega, dphi, z) / n  # (M,d)
@@ -157,20 +157,20 @@ class KMM(RRF):
 
         return dw, dmu, dgamma
 
-    def get_grad_all(self, x, y, *args, **kwargs):
+    def get_grad_all(self, x, y, **kwargs):
         n = x.shape[0]  # batch size
-        z = kwargs['z'] if 'z' in kwargs else self.z_  # (D,)
-        w = kwargs['w'] if 'w' in kwargs else self.w_  # (2D,C)
-        mu = kwargs['mu'] if 'mu' in kwargs else self.mu_  # (M,d)
+        z = kwargs['z'] if 'z' in kwargs else self.z  # (D,)
+        w = kwargs['w'] if 'w' in kwargs else self.w  # (2D,C)
+        mu = kwargs['mu'] if 'mu' in kwargs else self.mu  # (M,d)
         gamma = kwargs['gamma'] if 'gamma' in kwargs else self.gamma_  # (M,d)
-        alpha = kwargs['alpha'] if 'alpha' in kwargs else self.alpha_  # (M,)
+        alpha = kwargs['alpha'] if 'alpha' in kwargs else self.alpha  # (M,)
 
         phi = kwargs['phi'] if 'phi' in kwargs else self._get_phi(x, **kwargs)  # (N,2D)
         wx = kwargs['wx'] if 'wx' in kwargs else phi.dot(w)  # (N,C)
 
         dw = self.lbd * w  # (2D,C)
 
-        if self.num_classes_ > 2:
+        if self.num_classes > 2:
             wxy, t = self._get_wxy(wx, y)
             if self.loss == 'hinge':
                 d = (wxy[:, np.newaxis] < 1) * phi  # (N,2D)
@@ -181,7 +181,7 @@ class KMM(RRF):
                 d = c * phi
                 dphi = -c * (w[:, y].T - w[:, t].T)  # (N,2D)
                 domega = self._get_domega(x, phi)  # (N,2D,d) (gradient of \omega)
-            for i in range(self.num_classes_):
+            for i in range(self.num_classes):
                 dw[:, i] += -d[y == i].sum(axis=0) / n
                 dw[:, i] += d[t == i].sum(axis=0) / n
             dmu = self._get_dmu(domega, dphi, z) / n  # (M,d)
@@ -225,18 +225,18 @@ class KMM(RRF):
 
         return dw, dmu, dgamma, dalpha
 
-    def get_grad_mu_gamma_alpha(self, x, y, *args, **kwargs):
+    def get_grad_mu_gamma_alpha(self, x, y, **kwargs):
         n = x.shape[0]  # batch size
-        z = kwargs['z'] if 'z' in kwargs else self.z_  # (D,)
-        w = kwargs['w'] if 'w' in kwargs else self.w_  # (2D,C)
-        mu = kwargs['mu'] if 'mu' in kwargs else self.mu_  # (M,d)
+        z = kwargs['z'] if 'z' in kwargs else self.z  # (D,)
+        w = kwargs['w'] if 'w' in kwargs else self.w  # (2D,C)
+        mu = kwargs['mu'] if 'mu' in kwargs else self.mu  # (M,d)
         gamma = kwargs['gamma'] if 'gamma' in kwargs else self.gamma_  # (M,d)
-        alpha = kwargs['alpha'] if 'alpha' in kwargs else self.alpha_  # (M,)
+        alpha = kwargs['alpha'] if 'alpha' in kwargs else self.alpha  # (M,)
 
         phi = kwargs['phi'] if 'phi' in kwargs else self._get_phi(x, **kwargs)  # (N,2D)
         wx = kwargs['wx'] if 'wx' in kwargs else phi.dot(w)  # (N,C)
 
-        if self.num_classes_ > 2:
+        if self.num_classes > 2:
             wxy, t = self._get_wxy(wx, y)
             if self.loss == 'hinge':
                 dphi = -w[:, y[wxy < 1]].T + w[:, t[wxy < 1]].T  # (N,2D)
@@ -282,18 +282,18 @@ class KMM(RRF):
 
     def get_grad_alpha(self, x, y, *args, **kwargs):
         n = x.shape[0]  # batch size
-        z = kwargs['z'] if 'z' in kwargs else self.z_  # (D,)
-        w = kwargs['w'] if 'w' in kwargs else self.w_  # (2D,C)
-        mu = kwargs['mu'] if 'mu' in kwargs else self.mu_  # (M,d)
+        z = kwargs['z'] if 'z' in kwargs else self.z  # (D,)
+        w = kwargs['w'] if 'w' in kwargs else self.w  # (2D,C)
+        mu = kwargs['mu'] if 'mu' in kwargs else self.mu  # (M,d)
         gamma = kwargs['gamma'] if 'gamma' in kwargs else self.gamma_  # (M,d)
-        alpha = kwargs['alpha'] if 'alpha' in kwargs else self.alpha_  # (M,)
+        alpha = kwargs['alpha'] if 'alpha' in kwargs else self.alpha  # (M,)
 
         phi = kwargs['phi'] if 'phi' in kwargs else self._get_phi(x, **kwargs)  # (N,2D)
         wx = kwargs['wx'] if 'wx' in kwargs else phi.dot(w)  # (N,C)
 
         dalpha = np.zeros(alpha.shape)
 
-        if self.num_classes_ > 2:
+        if self.num_classes > 2:
             wxy, t = self._get_wxy(wx, y)
             if self.loss == 'hinge':
                 dphi = -w[:, y[wxy < 1]].T + w[:, t[wxy < 1]].T  # (N,2D)
@@ -327,7 +327,7 @@ class KMM(RRF):
             elif self.loss == 'eps_insensitive':
                 wxy = np.abs(y - wx) > self.eps
                 c = np.sign(wx - y)[:, np.newaxis]
-                dphi = c * w  # (N,2D)
+                dphi = c[wxy] * w  # (N,2D)
                 domega = self._get_domega(x[wxy], phi[wxy])  # (N,2D,d) (gradient of \omega)
 
             dalpha += self._get_dalpha(domega, dphi, z, mu, gamma) / n  # (M,)
@@ -336,21 +336,21 @@ class KMM(RRF):
 
     def _get_dw(self, x, y, *args, **kwargs):
         n = x.shape[0]  # batch size
-        w = kwargs['w'] if 'w' in kwargs else self.w_  # (2D,C)
+        w = kwargs['w'] if 'w' in kwargs else self.w  # (2D,C)
 
         phi = kwargs['phi'] if 'phi' in kwargs else self._get_phi(x, **kwargs)  # (N,2D)
         wx = kwargs['wx'] if 'wx' in kwargs else phi.dot(w)  # (N,C)
 
         dw = self.lbd * w  # (2D,C)
 
-        if self.num_classes_ > 2:
+        if self.num_classes > 2:
             wxy, t = self._get_wxy(wx, y)
             if self.loss == 'hinge':
                 d = (wxy[:, np.newaxis] < 1) * phi  # (N,2D)
             else:  # logit loss
                 c = np.exp(-wxy - np.logaddexp(0, -wxy))[:, np.newaxis]
                 d = c * phi
-            for i in range(self.num_classes_):
+            for i in range(self.num_classes):
                 dw[:, i] += -d[y == i].sum(axis=0) / n
                 dw[:, i] += d[t == i].sum(axis=0) / n
         else:
@@ -377,7 +377,7 @@ class KMM(RRF):
 
     def _get_domega(self, x, phi):
         n = x.shape[0]  # batch size
-        domega = np.zeros([n, 2 * self.D, self.num_features_])  # (N,2D,d)
+        domega = np.zeros([n, 2 * self.D, self.num_features])  # (N,2D,d)
         coswx, sinwx = phi[:, :self.D], phi[:, self.D:]  # (N,D)
         domega[:, :self.D, :] = np.einsum("mn,md->mdn", -x, sinwx)
         domega[:, self.D:, :] = np.einsum("mn,md->mdn", x, coswx)
@@ -389,7 +389,7 @@ class KMM(RRF):
 
     def _get_dgamma(self, gamma, domega, dphi, z):
         # dgamma = np.zeros([self.num_kernels, self.d_])      # (M,d)
-        return np.einsum("mdn,md,nd,dk,kn->kn", domega, dphi, np.hstack([self.e_, self.e_]),
+        return np.einsum("mdn,md,nd,dk,kn->kn", domega, dphi, np.hstack([self.e, self.e]),
                          np.vstack([z, z]), np.exp(gamma))
 
     def _get_dalpha(self, domega, dphi, z, mu, gamma):
@@ -397,7 +397,7 @@ class KMM(RRF):
         omega = self._get_omega(z=z, mu=mu, gamma=gamma)  # (d,D)
 
         for m in range(self.num_kernels):
-            tmp = z[:, m] * (mu[[m]].T + np.exp(gamma[[m]].T) * self.e_)  # (d,D)
+            tmp = z[:, m] * (mu[[m]].T + np.exp(gamma[[m]].T) * self.e)  # (d,D)
             tmp = np.hstack([tmp, tmp])
             dalpha[m] += np.einsum("mdn,nd,md", domega, tmp, dphi) / self.temperature
             tmp = z[:, m].T * omega  # (d,D)
@@ -406,11 +406,11 @@ class KMM(RRF):
         return dalpha
 
     def _get_omega(self, **kwargs):
-        mu = kwargs['mu'] if 'mu' in kwargs else self.mu_
+        mu = kwargs['mu'] if 'mu' in kwargs else self.mu
         gamma = kwargs['gamma'] if 'gamma' in kwargs else self.gamma_
-        z = kwargs['z'] if 'z' in kwargs else self.z_  # (D,M)
+        z = kwargs['z'] if 'z' in kwargs else self.z  # (D,M)
 
-        omega = mu.T.dot(z.T) + np.exp(gamma.T).dot(z.T) * self.e_  # (d,D)
+        omega = mu.T.dot(z.T) + np.exp(gamma.T).dot(z.T) * self.e  # (d,D)
 
         return omega
 
@@ -425,10 +425,10 @@ class KMM(RRF):
     def _fit_online(self, x, y):
         c = 0
         c_w = 0
-        s_w, t_w = np.zeros(self.w_.shape), np.zeros(self.w_.shape)
-        s_mu, t_mu = np.zeros(self.mu_.shape), np.zeros(self.mu_.shape)
+        s_w, t_w = np.zeros(self.w.shape), np.zeros(self.w.shape)
+        s_mu, t_mu = np.zeros(self.mu.shape), np.zeros(self.mu.shape)
         s_gamma, t_gamma = np.zeros(self.gamma_.shape), np.zeros(self.gamma_.shape)
-        s_alpha, t_alpha = np.zeros(self.alpha_.shape), np.zeros(self.alpha_.shape)
+        s_alpha, t_alpha = np.zeros(self.alpha.shape), np.zeros(self.alpha.shape)
 
         y0 = self._decode_labels(y)
         mistake = 0.0
@@ -436,9 +436,9 @@ class KMM(RRF):
         for t in range(x.shape[0]):
             phi = self._get_phi(x[[t]])
 
-            wx = phi.dot(self.w_)  # (x,)
+            wx = phi.dot(self.w)  # (x,)
             if self.task == 'classification':
-                if self.num_classes_ == 2:
+                if self.num_classes == 2:
                     y_pred = self._decode_labels(np.uint8(wx >= 0))[0]
                 else:
                     y_pred = self._decode_labels(np.argmax(wx))
@@ -451,23 +451,23 @@ class KMM(RRF):
                                                                    phi=phi, wx=wx)
                 if not self.adam_update:
                     s_mu = self.momentum * s_mu + self.learning_rate_mu * dmu
-                    self.mu_ -= s_mu
+                    self.mu -= s_mu
                     s_gamma = self.momentum * s_gamma + self.learning_rate_gamma * dgamma
                     self.gamma_ -= s_gamma
                     s_alpha = self.momentum * s_alpha + self.learning_rate_alpha * dalpha
-                    self.alpha_ -= s_alpha
+                    self.alpha -= s_alpha
                 else:
                     # adam update
                     c += 1
                     dmu, s_mu, t_mu = self._get_adam_update(
                         c, s_mu, t_mu, dmu, self.learning_rate_mu)
-                    self.mu_ -= dmu
+                    self.mu -= dmu
                     dgamma, s_gamma, t_gamma = self._get_adam_update(
                         c, s_gamma, t_gamma, dgamma, self.learning_rate_gamma)
                     self.gamma_ -= dgamma
                     dalpha, s_alpha, t_alpha = self._get_adam_update(
                         c, s_alpha, t_alpha, dalpha, self.learning_rate_alpha)
-                    self.alpha_ -= dalpha
+                    self.alpha -= dalpha
 
                 self._update_z()
 
@@ -476,13 +476,13 @@ class KMM(RRF):
 
                     if not self.adam_update:
                         s_w = self.momentum * s_w + self.learning_rate * dw
-                        self.w_ -= s_w
+                        self.w -= s_w
                     else:
                         # adam update
                         c_w += 1
                         dw, s_w, t_w = self._get_adam_update(
                             c_w, s_w, t_w, dw, self.learning_rate)
-                        self.w_ -= dw
+                        self.w -= dw
 
             else:  # if not self.alternative_update:
                 # compute gradients
@@ -494,33 +494,33 @@ class KMM(RRF):
                 # update parameters
                 if not self.adam_update:
                     s_w = self.momentum * s_w + self.learning_rate * dw
-                    self.w_ -= s_w
+                    self.w -= s_w
                     s_mu = self.momentum * s_mu + self.learning_rate_mu * dmu
-                    self.mu_ -= s_mu
+                    self.mu -= s_mu
                     s_gamma = self.momentum * s_gamma \
                               + self.learning_rate_gamma * dgamma
                     self.gamma_ -= s_gamma
                     s_alpha = self.momentum * s_alpha \
                               + self.learning_rate_alpha * dalpha
-                    self.alpha_ -= s_alpha
+                    self.alpha -= s_alpha
                 else:
                     # adam update
                     c += 1
                     dw, s_w, t_w = self._get_adam_update(
                         c, s_w, t_w, dw, self.learning_rate)
-                    self.w_ -= dw
+                    self.w -= dw
                     dmu, s_mu, t_mu = self._get_adam_update(
                         c, s_mu, t_mu, dmu, self.learning_rate_mu)
-                    self.mu_ -= dmu
+                    self.mu -= dmu
                     dgamma, s_gamma, t_gamma = self._get_adam_update(
                         c, s_gamma, t_gamma, dgamma, self.learning_rate_gamma)
                     self.gamma_ -= dgamma
                     dalpha, s_alpha, t_alpha = self._get_adam_update(
                         c, s_alpha, t_alpha, dalpha, self.learning_rate_alpha)
-                    self.alpha_ -= dalpha
+                    self.alpha -= dalpha
                 self._update_z()
 
-        self.mistake_ = mistake / x.shape[0]
+        self.mistake = mistake / x.shape[0]
 
     def _fit_loop(self, x, y,
                   do_validation=False,
@@ -533,16 +533,16 @@ class KMM(RRF):
             c = 0
             c_alpha = 0
             c_w = 0
-            s_w, t_w = np.zeros(self.w_.shape), np.zeros(self.w_.shape)
-            s_mu, t_mu = np.zeros(self.mu_.shape), np.zeros(self.mu_.shape)
+            s_w, t_w = np.zeros(self.w.shape), np.zeros(self.w.shape)
+            s_mu, t_mu = np.zeros(self.mu.shape), np.zeros(self.mu.shape)
             s_gamma, t_gamma = np.zeros(self.gamma_.shape), np.zeros(self.gamma_.shape)
-            s_alpha, t_alpha = np.zeros(self.alpha_.shape), np.zeros(self.alpha_.shape)
+            s_alpha, t_alpha = np.zeros(self.alpha.shape), np.zeros(self.alpha.shape)
 
             batches = make_batches(x.shape[0], self.batch_size)
 
-            while (self.epoch_ < self.num_epochs) and (not self.stop_training_):
+            while (self.epoch < self.num_epochs) and (not self.stop_training):
                 epoch_logs = {}
-                callbacks.on_epoch_begin(self.epoch_)
+                callbacks.on_epoch_begin(self.epoch)
 
                 if self.alternative_update:
                     for batch_idx, (batch_start, batch_end) in enumerate(batches):
@@ -557,36 +557,36 @@ class KMM(RRF):
 
                         if not self.adam_update:
                             s_mu = self.momentum * s_mu + self.learning_rate_mu * dmu
-                            self.mu_ -= s_mu
+                            self.mu -= s_mu
                             s_gamma = self.momentum * s_gamma + self.learning_rate_gamma * dgamma
                             self.gamma_ -= s_gamma
                             s_alpha = self.momentum * s_alpha + self.learning_rate_alpha * dalpha
-                            self.alpha_ -= s_alpha
+                            self.alpha -= s_alpha
                         else:
                             # adam update
                             c += 1
                             dmu, s_mu, t_mu = self._get_adam_update(
                                 c, s_mu, t_mu, dmu, self.learning_rate_mu)
-                            self.mu_ -= dmu
+                            self.mu -= dmu
                             dgamma, s_gamma, t_gamma = self._get_adam_update(
                                 c, s_gamma, t_gamma, dgamma, self.learning_rate_gamma)
                             self.gamma_ -= dgamma
                             dalpha, s_alpha, t_alpha = self._get_adam_update(
                                 c, s_alpha, t_alpha, dalpha, self.learning_rate_alpha)
-                            self.alpha_ -= dalpha
+                            self.alpha -= dalpha
                         self._update_z()
 
                         for i in range(self.num_nested_epochs):
                             dw = self._get_dw(x_batch, y_batch)
                             if not self.adam_update:
                                 s_w = self.momentum * s_w + self.learning_rate * dw
-                                self.w_ -= s_w
+                                self.w -= s_w
                             else:
                                 # adam update
                                 c_w += 1
                                 dw, s_w, t_w = self._get_adam_update(
                                     c_w, s_w, t_w, dw, self.learning_rate)
-                                self.w_ -= dw
+                                self.w -= dw
 
                         batch_logs.update(self._on_batch_end(x_batch, y_batch))
                         callbacks.on_batch_end(batch_idx, batch_logs)
@@ -603,9 +603,9 @@ class KMM(RRF):
 
                                 if not self.adam_update:
                                     s_w = self.momentum * s_w + self.learning_rate * dw
-                                    self.w_ -= s_w
+                                    self.w -= s_w
                                     s_mu = self.momentum * s_mu + self.learning_rate_mu * dmu
-                                    self.mu_ -= s_mu
+                                    self.mu -= s_mu
                                     s_gamma = self.momentum * s_gamma \
                                               + self.learning_rate_gamma * dgamma
                                     self.gamma_ -= s_gamma
@@ -614,10 +614,10 @@ class KMM(RRF):
                                     c += 1
                                     dw, s_w, t_w = self._get_adam_update(
                                         c, s_w, t_w, dw, self.learning_rate)
-                                    self.w_ -= dw
+                                    self.w -= dw
                                     dmu, s_mu, t_mu = self._get_adam_update(
                                         c, s_mu, t_mu, dmu, self.learning_rate_mu)
-                                    self.mu_ -= dmu
+                                    self.mu -= dmu
                                     dgamma, s_gamma, t_gamma = self._get_adam_update(
                                         c, s_gamma, t_gamma, dgamma, self.learning_rate_gamma)
                                     self.gamma_ -= dgamma
@@ -635,12 +635,12 @@ class KMM(RRF):
                             if not self.adam_update:
                                 s_alpha = self.momentum * s_alpha \
                                           + self.learning_rate_alpha * dalpha
-                                self.alpha_ -= s_alpha
+                                self.alpha -= s_alpha
                             else:
                                 c_alpha += 1
                                 dalpha, s_alpha, t_alpha = self._get_adam_update(
                                     c_alpha, s_alpha, t_alpha, dalpha, self.learning_rate_alpha)
-                                self.alpha_ -= dalpha
+                                self.alpha -= dalpha
                             self._update_z()
 
                             batch_logs.update(self._on_batch_end(x_batch, y_batch))
@@ -660,30 +660,30 @@ class KMM(RRF):
 
                             if not self.adam_update:
                                 s_w = self.momentum * s_w + self.learning_rate * dw
-                                self.w_ -= s_w
+                                self.w -= s_w
                                 s_mu = self.momentum * s_mu + self.learning_rate_mu * dmu
-                                self.mu_ -= s_mu
+                                self.mu -= s_mu
                                 s_gamma = self.momentum * s_gamma \
                                           + self.learning_rate_gamma * dgamma
                                 self.gamma_ -= s_gamma
                                 s_alpha = self.momentum * s_alpha \
                                           + self.learning_rate_alpha * dalpha
-                                self.alpha_ -= s_alpha
+                                self.alpha -= s_alpha
                             else:
                                 # adam update
                                 c += 1
                                 dw, s_w, t_w = self._get_adam_update(
                                     c, s_w, t_w, dw, self.learning_rate)
-                                self.w_ -= dw
+                                self.w -= dw
                                 dmu, s_mu, t_mu = self._get_adam_update(
                                     c, s_mu, t_mu, dmu, self.learning_rate_mu)
-                                self.mu_ -= dmu
+                                self.mu -= dmu
                                 dgamma, s_gamma, t_gamma = self._get_adam_update(
                                     c, s_gamma, t_gamma, dgamma, self.learning_rate_gamma)
                                 self.gamma_ -= dgamma
                                 dalpha, s_alpha, t_alpha = self._get_adam_update(
                                     c, s_alpha, t_alpha, dalpha, self.learning_rate_alpha)
-                                self.alpha_ -= dalpha
+                                self.alpha -= dalpha
 
                             self._update_z()
 
@@ -699,8 +699,8 @@ class KMM(RRF):
                     for key, value in outs.items():
                         epoch_logs['val_' + key] = value
 
-                epoch_logs.update({'mu': self.mu_[0, 0], 'gamma': np.exp(self.gamma_[0][0])})
-                callbacks.on_epoch_end(self.epoch_, epoch_logs)
+                epoch_logs.update({'mu': self.mu[0, 0], 'gamma': np.exp(self.gamma_[0][0])})
+                callbacks.on_epoch_end(self.epoch, epoch_logs)
                 self._on_epoch_end()
 
     def _on_epoch_end(self):
@@ -719,32 +719,32 @@ class KMM(RRF):
 
     def _roll_params(self):
         return np.concatenate([super(KMM, self)._roll_params(),
-                               np.ravel(self.mu_.copy()), np.ravel(self.alpha_.copy())])
+                               np.ravel(self.mu.copy()), np.ravel(self.alpha.copy())])
 
     def _unroll_params(self, w):
         ww = super(KMM, self)._unroll_params(w)
         ww = tuple([ww]) if not isinstance(ww, tuple) else ww
-        idx = np.sum([i.size for i in ww])
-        mu = w[idx:idx + self.mu_.size].reshape(self.mu_.shape).copy()
-        idx += self.mu_.size
-        alpha = w[idx:idx + self.alpha_.size].reshape(self.alpha_.shape).copy()
+        idx = np.sum([i.size for i in ww], dtype=np.int)
+        mu = w[idx:idx + self.mu.size].reshape(self.mu.shape).copy()
+        idx += self.mu.size
+        alpha = w[idx:idx + self.alpha.size].reshape(self.alpha.shape).copy()
         return ww + (mu, alpha)
 
     def get_loss(self, x, y, **kwargs):
         if 'mu' not in kwargs:
-            kwargs['mu'] = self.mu_
+            kwargs['mu'] = self.mu
         if 'alpha' not in kwargs:
-            kwargs['alpha'] = self.alpha_
+            kwargs['alpha'] = self.alpha
         return super(KMM, self).get_loss(x, y, **kwargs)
 
     def _get_loss_check_grad(self, w, x, y):
         ww, gamma, mu, alpha = self._unroll_params(w)
-        self.z_ = self._get_z(alpha=alpha)
+        self.z = self._get_z(alpha=alpha)
         return self.get_loss(x, y, w=ww, mu=mu, gamma=gamma, alpha=alpha)
 
     def _get_grad_check_grad(self, w, x, y):
         ww, gamma, mu, alpha = self._unroll_params(w)
-        self.z_ = self._get_z(alpha=alpha)
+        self.z = self._get_z(alpha=alpha)
         dw, dmu, dgamma = self.get_grad(x, y, w=ww, mu=mu, gamma=gamma, alpha=alpha)
         dalpha = self.get_grad_alpha(x, y, w=ww, mu=mu, gamma=gamma, alpha=alpha)
         return np.concatenate([np.ravel(dw), np.ravel(dgamma), np.ravel(dmu), np.ravel(dalpha)])
@@ -772,12 +772,13 @@ class KMM(RRF):
 
             dw, dmu, dgamma = self.get_grad(x[[t]], y[[t]])
             dalpha = self.get_grad_alpha(x[[t]], y[[t]])
-            self.w_ -= self.learning_rate * dw
-            self.mu_ -= self.learning_rate_mu * dmu
+            self.w -= self.learning_rate * dw
+            self.mu -= self.learning_rate_mu * dmu
             self.gamma_ -= self.learning_rate_gamma * dgamma
-            self.alpha_ -= self.learning_rate_alpha * dalpha
+            self.alpha -= self.learning_rate_alpha * dalpha
 
-        print("diff = %.8f" % (s / x.shape[0]))
+        s /= x.shape[0]
+        print("diff = %.8f" % s)
         return s
 
     def disp_syndata(self, **kwargs):
@@ -802,30 +803,8 @@ class KMM(RRF):
 
     def get_params(self, deep=True):
         out = super(KMM, self).get_params(deep=deep)
-        out.update({
-            'gamma': copy.deepcopy(self.gamma),
-            'num_kernels': self.num_kernels,
-            'num_nested_epochs': self.num_nested_epochs,
-            'anneal_rate': self.anneal_rate,
-            'temperature': self.temperature,
-            'min_temperature': self.min_temperature,
-            'adam_update': self.adam_update,
-            'momentum': self.momentum,
-            'sampling_gumbel': self.sampling_gumbel,
-            'learning_rate_mu': self.learning_rate_mu,
-            'alternative_update': self.alternative_update,
-            'learning_rate_alpha': self.learning_rate_alpha,
-        })
-        return out
-
-    def get_all_params(self, deep=True):
-        out = super(KMM, self).get_all_params(deep=deep)
-        out.update({
-            'z_': copy.deepcopy(self.z_),
-            'mu_': copy.deepcopy(self.mu_),
-            'alpha_': copy.deepcopy(self.alpha_),
-            'gumbel_': copy.deepcopy(self.gumbel_),
-        })
+        param_names = KMM._get_param_names()
+        out.update(self._get_params(param_names=param_names, deep=deep))
         return out
 
 
@@ -844,9 +823,9 @@ class KMM0(KMM):
             for t in range(x.shape[0]):
                 phi = self._get_phi(x[[t]])
 
-                wx = phi.dot(self.w_)  # (x,)
+                wx = phi.dot(self.w)  # (x,)
                 if self.task == 'classification':
-                    if self.num_classes_ == 2:
+                    if self.num_classes == 2:
                         y_pred = self._decode_labels(np.uint8(wx >= 0))[0]
                     else:
                         y_pred = self._decode_labels(np.argmax(wx))
@@ -858,19 +837,19 @@ class KMM0(KMM):
                 dalpha = self.get_grad_alpha(x[[t]], y[[t]], phi=phi, wx=wx)
 
                 # update parameters
-                self.w_ -= self.learning_rate * dw
+                self.w -= self.learning_rate * dw
                 self.gamma_ -= self.learning_rate_gamma * dgamma
-                self.alpha_ -= self.learning_rate_alpha * dalpha
+                self.alpha -= self.learning_rate_alpha * dalpha
                 self._update_z()
 
-            self.mistake_ = mistake / x.shape[0]
+            self.mistake = mistake / x.shape[0]
 
         else:  # batch mode
             c = 0
             c_alpha = 0
-            s_w, t_w = np.zeros(self.w_.shape), np.zeros(self.w_.shape)
+            s_w, t_w = np.zeros(self.w.shape), np.zeros(self.w.shape)
             s_gamma, t_gamma = np.zeros(self.gamma_.shape), np.zeros(self.gamma_.shape)
-            s_alpha, t_alpha = np.zeros(self.alpha_.shape), np.zeros(self.alpha_.shape)
+            s_alpha, t_alpha = np.zeros(self.alpha.shape), np.zeros(self.alpha.shape)
 
             batches = make_batches(x.shape[0], self.batch_size)
 
@@ -896,7 +875,7 @@ class KMM0(KMM):
                             c += 1
                             dw, s_w, t_w = self._get_adam_update(
                                 c, s_w, t_w, dw, self.learning_rate)
-                            self.w_ -= dw
+                            self.w -= dw
                             dgamma, s_gamma, t_gamma = self._get_adam_update(
                                 c, s_gamma, t_gamma, dgamma, self.learning_rate_gamma)
                             self.gamma_ -= dgamma
@@ -909,7 +888,7 @@ class KMM0(KMM):
                         c_alpha += 1
                         dalpha, s_alpha, t_alpha = self._get_adam_update(
                             c_alpha, s_alpha, t_alpha, dalpha, self.learning_rate_alpha)
-                        self.alpha_ -= dalpha
+                        self.alpha -= dalpha
                         self._update_z()
 
                 else:  # num_nested_epochs = 0
@@ -930,26 +909,26 @@ class KMM0(KMM):
                         c += 1
                         dw, s_w, t_w = self._get_adam_update(
                             c, s_w, t_w, dw, self.learning_rate)
-                        self.w_ -= dw
+                        self.w -= dw
                         dgamma, s_gamma, t_gamma = self._get_adam_update(
                             c, s_gamma, t_gamma, dgamma, self.learning_rate_gamma)
                         self.gamma_ -= dgamma
                         dalpha, s_alpha, t_alpha = self._get_adam_update(
                             c, s_alpha, t_alpha, dalpha, self.learning_rate_alpha)
-                        self.alpha_ -= dalpha
+                        self.alpha -= dalpha
                         self._update_z()
 
-                callbacks.on_epoch_end(self.epoch_, epoch_logs)
+                callbacks.on_epoch_end(self.epoch, epoch_logs)
 
-                self.epoch_ += 1
-                if self.stop_training_:
-                    self.epoch_ = self.stop_training_
+                self.epoch += 1
+                if self.stop_training:
+                    self.epoch = self.stop_training
                     break
 
     def get_grad(self, x, y, *args, **kwargs):
         n = x.shape[0]  # batch size
-        z = kwargs['z'] if 'z' in kwargs else self.z_  # (D,)
-        w = kwargs['w'] if 'w' in kwargs else self.w_  # (2D,C)
+        z = kwargs['z'] if 'z' in kwargs else self.z  # (D,)
+        w = kwargs['w'] if 'w' in kwargs else self.w  # (2D,C)
         gamma = kwargs['gamma'] if 'gamma' in kwargs else self.gamma_  # (M,d)
 
         phi = kwargs['phi'] if 'phi' in kwargs else self._get_phi(x, **kwargs)  # (N,2D)
@@ -957,7 +936,7 @@ class KMM0(KMM):
 
         dw = self.lbd * w  # (2D,C)
 
-        if self.num_classes_ > 2:
+        if self.num_classes > 2:
             wxy, t = self._get_wxy(wx, y)
             if self.loss == 'hinge':
                 d = (wxy[:, np.newaxis] < 1) * phi  # (N,2D)
@@ -968,7 +947,7 @@ class KMM0(KMM):
                 d = c * phi
                 dphi = -c * (w[:, y].T - w[:, t].T)  # (N,2D)
                 domega = self._get_domega(x, phi)  # (N,2D,d) (gradient of \omega)
-            for i in range(self.num_classes_):
+            for i in range(self.num_classes):
                 dw[:, i] += -d[y == i].sum(axis=0) / n
                 dw[:, i] += d[t == i].sum(axis=0) / n
             dgamma = self._get_dgamma(gamma, domega, dphi, z) / n  # (M,d)
@@ -1010,9 +989,9 @@ class KMM0(KMM):
 
     def get_grad_all(self, x, y, *args, **kwargs):
         n = x.shape[0]  # batch size
-        z = kwargs['z'] if 'z' in kwargs else self.z_  # (D,)
-        w = kwargs['w'] if 'w' in kwargs else self.w_  # (2D,C)
-        mu = kwargs['mu'] if 'mu' in kwargs else self.mu_  # (M,d)
+        z = kwargs['z'] if 'z' in kwargs else self.z  # (D,)
+        w = kwargs['w'] if 'w' in kwargs else self.w  # (2D,C)
+        mu = kwargs['mu'] if 'mu' in kwargs else self.mu  # (M,d)
         gamma = kwargs['gamma'] if 'gamma' in kwargs else self.gamma_  # (M,d)
 
         phi = kwargs['phi'] if 'phi' in kwargs else self._get_phi(x, **kwargs)  # (N,2D)
@@ -1020,7 +999,7 @@ class KMM0(KMM):
 
         dw = self.lbd * w  # (2D,C)
 
-        if self.num_classes_ > 2:
+        if self.num_classes > 2:
             wxy, t = self._get_wxy(wx, y)
             if self.loss == 'hinge':
                 d = (wxy[:, np.newaxis] < 1) * phi  # (N,2D)
@@ -1031,7 +1010,7 @@ class KMM0(KMM):
                 d = c * phi
                 dphi = -c * (w[:, y].T - w[:, t].T)  # (N,2D)
                 domega = self._get_domega(x, phi)  # (N,2D,d) (gradient of \omega)
-            for i in range(self.num_classes_):
+            for i in range(self.num_classes):
                 dw[:, i] += -d[y == i].sum(axis=0) / n
                 dw[:, i] += d[t == i].sum(axis=0) / n
             dgamma = self._get_dgamma(gamma, domega, dphi, z) / n  # (M,d)
