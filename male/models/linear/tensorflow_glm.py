@@ -48,7 +48,7 @@ class TensorFlowGLM(TensorFlowModel, GLM):
         self.y_link = tf.matmul(self.x, self.w) + self.b
         if self.loss == 'logit':
             self.cross_entropy = tf.reduce_mean(
-                tf.nn.sigmoid_cross_entropy_with_logits(targets=self.y,
+                tf.nn.sigmoid_cross_entropy_with_logits(labels=self.y,
                                                         logits=tf.squeeze(self.y_link)))
         elif self.loss == 'softmax':
             # self.y_pred = tf.nn.softmax(self.y_link)
