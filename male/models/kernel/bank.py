@@ -2,7 +2,6 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
-import copy
 import numpy as np
 import numpy.random as np_rand
 import scipy.stats as stats
@@ -26,9 +25,8 @@ class BaNK(Model):
                  kappa=0.1,
                  inner_max_loop=100,
                  max_outer_loop=50,
-                 *args, **kwargs):
-        kwargs['model_name'] = model_name
-        super(BaNK, self).__init__(**kwargs)
+                 **kwargs):
+        super(BaNK, self).__init__(model_name=model_name, **kwargs)
         self.gamma = gamma  # kernel width
         self.rf_dim = rf_dim  # dim of random feature
         self.inner_regularization = inner_regularization  # regularization parameter
@@ -41,7 +39,7 @@ class BaNK(Model):
     def _init(self):
         super(BaNK, self)._init()
         self.omega_ = None
-        self.w_ = None
+        self.w = None
         self.newton_opt = Newton(learning_rate=0.8, tolerance=1e-7, max_loop=self.inner_max_loop)
         self.newton_opt.init_params(
             obj_func=BaNK.get_log_f,
@@ -50,18 +48,20 @@ class BaNK(Model):
         )
 
     @staticmethod
-    def get_log_f(w, (phi, y, regular_param)):
+    def get_log_f(w, params):
+        phi, y, regular_param = params
         try:
             phi_beta = np.dot(phi, w)
             return \
                 -np.dot(y, phi_beta) \
-                + np.sum(np.log(1+np.exp(phi_beta))) \
-                + 0.5 * regular_param * np.sum(w**2)
+                + np.sum(np.log(1 + np.exp(phi_beta))) \
+                + 0.5 * regular_param * np.sum(w ** 2)
         except Exception:
             return 0
 
     @staticmethod
-    def get_grad_log_f(w, (phi, y, regular_param)):
+    def get_grad_log_f(w, params):
+        phi, y, regular_param = params
         try:
             sig_predict = (1.0 / (1 + np.exp(-(np.dot(phi, w)))))
             grad_pen = regular_param * w
@@ -70,7 +70,8 @@ class BaNK(Model):
         return np.dot(phi.T, (sig_predict - y)) + grad_pen
 
     @staticmethod
-    def get_hessian_log_f(w, (phi, y, regular_param)):
+    def get_hessian_log_f(w, params):
+        phi, y, regular_param = params
         sig_predict = (1.0 / (1 + np.exp(-np.dot(phi, w))))
         return np.dot(phi.T * sig_predict * (1 - sig_predict), phi) + regular_param * np.eye(len(w))
 
@@ -194,7 +195,7 @@ class BaNK(Model):
                 if di == rf_dim - 1:
                     di_idx = [di, di + rf_dim, rf_2dim]
                     n_di_idx = 3
-                log_pbeta_old[di] = stats.multivariate_normal.\
+                log_pbeta_old[di] = stats.multivariate_normal. \
                     logpdf(w[di_idx], np.zeros(n_di_idx), 1.0 / self.inner_regularization)
 
             n_accept = 0
@@ -267,7 +268,7 @@ class BaNK(Model):
         w, _ = self.newton_opt.solve(w, (phi, self.y_, self.inner_regularization))
 
         self.omega_ = omega
-        self.w_ = w
+        self.w = w
 
     def predict(self, x):
         rf_dim = self.rf_dim
@@ -285,20 +286,12 @@ class BaNK(Model):
         phi[:, rf_dim:rf_2dim] = np.sin(omega_x)
         phi *= scale_rf
 
-        y[(np.sum(phi * self.w_, axis=1)) <= 0] = 0
+        y[(np.sum(phi * self.w, axis=1)) <= 0] = 0
 
         return self._decode_labels(y)
 
     def get_params(self, deep=True):
         out = super(BaNK, self).get_params(deep=deep)
-        out.update({
-            'gamma': self.gamma,
-            'kappa': self.kappa,
-            'inner_regularization': self.inner_regularization,
-        })
-        return out
-
-    def get_all_params(self, deep=True):
-        out = super(BaNK, self).get_all_params(deep=deep)
-        out.update(self.get_params(deep=deep))
+        param_names = BaNK._get_param_names()
+        out.update(self._get_params(param_names=param_names, deep=deep))
         return out
