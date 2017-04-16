@@ -4,6 +4,7 @@ from __future__ import absolute_import
 
 import numpy as np
 from scipy.stats import norm
+from scipy.stats import multivariate_normal
 
 
 class Gaussian1D(object):
@@ -38,3 +39,18 @@ class InverseGaussian1D(object):
         for i in range(len(z)):
             samples.extend(bins[i] + np.random.random(z[i]) * 0.01)
         return samples
+
+
+class Gaussian(object):
+    """Multivariate Gaussian Distribution
+    """
+    def __init__(self, mu=(0.0, 0.0), sigma=(1.0, 1.0)):
+        self.mu = mu
+        self.sigma = sigma
+        self.cov = np.diag(sigma)
+
+    def sample(self, num_samples):
+        return np.random.multivariate_normal(mean=self.mu, cov=self.cov, size=num_samples)
+
+    def logpdf(self, samples):
+        return np.mean(np.log(multivariate_normal.pdf(samples, mean=self.mu, cov=self.sigma)))
