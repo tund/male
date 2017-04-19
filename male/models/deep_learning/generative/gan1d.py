@@ -21,16 +21,18 @@ class GAN1D(TensorFlowModel):
 
     def __init__(self,
                  model_name='GAN1D',
+                 num_z=10,
                  data=None,
                  generator=None,
                  loglik_freq=0,
                  hidden_size=20,
                  minibatch_discriminator=False,
-                 generator_learning_rate=0.001,
-                 discriminator_learning_rate=0.001,
+                 generator_learning_rate=0.0001,
+                 discriminator_learning_rate=0.0001,
                  **kwargs):
         super(GAN1D, self).__init__(model_name=model_name, **kwargs)
         self.data = data
+        self.num_z = num_z
         self.generator = generator
         self.loglik_freq = loglik_freq
         # can use a higher learning rate when not using the minibatch discriminator (MBD) layer
@@ -55,7 +57,7 @@ class GAN1D(TensorFlowModel):
         # This defines the generator network - it takes samples from a noise
         # distribution as input, and passes them through an MLP.
         with tf.variable_scope('generator'):
-            self.z = tf.placeholder(tf.float32, shape=[None, 1])
+            self.z = tf.placeholder(tf.float32, shape=[None, self.num_z])
             self.g = self._create_generator(self.z, self.hidden_size)
 
         # The discriminator tries to tell the difference between samples from the
@@ -96,18 +98,17 @@ class GAN1D(TensorFlowModel):
 
             # update discriminator
             x = self.data.sample(self.batch_size)
-            x.sort()
-            z = self.generator.stratified_sample(self.batch_size)
+            z = self.generator.sample([self.batch_size, self.num_z])
             d_loss, _ = self.tf_session.run(
                 [self.d_loss, self.d_opt],
                 feed_dict={self.x: np.reshape(x, [self.batch_size, 1]),
-                           self.z: np.reshape(z, [self.batch_size, 1])})
+                           self.z: np.reshape(z, [self.batch_size, self.num_z])})
 
             # update generator
-            z = self.generator.stratified_sample(self.batch_size)
+            z = self.generator.sample([self.batch_size, self.num_z])
             g_loss, _ = self.tf_session.run(
                 [self.g_loss, self.g_opt],
-                feed_dict={self.z: np.reshape(z, [self.batch_size, 1])})
+                feed_dict={self.z: np.reshape(z, [self.batch_size, self.num_z])})
 
             batch_logs['d_loss'] = d_loss
             batch_logs['g_loss'] = g_loss
@@ -133,23 +134,22 @@ class GAN1D(TensorFlowModel):
             self.g_avg_hist['hist'] = (self.g_avg_hist['hist'] * c + hist) / (c + 1)
         self.g_avg_hist['count'] += 1
 
-    def generate(self, num_samples=10000):
+    def generate(self, num_samples=1000):
         sess = self._get_session()
-        zs = np.linspace(self.generator.low, self.generator.high, num_samples)
+        zs = self.generator.sample([num_samples, self.num_z])
         g = np.zeros([num_samples, 1])
         batches = make_batches(num_samples, self.batch_size)
         for batch_idx, (batch_start, batch_end) in enumerate(batches):
             g[batch_start:batch_end] = sess.run(
                 self.g,
                 feed_dict={
-                    self.z: np.reshape(zs[batch_start:batch_end], [batch_end - batch_start, 1])
+                    self.z: np.reshape(zs[batch_start:batch_end],
+                                       [batch_end - batch_start, self.num_z])
                 }
             )
-        if sess != self.tf_session:
-            sess.close()
         return g
 
-    def _samples(self, num_samples=10000, num_bins=100):
+    def _samples(self, num_samples=1000, num_bins=100):
         '''
         Return a tuple (db, pd, pg), where db is the current decision
         boundary, pd is a histogram of samples from the data distribution,
@@ -180,9 +180,6 @@ class GAN1D(TensorFlowModel):
         g = self.generate(num_samples)
         pg, _ = np.histogram(g, bins=bins, density=True)
         pg /= np.sum(pg)
-
-        if sess != self.tf_session:
-            sess.close()
 
         return db, pd, pg
 
@@ -227,26 +224,29 @@ class GAN1D(TensorFlowModel):
         return tf.concat(1, [input, minibatch_features])
 
     def _create_generator(self, input, h_dim):
-        hidden = tf.nn.softplus(linear(input, h_dim, 'g_hidden'))
+        hidden = tf.nn.relu(linear(input, h_dim, 'g_hidden1'))
+        hidden = tf.nn.relu(linear(hidden, h_dim, 'g_hidden2'))
         out = linear(hidden, 1, 'g_out')
         return out
 
     def _create_discriminator(self, input, h_dim):
-        hidden1 = tf.tanh(linear(input, h_dim * 2, 'd_hidden1'))
-        hidden2 = tf.tanh(linear(hidden1, h_dim * 2, 'd_hidden2'))
+        hidden = tf.nn.relu(linear(input, h_dim, 'd_hidden1'))
+        # uncomment to add one more hidden layer, the model will work better.
+        # hidden = tf.nn.relu(linear(input, h_dim, 'd_hidden1'))
 
         # without the minibatch layer, the discriminator needs an additional layer
         # to have enough capacity to separate the two distributions correctly
         if self.minibatch_discriminator:
-            hidden3 = self._create_minibatch_layer(hidden2, scope='d_minibatch')
+            hidden = self._create_minibatch_layer(hidden, scope='d_minibatch')
         else:
-            hidden3 = tf.tanh(linear(hidden2, h_dim * 2, scope='d_hidden3'))
+            hidden = tf.nn.relu(linear(hidden, h_dim, scope='d_hidden3'))
 
-        out = tf.sigmoid(linear(hidden3, 1, scope='d_out'))
+        out = tf.sigmoid(linear(hidden, 1, scope='d_out'))
         return out
 
     def _create_optimizer(self, loss, var_list, initial_learning_rate):
-        return tf.train.AdamOptimizer(initial_learning_rate).minimize(loss, var_list=var_list)
+        return tf.train.AdamOptimizer(initial_learning_rate,
+                                      beta1=0.5).minimize(loss, var_list=var_list)
 
     def get_params(self, deep=True):
         out = super(GAN1D, self).get_params(deep=deep)

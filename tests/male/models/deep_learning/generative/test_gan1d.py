@@ -63,11 +63,14 @@ def test_gan1d_gaussian1d(block_figure_on_end=False):
 
     model = GAN1D(data=Gaussian1D(mu=4.0, sigma=0.5),
                   generator=Uniform1D(low=-8.0, high=8.0),
-                  num_epochs=4,
-                  hidden_size=20,
-                  batch_size=12,
+                  num_z=10,  # increase this to 100 for a full run
+                  num_epochs=4,  # increase this to 1000 for a full run
+                  hidden_size=16,  # increase this to 128 for a full run
+                  batch_size=128,
                   minibatch_discriminator=False,
                   loglik_freq=1,
+                  generator_learning_rate=0.0001,
+                  discriminator_learning_rate=0.0001,
                   metrics=['d_loss', 'g_loss', 'loglik'],
                   callbacks=[loss_display, distribution_display, avg_distribution_display],
                   random_state=random_seed(),
@@ -125,10 +128,13 @@ def test_gan1d_gmm1d(block_figure_on_end=False):
 
     model = GAN1D(data=GMM1D(pi=[0.55, 0.45], mu=[1.0, 4.0], sigma=[0.2, 0.5]),
                   generator=Uniform1D(low=-8.0, high=8.0),
-                  num_epochs=4,
-                  hidden_size=20,
-                  batch_size=12,
+                  num_z=100,  # increase this to 100 for a full run
+                  num_epochs=4,  # increase this to 1000 for a full run
+                  hidden_size=16,  # increase this to 128 for a full run
+                  batch_size=128,
                   loglik_freq=1,
+                  generator_learning_rate=0.0001,
+                  discriminator_learning_rate=0.0001,
                   metrics=['d_loss', 'g_loss', 'loglik'],
                   callbacks=[loss_display, distribution_display, avg_distribution_display],
                   random_state=random_seed(),
