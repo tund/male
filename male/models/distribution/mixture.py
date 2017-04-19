@@ -4,6 +4,9 @@ from __future__ import absolute_import
 
 import numpy as np
 from scipy.stats import norm
+from scipy.stats import multivariate_normal
+
+from ... import epsilon
 
 
 class GMM1D(object):
@@ -26,7 +29,7 @@ class GMM1D(object):
         p = np.zeros([samples.shape[0], len(self.pi)])
         for i in range(len(self.pi)):
             p[:, [i]] = self.pi[i] * norm.pdf(samples, loc=self.mu[i], scale=self.sigma[i])
-        return np.mean(np.log(np.sum(p, axis=1)))
+        return np.mean(np.log(np.sum(p, axis=1)) + epsilon())
 
 
 class GMM(object):
@@ -60,4 +63,8 @@ class GMM(object):
         return samples
 
     def logpdf(self, samples):
-        raise NotImplementedError
+        p = np.zeros([samples.shape[0], len(self.mix_coeffs)])
+        for i in range(len(self.mix_coeffs)):
+            p[:, i] = self.mix_coeffs[i] * multivariate_normal.pdf(
+                samples, mean=self.mean[i], cov=self.cov[i])
+        return np.mean(np.log(np.sum(p, axis=1) + epsilon()))
