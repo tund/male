@@ -9,19 +9,19 @@ import matplotlib.pyplot as plt
 
 plt.style.use('ggplot')
 
-from . import TwinGAN1D
+from . import D2GAN1D
 from ....utils.generic_utils import make_batches
 from ....backend.tensorflow_backend import linear
 
 
-class TwinGAN2D(TwinGAN1D):
-    """Twin Generative Adversarial Nets for 2D data
+class D2GAN2D(D2GAN1D):
+    """Dual Discriminator Generative Adversarial Nets for 2D data
     """
 
     def __init__(self,
-                 model_name='TwinGAN2D',
+                 model_name='D2GAN2D',
                  **kwargs):
-        super(TwinGAN2D, self).__init__(model_name=model_name, **kwargs)
+        super(D2GAN2D, self).__init__(model_name=model_name, **kwargs)
 
     def _build_model(self, x):
         # This defines the generator network - it takes samples from a noise
@@ -153,7 +153,7 @@ class TwinGAN2D(TwinGAN1D):
                                       beta1=0.5).minimize(loss, var_list=var_list)
 
     def get_params(self, deep=True):
-        out = super(TwinGAN2D, self).get_params(deep=deep)
-        param_names = TwinGAN2D._get_param_names()
+        out = super(D2GAN2D, self).get_params(deep=deep)
+        param_names = D2GAN2D._get_param_names()
         out.update(self._get_params(param_names=param_names, deep=deep))
         return out

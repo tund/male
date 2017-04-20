@@ -87,7 +87,7 @@ def test_gan_mnist(block_figure_on_end=False):
                 batch_size=32,
                 metrics=['d_loss', 'g_loss'],
                 callbacks=[loss_display, sample_display],
-                num_epochs=100,
+                num_epochs=4,
                 random_state=random_seed(),
                 verbose=1)
     # </editor-fold>
@@ -96,5 +96,5 @@ def test_gan_mnist(block_figure_on_end=False):
 
 
 if __name__ == '__main__':
-    # pytest.main([__file__])
-    test_gan_mnist(block_figure_on_end=True)
+    pytest.main([__file__])
+    # test_gan_mnist(block_figure_on_end=True)
