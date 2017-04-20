@@ -44,7 +44,7 @@ def test_twingan2d_gmm2d(block_figure_on_end=False):
     scatter_display = Display(layout=(1, 1),
                               figsize=(12, 12),
                               dpi='auto',
-                              freq=2,  # set to 1000 for a full run
+                              freq=1,  # set to 1000 for a full run
                               title='Scatter',
                               block_on_end=block_figure_on_end,
                               monitor=[{'metrics': ['scatter'],
@@ -67,14 +67,14 @@ def test_twingan2d_gmm2d(block_figure_on_end=False):
         data=GMM(mix_coeffs=[1 / num_mixtures] * num_mixtures,
                  mean=list(zip(xs, ys)),
                  cov=[[std, std]] * num_mixtures),
-        num_z=16,  # set to 256 for a full run
+        num_z=10,  # set to 256 for a full run
         generator=Gaussian1D(mu=0.0, sigma=1.0),
         alpha=1.0,
         beta=1.0,
-        num_epochs=10,  # set to 25000 for a full run
-        hidden_size=32,  # set to 128 for a full run
+        num_epochs=4,  # set to 25000 for a full run
+        hidden_size=16,  # set to 128 for a full run
         batch_size=32,  # set to 512 for a full run
-        loglik_freq=100,
+        loglik_freq=1,
         generator_learning_rate=0.0002,
         discriminator_learning_rate=0.0002,
         metrics=['d1x', 'd2x', 'd1_loss', 'd2_loss', 'd_loss', 'g_loss', 'loglik'],

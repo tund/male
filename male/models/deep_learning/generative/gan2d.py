@@ -9,7 +9,6 @@ import matplotlib.pyplot as plt
 plt.style.use('ggplot')
 
 from . import GAN1D
-from ...distribution import Uniform
 from ...distribution import Gaussian
 from ....utils.generic_utils import make_batches
 from ....backend.tensorflow_backend import linear
@@ -114,8 +113,8 @@ class GAN2D(GAN1D):
         x = self.data.sample(kwargs['num_samples'])
         g = self.generate(kwargs['num_samples'])
         ax = kwargs['ax']
-        ax.scatter(x[:, 0], x[:, 1], s=10, marker='o', color='r', label='real data')
-        ax.scatter(g[:, 0], g[:, 1], s=10, marker='o', color='b', label='generated data')
+        ax.scatter(x[:, 0], x[:, 1], s=50, marker='+', color='r', alpha=0.8, label='real data')
+        ax.scatter(g[:, 0], g[:, 1], s=50, marker='o', color='b', alpha=0.8, label='generated data')
         if 'xlim' in kwargs:
             ax.set_xlim(kwargs['xlim'][0], kwargs['xlim'][1])
         if 'ylim' in kwargs:

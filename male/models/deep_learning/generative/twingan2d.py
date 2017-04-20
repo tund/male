@@ -11,16 +11,7 @@ plt.style.use('ggplot')
 
 from . import TwinGAN1D
 from ....utils.generic_utils import make_batches
-
-
-def linear(input, output_dim, scope='linear', init=None):
-    if init is None:
-        init = tf.random_normal_initializer(stddev=0.01)
-    const = tf.constant_initializer(0.0)
-    with tf.variable_scope(scope):
-        w = tf.get_variable('w', [input.get_shape()[1], output_dim], initializer=init)
-        b = tf.get_variable('b', [output_dim], initializer=const)
-        return tf.matmul(input, w) + b
+from ....backend.tensorflow_backend import linear
 
 
 class TwinGAN2D(TwinGAN1D):
@@ -145,22 +136,16 @@ class TwinGAN2D(TwinGAN1D):
             raise NotImplementedError
 
     def _create_discriminator(self, input, h_dim):
-        hidden = tf.nn.tanh(linear(input, h_dim, 'd_hidden1',
-                                   init=tf.orthogonal_initializer(gain=1.4)))
+        hidden = tf.nn.relu(linear(input, h_dim, 'd_hidden1', ))
         # uncomment to add one more hidden layer.
-        hidden = tf.nn.tanh(linear(hidden, h_dim, 'd_hidden2',
-                                   init=tf.orthogonal_initializer(gain=1.4)))
-        out = tf.nn.softplus(linear(hidden, 1, scope='d_out',
-                                    init=tf.orthogonal_initializer(gain=1.4)))
+        # hidden = tf.nn.relu(linear(hidden, h_dim, 'd_hidden2'))
+        out = tf.nn.softplus(linear(hidden, 1, scope='d_out'))
         return out
 
     def _create_generator(self, input, h_dim):
-        hidden = tf.nn.tanh(linear(input, h_dim, 'g_hidden1',
-                                   init=tf.orthogonal_initializer(gain=1.4)))
-        hidden = tf.nn.tanh(linear(hidden, h_dim, 'g_hidden2',
-                                   init=tf.orthogonal_initializer(gain=1.4)))
-        out = linear(hidden, 2, scope='g_out',
-                     init=tf.orthogonal_initializer(gain=1.4))
+        hidden = tf.nn.relu(linear(input, h_dim, 'g_hidden1'))
+        hidden = tf.nn.relu(linear(hidden, h_dim, 'g_hidden2'))
+        out = linear(hidden, 2, scope='g_out')
         return out
 
     def _create_optimizer(self, loss, var_list, initial_learning_rate):
