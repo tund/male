@@ -26,6 +26,7 @@ class GAN(TensorFlowModel):
                  discriminator_batchnorm=False,
                  num_discriminator_hiddens=(100,),
                  discriminator_act_funcs=('relu',),
+                 discriminator_dropouts=(1.0,),
                  discriminator_learning_rate=0.001,
                  num_z=20,
                  generator_distribution=Uniform(low=(-1.0,) * 20, high=(1.0,) * 20),
@@ -40,6 +41,7 @@ class GAN(TensorFlowModel):
         self.discriminator_batchnorm = discriminator_batchnorm
         self.num_discriminator_hiddens = num_discriminator_hiddens
         self.discriminator_act_funcs = discriminator_act_funcs
+        self.discriminator_dropouts = discriminator_dropouts
         self.discriminator_learning_rate = discriminator_learning_rate
         self.num_z = num_z
         self.generator_batchnorm = generator_batchnorm
@@ -140,7 +142,7 @@ class GAN(TensorFlowModel):
     def _create_generator(self, input, num_hiddens, act_funcs, out_func):
         h = input
         for i in range(len(num_hiddens)):
-            linear_layer = linear(h, num_hiddens[i], scope='g_hidden' + str(i + 1))
+            linear_layer = linear(h, num_hiddens[i], scope='g_hidden' + str(i + 1), stddev=0.001)
             batchnorm_layer = batchnorm(linear,
                                         is_training=True) \
                 if self.generator_batchnorm else linear_layer
@@ -162,6 +164,7 @@ class GAN(TensorFlowModel):
                 h = activations.get('tf_' + act_funcs[i])(batchnorm_layer, alpha=0.2)
             else:
                 h = activations.get('tf_' + act_funcs[i])(batchnorm_layer)
+            h = tf.nn.dropout(h, self.discriminator_dropouts[i])
         out = tf.sigmoid(linear(h, 1, scope='d_out'))
         return out
 

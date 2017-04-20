@@ -6,6 +6,8 @@ import numpy as np
 from scipy.stats import norm
 from scipy.stats import multivariate_normal
 
+from ... import epsilon
+
 
 class Gaussian1D(object):
     def __init__(self, mu=0.0, sigma=1.0):
@@ -17,7 +19,7 @@ class Gaussian1D(object):
         return samples
 
     def logpdf(self, samples):
-        return np.mean(np.log(norm.pdf(samples, loc=self.mu, scale=self.sigma)))
+        return np.mean(np.log(norm.pdf(samples, loc=self.mu, scale=self.sigma) + epsilon()))
 
 
 class InverseGaussian1D(object):
@@ -44,6 +46,7 @@ class InverseGaussian1D(object):
 class Gaussian(object):
     """Multivariate Gaussian Distribution
     """
+
     def __init__(self, mu=(0.0, 0.0), sigma=(1.0, 1.0)):
         self.mu = mu
         self.sigma = sigma
@@ -53,4 +56,5 @@ class Gaussian(object):
         return np.random.multivariate_normal(mean=self.mu, cov=self.cov, size=num_samples)
 
     def logpdf(self, samples):
-        return np.mean(np.log(multivariate_normal.pdf(samples, mean=self.mu, cov=self.sigma)))
+        return np.mean(np.log(multivariate_normal.pdf(samples, mean=self.mu, cov=self.sigma)
+                              + epsilon()))

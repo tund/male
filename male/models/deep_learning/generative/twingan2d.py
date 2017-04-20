@@ -4,30 +4,24 @@ from __future__ import absolute_import
 
 import numpy as np
 import tensorflow as tf
+
 import matplotlib.pyplot as plt
 
 plt.style.use('ggplot')
 
-from . import GAN1D
-from ...distribution import Gaussian
+from . import TwinGAN1D
 from ....utils.generic_utils import make_batches
 from ....backend.tensorflow_backend import linear
 
 
-class GAN2D(GAN1D):
-    """Generative Adversarial Nets for 2D data
+class TwinGAN2D(TwinGAN1D):
+    """Twin Generative Adversarial Nets for 2D data
     """
 
     def __init__(self,
-                 model_name='GAN2D',
+                 model_name='TwinGAN2D',
                  **kwargs):
-        super(GAN2D, self).__init__(model_name=model_name, **kwargs)
-
-    def _init(self):
-        super(GAN2D, self)._init()
-
-        if self.data is None:
-            self.data = Gaussian(mu=(0.0, 0.0), sigma=(1.0, 1.0))
+        super(TwinGAN2D, self).__init__(model_name=model_name, **kwargs)
 
     def _build_model(self, x):
         # This defines the generator network - it takes samples from a noise
@@ -36,23 +30,33 @@ class GAN2D(GAN1D):
             self.z = tf.placeholder(tf.float32, shape=[None, self.num_z])
             self.g = self._create_generator(self.z, self.hidden_size)
 
+        self.x = tf.placeholder(tf.float32, shape=[None, 2])
+
         # The discriminator tries to tell the difference between samples from the
         # true data distribution (self.x) and the generated samples (self.z).
         #
         # Here we create two copies of the discriminator network (that share parameters),
         # as you cannot use the same network with different inputs in TensorFlow.
-        with tf.variable_scope('discriminator') as scope:
-            self.x = tf.placeholder(tf.float32, shape=[None, 2])
-            self.d1 = self._create_discriminator(self.x, self.hidden_size)
+        with tf.variable_scope('discriminator_1') as scope:
+            self.d1x = self._create_discriminator(self.x, self.hidden_size)
             scope.reuse_variables()
-            self.d2 = self._create_discriminator(self.g, self.hidden_size)
+            self.d1g = self._create_discriminator(self.g, self.hidden_size)
+        with tf.variable_scope('discriminator_2') as scope:
+            self.d2x = self._create_discriminator(self.x, self.hidden_size)
+            scope.reuse_variables()
+            self.d2g = self._create_discriminator(self.g, self.hidden_size)
 
         # Define the loss for discriminator and generator networks (see the original
         # paper for details), and create optimizers for both
-        self.d_loss = tf.reduce_mean(-tf.log(self.d1) - tf.log(1 - self.d2))
-        self.g_loss = tf.reduce_mean(-tf.log(self.d2))
+        self.d1_loss = tf.reduce_mean(-tf.log(self.d1x) + self.d1g)
+        self.d2_loss = tf.reduce_mean(self.d2x - tf.log(self.d2g))
+        self.d_loss = self.alpha * self.d1_loss + self.beta * self.d2_loss
+        self.g_loss = tf.reduce_mean(-self.d1g + tf.log(self.d2g))
 
-        self.d_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='discriminator')
+        self.d_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,
+                                          scope='discriminator_1') \
+                        + tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,
+                                            scope='discriminator_2')
         self.g_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='generator')
 
         self.d_opt = self._create_optimizer(self.d_loss, self.d_params,
@@ -75,10 +79,11 @@ class GAN2D(GAN1D):
             # update discriminator
             x = self.data.sample(self.batch_size)
             z = self.generator.sample([self.batch_size, self.num_z])
-            d_loss, _ = self.tf_session.run(
-                [self.d_loss, self.d_opt],
+            d1x, d2x, d1_loss, d2_loss, d_loss, _ = self.tf_session.run(
+                [self.d1x, self.d2x, self.d1_loss, self.d2_loss, self.d_loss, self.d_opt],
                 feed_dict={self.x: np.reshape(x, [self.batch_size, 2]),
-                           self.z: np.reshape(z, [self.batch_size, self.num_z])})
+                           self.z: np.reshape(z, [self.batch_size, self.num_z]),
+                           })
 
             # update generator
             z = self.generator.sample([self.batch_size, self.num_z])
@@ -86,6 +91,10 @@ class GAN2D(GAN1D):
                 [self.g_loss, self.g_opt],
                 feed_dict={self.z: np.reshape(z, [self.batch_size, self.num_z])})
 
+            batch_logs['d1x'] = d1x.mean()
+            batch_logs['d2x'] = d2x.mean()
+            batch_logs['d1_loss'] = d1_loss
+            batch_logs['d2_loss'] = d2_loss
             batch_logs['d_loss'] = d_loss
             batch_logs['g_loss'] = g_loss
             batch_logs.update(self._on_batch_end(x))
@@ -126,17 +135,17 @@ class GAN2D(GAN1D):
         else:
             raise NotImplementedError
 
+    def _create_discriminator(self, input, h_dim):
+        hidden = tf.nn.relu(linear(input, h_dim, 'd_hidden1', ))
+        # uncomment to add one more hidden layer.
+        # hidden = tf.nn.relu(linear(hidden, h_dim, 'd_hidden2'))
+        out = tf.nn.softplus(linear(hidden, 1, scope='d_out'))
+        return out
+
     def _create_generator(self, input, h_dim):
         hidden = tf.nn.relu(linear(input, h_dim, 'g_hidden1'))
         hidden = tf.nn.relu(linear(hidden, h_dim, 'g_hidden2'))
-        out = linear(hidden, 2, 'g_out')
-        return out
-
-    def _create_discriminator(self, input, h_dim):
-        hidden = tf.nn.relu(linear(input, h_dim, 'd_hidden1'))
-        # uncomment the following line to add one more hidden layer, the model will work better.
-        # hidden = tf.nn.relu(linear(hidden, h_dim, 'd_hidden2'))
-        out = tf.sigmoid(linear(hidden, 1, scope='d_out'))
+        out = linear(hidden, 2, scope='g_out')
         return out
 
     def _create_optimizer(self, loss, var_list, initial_learning_rate):
@@ -144,7 +153,7 @@ class GAN2D(GAN1D):
                                       beta1=0.5).minimize(loss, var_list=var_list)
 
     def get_params(self, deep=True):
-        out = super(GAN2D, self).get_params(deep=deep)
-        param_names = GAN2D._get_param_names()
+        out = super(TwinGAN2D, self).get_params(deep=deep)
+        param_names = TwinGAN2D._get_param_names()
         out.update(self._get_params(param_names=param_names, deep=deep))
         return out
