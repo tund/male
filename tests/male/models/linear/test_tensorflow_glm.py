@@ -89,7 +89,7 @@ def test_tfglm_logit_gridsearch():
                         catch_exception=True,
                         random_state=random_seed())
 
-    gs = GridSearchCV(clf, params, cv=ps, n_jobs=-1, refit=False, verbose=True)
+    gs = GridSearchCV(clf, params, cv=ps, n_jobs=1, refit=False, verbose=True)
     gs.fit(x, y)
 
     print("Best error {} @ params {}".format(1 - gs.best_score_, gs.best_params_))
@@ -129,7 +129,7 @@ def test_tfglm_softmax_gridsearch():
                         catch_exception=True,
                         random_state=random_seed())
 
-    gs = GridSearchCV(clf, params, cv=ps, n_jobs=-1, refit=False, verbose=True)
+    gs = GridSearchCV(clf, params, cv=ps, n_jobs=1, refit=False, verbose=True)
     gs.fit(x, y)
 
     print("Best error {} @ params {}".format(1 - gs.best_score_, gs.best_params_))
@@ -203,7 +203,7 @@ def test_tfglm_regression_gridsearch():
                         catch_exception=True,
                         random_state=random_seed())
 
-    gs = GridSearchCV(clf, params, cv=ps, n_jobs=-1, refit=False, verbose=True)
+    gs = GridSearchCV(clf, params, cv=ps, n_jobs=1, refit=False, verbose=True)
     gs.fit(x, y)
 
     print("Best MSE {} @ params {}".format(-gs.best_score_, gs.best_params_))

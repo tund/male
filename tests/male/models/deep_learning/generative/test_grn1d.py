@@ -15,6 +15,7 @@ from male.models.deep_learning.generative import GRN1D
 
 
 @pytest.mark.skipif('tensorflow' not in sys.modules, reason="requires tensorflow library")
+@pytest.mark.skip(reason="Incomplete yet")
 def test_grn1d_gaussian1d(block_figure_on_end=False):
     print("========== Test GRN on 1D data generated from a Gaussian distribution ==========")
 
@@ -79,6 +80,7 @@ def test_grn1d_gaussian1d(block_figure_on_end=False):
 
 
 @pytest.mark.skipif('tensorflow' not in sys.modules, reason="requires tensorflow library")
+@pytest.mark.skip(reason="Incomplete yet")
 def test_grn1d_gmm1d(block_figure_on_end=False):
     print("========== Test GRN on 1D data generated from a Gaussian Mixture Model ==========")
 
@@ -133,6 +135,7 @@ def test_grn1d_gmm1d(block_figure_on_end=False):
 
 
 @pytest.mark.skipif('tensorflow' not in sys.modules, reason="requires tensorflow library")
+@pytest.mark.skip(reason="Incomplete yet")
 def test_grn1d_inversegaussian1d(block_figure_on_end=False):
     print("========== Test GRN on 1D data generated from a Inverse Gaussian distribution ==========")
 
