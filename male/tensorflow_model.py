@@ -21,9 +21,11 @@ from .utils.io_utils import ask_to_proceed_with_overwrite
 class TensorFlowModel(Model):
     def __init__(self,
                  model_name="TensorFlowMale",
+                 log_path=None,
                  model_path=None,
                  **kwargs):
         super(TensorFlowModel, self).__init__(model_name=model_name, **kwargs)
+        self.log_path = log_path
         self.model_path = model_path
 
     def _init(self):
@@ -38,6 +40,13 @@ class TensorFlowModel(Model):
         if self.random_state is not None:
             with self.tf_graph.as_default():
                 tf.set_random_seed(self.random_state)
+
+        # create logging directory
+        if self.log_path is None:
+            self.log_path = os.path.join(model_dir(), self.model_name, "logs",
+                                         "{}".format(tuid()))
+        if not os.path.exists(os.path.dirname(self.log_path)):
+            os.makedirs(os.path.dirname(self.log_path))
 
     def _get_session(self, **kwargs):
         graph = kwargs['graph'] if 'graph' in kwargs else self.tf_graph

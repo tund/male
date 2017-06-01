@@ -37,13 +37,20 @@ def tf_relu(x):
     return tf.nn.relu(x)
 
 
-def tf_lrelu(x, alpha=0.01):
-    if alpha != 0.:
-        negative_part = tf.nn.relu(-x)
-    x = tf.nn.relu(x)
-    if alpha != 0.:
-        x -= alpha * negative_part
-    return x
+# <editor-fold desc="This is an implementation for general case for every alpha">
+# def tf_lrelu(x, alpha=0.01):
+#     if alpha != 0.:
+#         negative_part = tf.nn.relu(-x)
+#     x = tf.nn.relu(x)
+#     if alpha != 0.:
+#         x -= alpha * negative_part
+#     return x
+# </editor-fold>
+
+
+# For alpha <= 1:
+def tf_lrelu(x, alpha=0.2):
+    return tf.maximum(x, alpha * x)
 
 
 def tf_tanh(x):

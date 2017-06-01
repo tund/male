@@ -2,6 +2,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
+import pickle
 import numpy as np
 from sklearn.datasets import load_svmlight_file
 
@@ -20,6 +21,25 @@ def load_mnist(shuffle_data=True, randseed='default'):
     x_test, y_test = load_svmlight_file(test_path, n_features=784)
     x_train = x_train.toarray() / 255.0
     x_test = x_test.toarray() / 255.0
+
+    if shuffle_data:
+        shuffle(x_train, y_train, randseed=randseed)
+
+    return (x_train, y_train), (x_test, y_test)
+
+
+def load_cifar10(shuffle_data=True, randseed='default'):
+    train_path = get_file("cifar10_5k_train.pkl",
+                          origin=remote_data_dir() + "/cifar10_5k_train.pkl",
+                          cache_subdir="demo")
+    test_path = get_file("cifar10_1k_test.pkl",
+                         origin=remote_data_dir() + "/cifar10_1k_test.pkl",
+                         cache_subdir="demo")
+
+    tmp = pickle.load(open(train_path, "rb"))
+    x_train, y_train = tmp['data'] / 255.0, tmp['labels']
+    tmp = pickle.load(open(test_path, "rb"))
+    x_test, y_test = tmp['data'] / 255.0, tmp['labels']
 
     if shuffle_data:
         shuffle(x_train, y_train, randseed=randseed)

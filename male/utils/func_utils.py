@@ -2,6 +2,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
+import functools
 import numpy as np
 
 try:
@@ -34,3 +35,18 @@ def tf_logsumone(x):
     """
     max0 = tf.maximum(x, 0)
     return tf.log(tf.exp(-max0) + tf.exp(x - max0)) + max0
+
+
+def lazy_property(function):
+    """To be used later
+    """
+    attribute = '_cache_' + function.__name__
+
+    @property
+    @functools.wraps(function)
+    def decorator(self):
+        if not hasattr(self, attribute):
+            setattr(self, attribute, function(self))
+        return getattr(self, attribute)
+
+    return decorator

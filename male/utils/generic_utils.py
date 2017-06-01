@@ -6,6 +6,7 @@ import sys
 import six
 import time
 import copy
+import math
 import warnings
 import numpy as np
 
@@ -30,6 +31,10 @@ def make_batches(size, batch_size):
     '''Returns a list of batch indices (tuples of indices).
     '''
     return [(i, min(size, i + batch_size)) for i in range(0, size, batch_size)]
+
+
+def conv_out_size_same(size, stride):
+    return int(math.ceil(float(size) / float(stride)))
 
 
 class Progbar(object):
