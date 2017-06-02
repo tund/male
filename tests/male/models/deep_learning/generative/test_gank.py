@@ -119,5 +119,5 @@ def test_gank_cifar10(block_figure_on_end=False):
 
 if __name__ == '__main__':
     # pytest.main([__file__])
-    test_gank_mnist(block_figure_on_end=True)
-    # test_gank_cifar10(block_figure_on_end=True)
+    # test_gank_mnist(block_figure_on_end=True)
+    test_gank_cifar10(block_figure_on_end=True)

@@ -45,22 +45,19 @@ class GANK(DCGAN):
         self.sampler = self._create_generator(self.z, train=False, reuse=True)
 
         # create discriminator D
-        self.dx, dx_logits = self._create_discriminator(self.x)
-        self.dg, dg_logits = self._create_discriminator(self.g, reuse=True)
+        self.dx = self._create_discriminator(self.x)
+        self.dg = self._create_discriminator(self.g, reuse=True)
 
         # define loss functions
         self.dx_loss = tf.reduce_mean(
-            tf.nn.sigmoid_cross_entropy_with_logits(
-                logits=dx_logits, labels=tf.ones_like(self.dx)),
+            self._hinge_loss(self.dx, tf.ones_like(self.dx)),
             name="dx_loss")
         self.dg_loss = tf.reduce_mean(
-            tf.nn.sigmoid_cross_entropy_with_logits(
-                logits=dg_logits, labels=tf.zeros_like(self.dg)),
+            self._hinge_loss(self.dg, -tf.ones_like(self.dg)),
             name="dg_loss")
         self.d_loss = tf.add(self.dx_loss, self.dg_loss, name="d_loss")
         self.g_loss = tf.reduce_mean(
-            tf.nn.sigmoid_cross_entropy_with_logits(
-                logits=dg_logits, labels=tf.ones_like(self.dg)),
+            self._hinge_loss(self.dg, tf.ones_like(self.dg)),
             name="g_loss")
 
         # create optimizers
@@ -120,6 +117,9 @@ class GANK(DCGAN):
 
             callbacks.on_epoch_end(self.epoch, epoch_logs)
             self._on_epoch_end()
+
+    def _hinge_loss(self, wx, y):
+        return tf.maximum(0.0, 1 - tf.multiply(wx, y))
 
     def _create_generator(self, z, train=True, reuse=False, name="generator"):
         out_size = [(conv_out_size_same(self.img_size[0], 2),
@@ -206,11 +206,9 @@ class GANK(DCGAN):
             #                   1, name='phi_x')
             tf.summary.histogram("phi_x", phi_x)
 
-            d_logits = linear(phi_x, 1, stddev=0.02, scope="d_out_linear")
-            tf.summary.histogram("d_logits", d_logits)
-            d_out = tf.nn.sigmoid(d_logits, name="d_out_sigmoid")
+            d_out = linear(phi_x, 1, stddev=0.02, scope="d_out_linear")
             tf.summary.histogram("d_out", d_out)
-        return d_out, d_logits
+        return d_out
 
     def generate(self, num_samples=100):
         sess = self._get_session()
