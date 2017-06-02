@@ -24,11 +24,15 @@ class GANK(DCGAN):
 
     def __init__(self,
                  model_name='GANK',
-                 gamma_init=1.0,
+                 gamma_init=0.01,
+                 train_gamma=True,
+                 loss='logit',
                  num_random_features=1000,
                  **kwargs):
         super(GANK, self).__init__(model_name=model_name, **kwargs)
         self.gamma_init = gamma_init
+        self.train_gamma = train_gamma
+        self.loss = loss
         self.num_random_features = num_random_features
 
     def _build_model(self, x):
@@ -50,14 +54,15 @@ class GANK(DCGAN):
 
         # define loss functions
         self.dx_loss = tf.reduce_mean(
-            self._hinge_loss(self.dx, tf.ones_like(self.dx)),
+            self._loss(self.dx, tf.ones_like(self.dx)),
             name="dx_loss")
         self.dg_loss = tf.reduce_mean(
-            self._hinge_loss(self.dg, -tf.ones_like(self.dg)),
+            self._loss(self.dg,
+                       -tf.ones_like(self.dg) if self.loss == 'hinge' else tf.zeros_like(self.dg)),
             name="dg_loss")
         self.d_loss = tf.add(self.dx_loss, self.dg_loss, name="d_loss")
         self.g_loss = tf.reduce_mean(
-            self._hinge_loss(self.dg, tf.ones_like(self.dg)),
+            self._loss(self.dg, tf.ones_like(self.dg)),
             name="g_loss")
 
         # create optimizers
@@ -118,8 +123,13 @@ class GANK(DCGAN):
             callbacks.on_epoch_end(self.epoch, epoch_logs)
             self._on_epoch_end()
 
-    def _hinge_loss(self, wx, y):
-        return tf.maximum(0.0, 1 - tf.multiply(wx, y))
+    def _loss(self, x, y):
+        if self.loss == 'hinge':
+            return tf.maximum(0.0, 1 - tf.multiply(x, y))
+        elif self.loss == 'logit':
+            return tf.nn.sigmoid_cross_entropy_with_logits(logits=x, labels=y)
+        else:
+            raise NotImplementedError
 
     def _create_generator(self, z, train=True, reuse=False, name="generator"):
         out_size = [(conv_out_size_same(self.img_size[0], 2),
@@ -185,13 +195,14 @@ class GANK(DCGAN):
             dim = h.get_shape()[1:].num_elements()
             h = tf.reshape(h, [-1, dim])
 
+            # try the last layer with LReLU activation to test
             # phi_x = lrelu(linear(h, self.num_random_features, stddev=0.02, scope="d_last"))
             # tf.summary.histogram("phi_x", phi_x)
 
             log_gamma = tf.get_variable(name='log_gamma', shape=[1],
                                         initializer=tf.constant_initializer(
                                             np.log(self.gamma_init)),
-                                        trainable=False)
+                                        trainable=self.train_gamma)
             e = tf.get_variable(name="unit_noise", shape=[dim, self.num_random_features],
                                 initializer=tf.random_normal_initializer(), trainable=False)
             omega = tf.multiply(tf.exp(log_gamma), e, name='omega')
@@ -201,9 +212,6 @@ class GANK(DCGAN):
             phi_x = tf.concat([tf.cos(phi) / np.sqrt(self.num_random_features),
                                tf.sin(phi) / np.sqrt(self.num_random_features)],
                               1, name='phi_x')
-            # phi_x = tf.concat([tf.cos(phi),
-            #                    tf.sin(phi)],
-            #                   1, name='phi_x')
             tf.summary.histogram("phi_x", phi_x)
 
             d_out = linear(phi_x, 1, stddev=0.02, scope="d_out_linear")
