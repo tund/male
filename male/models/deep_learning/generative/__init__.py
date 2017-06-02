@@ -1,6 +1,7 @@
 try:
     from .gan import GAN
     from .dcgan import DCGAN
+    from .gank import GANK
     from .gan1d import GAN1D
     from .gan2d import GAN2D
     from .grn1d import GRN1D
@@ -9,6 +10,7 @@ try:
 except ImportError:
     GAN = None
     DCGAN = None
+    GANK = None
     GAN1D = None
     GAN2D = None
     GRN1D = None
