@@ -15,6 +15,7 @@ from ....activations import tf_lrelu as lrelu
 from ....utils.generic_utils import make_batches
 from ....utils.generic_utils import conv_out_size_same
 from ....utils.disp_utils import tile_raster_images
+from ....metrics import init_inception, inception_score
 from ....backend.tensorflow_backend import linear, conv2d, deconv2d
 
 
@@ -30,6 +31,8 @@ class DCGAN(TensorFlowModel):
                  num_conv_layers=3,
                  num_gen_feature_maps=128,  # number of feature maps of generator
                  num_dis_feature_maps=128,  # number of feature maps of discriminator
+                 inception_score_freq=int(1e+8),
+                 num_inception_samples=100,
                  **kwargs):
         super(DCGAN, self).__init__(model_name=model_name, **kwargs)
         self.num_z = num_z
@@ -38,6 +41,13 @@ class DCGAN(TensorFlowModel):
         self.num_conv_layers = num_conv_layers
         self.num_gen_feature_maps = num_gen_feature_maps
         self.num_dis_feature_maps = num_dis_feature_maps
+        self.inception_score_freq = inception_score_freq
+        self.num_inception_samples = num_inception_samples
+
+    def _init(self):
+        super(DCGAN, self)._init()
+        self.inception_model = None
+        self.inception_graph = None
 
     def _build_model(self, x):
         self.x = tf.placeholder(tf.float32, [None,
@@ -117,6 +127,11 @@ class DCGAN(TensorFlowModel):
                 batch_logs['g_loss'] = g_loss
 
                 callbacks.on_batch_end(batch_idx, batch_logs)
+
+            if (self.epoch + 1) % self.inception_score_freq == 0 and \
+                            "inception_score" in self.metrics:
+                epoch_logs['inception_score'] = self._compute_inception_score(
+                    self.generate(num_samples=self.num_inception_samples))
 
             callbacks.on_epoch_end(self.epoch, epoch_logs)
             self._on_epoch_end()
@@ -206,6 +221,15 @@ class DCGAN(TensorFlowModel):
         if sess != self.tf_session:
             sess.close()
         return (x + 1.0) / 2.0
+
+    def _compute_inception_score(self, x):
+        if self.inception_model is None:
+            self.inception_model, self.inception_graph = init_inception()
+        imgs = [0] * x.shape[0]
+        for i in range(x.shape[0]):
+            imgs[i] = x[i] * 255.0
+        score = inception_score(self.inception_model, self.inception_graph, imgs)
+        return score[0]
 
     def disp_generated_data(self, x, tile_shape=None,
                             output_pixel_vals=False, **kwargs):
