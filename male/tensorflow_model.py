@@ -23,10 +23,12 @@ class TensorFlowModel(Model):
                  model_name="TensorFlowMale",
                  log_path=None,
                  model_path=None,
+                 summary_freq=int(1e+8),
                  **kwargs):
         super(TensorFlowModel, self).__init__(model_name=model_name, **kwargs)
         self.log_path = log_path
         self.model_path = model_path
+        self.summary_freq = summary_freq
 
     def _init(self):
         super(TensorFlowModel, self)._init()
@@ -95,6 +97,8 @@ class TensorFlowModel(Model):
             with self.tf_graph.as_default():
                 self._init_params(x_train)
                 self._build_model(x_train)
+                # merge all summaries
+                self.tf_merged_summaries = tf.summary.merge_all()
                 # Initialize all variables
                 self.tf_session.run(tf.global_variables_initializer())
         else:  # continue training
@@ -148,6 +152,15 @@ class TensorFlowModel(Model):
         self._on_train_end()
 
         return self.history
+
+    def _on_train_begin(self):
+        super(TensorFlowModel, self)._on_train_begin()
+        # summary writer
+        self.tf_summary_writer = tf.summary.FileWriter(self.log_path, self.tf_session.graph)
+
+    def _on_train_end(self):
+        super(TensorFlowModel, self)._on_train_end()
+        self.tf_summary_writer.close()
 
     def save(self, file_path=None, overwrite=True):
         if file_path is None:
