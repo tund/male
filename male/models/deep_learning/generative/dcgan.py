@@ -83,8 +83,6 @@ class DCGAN(TensorFlowModel):
                   do_validation=False,
                   x_valid=None, y_valid=None,
                   callbacks=None, callback_metrics=None):
-        # summary writer
-        writer = tf.summary.FileWriter(self.log_path, self.tf_session.graph)
 
         batches = make_batches(x.shape[0], self.batch_size)
         while (self.epoch < self.num_epochs) and (not self.stop_training):
@@ -122,8 +120,6 @@ class DCGAN(TensorFlowModel):
 
             callbacks.on_epoch_end(self.epoch, epoch_logs)
             self._on_epoch_end()
-
-        writer.close()
 
     def _create_generator(self, z, train=True, reuse=False, name="generator"):
         out_size = [(conv_out_size_same(self.img_size[0], 2),

@@ -96,7 +96,7 @@ def test_dcgan_cifar10(block_figure_on_end=False):
                                        },
                                       ])
 
-    model = DCGAN(model_name="DCGAN_MNIST",
+    model = DCGAN(model_name="DCGAN_CIFAR10",
                   num_z=10,  # set to 100 for a full run
                   img_size=(32, 32, 3),
                   batch_size=32,  # set to 64 for a full run
