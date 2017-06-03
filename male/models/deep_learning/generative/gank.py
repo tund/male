@@ -78,7 +78,9 @@ class GANK(DCGAN):
                   x_valid=None, y_valid=None,
                   callbacks=None, callback_metrics=None):
 
-        batches = make_batches(x.shape[0], self.batch_size)
+        num_data = x.shape[0] - x.shape[0] % self.batch_size
+        callbacks._update_params({'num_samples': num_data})
+        batches = make_batches(num_data, self.batch_size)
         iteration = 0
         while (self.epoch < self.num_epochs) and (not self.stop_training):
             epoch_logs = {}
@@ -119,6 +121,11 @@ class GANK(DCGAN):
                     self.tf_summary_writer.add_summary(summary, iteration)
 
                 iteration += 1
+
+            if (self.epoch + 1) % self.inception_score_freq == 0 and \
+                            "inception_score" in self.metrics:
+                epoch_logs['inception_score'] = self._compute_inception_score(
+                    self.generate(num_samples=self.num_inception_samples))
 
             callbacks.on_epoch_end(self.epoch, epoch_logs)
             self._on_epoch_end()
