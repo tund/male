@@ -131,11 +131,26 @@ def test_display_callbacks(block_figure_on_end=False):
     x = np.vstack([x_train, x_test])
     y = np.concatenate([y_train, y_test])
 
+    err_display = Display(title="Error curves",
+                          dpi='auto',
+                          layout=(1, 1),
+                          freq=1,
+                          block_on_end=block_figure_on_end,
+                          monitor=[{'metrics': ['err', 'val_err'],
+                                    'type': 'line',
+                                    'title': "Learning errors",
+                                    'xlabel': "epoch",
+                                    'ylabel': "error",
+                                    }])
     loss_display = Display(title="Learning curves",
                            dpi='auto',
                            layout=(3, 1),
                            freq=1,
                            block_on_end=block_figure_on_end,
+                           filepath=[os.path.join(model_dir(), "male/callbacks/"
+                                                               "display/loss/loss_{epoch:04d}.png"),
+                                     os.path.join(model_dir(), "male/callbacks/"
+                                                               "display/loss/loss_{epoch:04d}.pdf")],
                            monitor=[{'metrics': ['loss', 'val_loss'],
                                      'type': 'line',
                                      'labels': ["training loss", "validation loss"],
@@ -165,6 +180,8 @@ def test_display_callbacks(block_figure_on_end=False):
                              figsize=(6, 15),
                              freq=1,
                              block_on_end=block_figure_on_end,
+                             filepath=os.path.join(model_dir(), "male/callbacks/display/"
+                                                                "weights/weights_{epoch:04d}.png"),
                              monitor=[{'metrics': ['weights'],
                                        'title': "Learned weights",
                                        'type': 'img',
@@ -181,7 +198,7 @@ def test_display_callbacks(block_figure_on_end=False):
               batch_size=100,
               task='classification',
               metrics=['loss', 'err'],
-              callbacks=[loss_display, weight_display],
+              callbacks=[loss_display, weight_display, err_display],
               cv=[-1] * x_train.shape[0] + [0] * x_test.shape[0],
               random_state=random_seed(),
               verbose=1)

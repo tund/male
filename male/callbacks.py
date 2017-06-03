@@ -2,6 +2,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
+import os
 import time
 import warnings
 import numpy as np
@@ -214,13 +215,19 @@ class Display(Callback):
     LINE_WIDTH = 4
 
     def __init__(self, title=None, dpi=None, layout=(1, 1),
-                 block_on_end=True, figsize=None, freq=1, monitor=None):
+                 block_on_end=True, figsize=None, freq=1, filepath=None, monitor=None):
         super(Display, self).__init__()
         self.title = title
         self.dpi = dpi
         self.layout = layout
         self.figsize = figsize
         self.freq = freq
+        self.filepath = filepath
+        if filepath is not None:
+            if isinstance(filepath, list):
+                self.filepath = tuple(filepath)
+            else:
+                self.filepath = filepath if isinstance(filepath, tuple) else (filepath,)
         self.block_on_end = block_on_end
         self.monitor = monitor
 
@@ -238,6 +245,12 @@ class Display(Callback):
         ax.tick_params(axis='both', which='major', labelsize=24)
 
     def on_train_begin(self, logs={}):
+        # create directories for storing figures if not exist
+        if self.filepath is not None:
+            for fp in self.filepath:
+                if not os.path.exists(os.path.dirname(fp)):
+                    os.makedirs(os.path.dirname(fp))
+
         fig_width, fig_height = self.figsize if self.figsize is not None else (
             12 * self.layout[1], 6.75 * self.layout[0])
         if self.dpi == 'auto':
@@ -281,6 +294,10 @@ class Display(Callback):
                         self.axs[u, v].legend(fontsize=24, numpoints=1)
                 plt.pause(0.0001)
                 self.fig.tight_layout()
+                # save to figures
+                if self.filepath is not None:
+                    for fp in self.filepath:
+                        self.fig.savefig(fp.format(epoch=epoch + 1, **logs))
 
     def disp(self, ax, id, x, y, type, label, *args, **kwargs):
         if type == 'line':
