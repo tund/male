@@ -28,6 +28,10 @@ class CallbackList(object):
         for callback in self.callbacks:
             callback._set_params(params)
 
+    def _update_params(self, params):
+        for callback in self.callbacks:
+            callback._update_params(params)
+
     def _set_model(self, model):
         for callback in self.callbacks:
             callback._set_model(model)
@@ -112,6 +116,9 @@ class Callback(object):
 
     def _set_params(self, params):
         self.params = params
+
+    def _update_params(self, params):
+        self.params.update(params)
 
     def _set_model(self, model):
         self.model = model

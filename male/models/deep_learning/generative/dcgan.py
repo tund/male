@@ -15,7 +15,7 @@ from ....activations import tf_lrelu as lrelu
 from ....utils.generic_utils import make_batches
 from ....utils.generic_utils import conv_out_size_same
 from ....utils.disp_utils import tile_raster_images
-from ....metrics import init_inception, inception_score
+from ....metrics import InceptionScore
 from ....backend.tensorflow_backend import linear, conv2d, deconv2d
 
 
@@ -46,8 +46,6 @@ class DCGAN(TensorFlowModel):
 
     def _init(self):
         super(DCGAN, self)._init()
-        self.inception_model = None
-        self.inception_graph = None
 
     def _build_model(self, x):
         self.x = tf.placeholder(tf.float32, [None,
@@ -94,16 +92,15 @@ class DCGAN(TensorFlowModel):
                   x_valid=None, y_valid=None,
                   callbacks=None, callback_metrics=None):
 
-        batches = make_batches(x.shape[0], self.batch_size)
+        num_data = x.shape[0] - x.shape[0] % self.batch_size
+        callbacks._update_params({'num_samples': num_data})
+        batches = make_batches(num_data, self.batch_size)
         while (self.epoch < self.num_epochs) and (not self.stop_training):
             epoch_logs = {}
             callbacks.on_epoch_begin(self.epoch)
 
             for batch_idx, (batch_start, batch_end) in enumerate(batches):
                 batch_size = batch_end - batch_start
-                if batch_size != self.batch_size:
-                    continue
-
                 batch_logs = {'batch': batch_idx,
                               'size': batch_size}
                 callbacks.on_batch_begin(batch_idx, batch_logs)
@@ -223,12 +220,10 @@ class DCGAN(TensorFlowModel):
         return (x + 1.0) / 2.0
 
     def _compute_inception_score(self, x):
-        if self.inception_model is None:
-            self.inception_model, self.inception_graph = init_inception()
         imgs = [0] * x.shape[0]
         for i in range(x.shape[0]):
             imgs[i] = x[i] * 255.0
-        score = inception_score(self.inception_model, self.inception_graph, imgs)
+        score = InceptionScore.inception_score(imgs)
         return score[0]
 
     def disp_generated_data(self, x, tile_shape=None,
