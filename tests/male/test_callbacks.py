@@ -13,6 +13,7 @@ from male.datasets import demo
 from male.optimizers import SGD
 from male.models.linear import GLM
 from male.callbacks import Display
+from male.callbacks import ImageSaver
 from male.callbacks import EarlyStopping
 from male.callbacks import ModelCheckpoint
 
@@ -116,13 +117,11 @@ def test_display_callbacks(block_figure_on_end=False):
 
     (x_train, y_train), (x_test, y_test) = demo.load_mnist()
 
-    x_train /= 255.0
     idx_train = np.random.permutation(x_train.shape[0])
     x_train = x_train[idx_train]
     y_train = y_train[idx_train]
     print("Number of training samples = {}".format(x_train.shape[0]))
 
-    x_test /= 255.0
     idx_test = np.random.permutation(x_test.shape[0])
     x_test = x_test[idx_test]
     y_test = y_test[idx_test]
@@ -208,8 +207,44 @@ def test_display_callbacks(block_figure_on_end=False):
     print("Testing error = %.4f" % (1.0 - clf.score(x_test, y_test)))
 
 
+def test_image_saver_callback():
+    np.random.seed(random_seed())
+
+    (x_train, y_train), (_, _) = demo.load_mnist()
+    (cifar10_train, _), (_, _) = demo.load_cifar10()
+
+    imgsaver1 = ImageSaver(freq=1,
+                           filepath=os.path.join(model_dir(), "male/callbacks/imagesaver/"
+                                                              "mnist/mnist_{epoch:04d}.png"),
+                           monitor={'metrics': 'x_data',
+                                    'img_size': (28, 28, 1),
+                                    'tile_shape': (10, 10),
+                                    'images': x_train[:100].reshape([-1, 28, 28, 1])})
+    imgsaver2 = ImageSaver(freq=1,
+                           filepath=os.path.join(model_dir(), "male/callbacks/imagesaver/"
+                                                              "cifar10/cifar10_{epoch:04d}.png"),
+                           monitor={'metrics': 'x_data',
+                                    'img_size': (32, 32, 3),
+                                    'tile_shape': (10, 10),
+                                    'images': cifar10_train[:100].reshape([-1, 32, 32, 3])})
+
+    optz = SGD(learning_rate=0.001)
+    clf = GLM(model_name="imagesaver_callback",
+              link='softmax',
+              loss='softmax',
+              optimizer=optz,
+              num_epochs=4,
+              batch_size=100,
+              task='classification',
+              callbacks=[imgsaver1, imgsaver2],
+              random_state=random_seed(),
+              verbose=1)
+    clf.fit(x_train, y_train)
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
     # test_early_stopping()
     # test_checkpoint()
     # test_display_callbacks(block_figure_on_end=True)
+    # test_image_saver_callback()

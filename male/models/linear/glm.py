@@ -289,6 +289,32 @@ class GLM(Model):
         else:
             raise NotImplementedError
 
+    # just for testing the ImageSaver callback
+    def create_image_grid(self, x, img_size=(28, 28, 1),
+                          tile_shape=None, output_pixel_vals=False, **kwargs):
+        if tile_shape is None:
+            tile_shape = (x.shape[0], 1)
+        if img_size[2] == 1:
+            img = tile_raster_images(x.reshape([x.shape[0], -1]),
+                                     img_shape=(img_size[0], img_size[1]),
+                                     tile_shape=tile_shape,
+                                     tile_spacing=(1, 1),
+                                     scale_rows_to_unit_interval=False,
+                                     output_pixel_vals=output_pixel_vals)
+        else:
+            img = tile_raster_images((x[..., 0], x[..., 1], x[..., 2], None),
+                                     img_shape=(img_size[0], img_size[1]),
+                                     tile_shape=tile_shape,
+                                     tile_spacing=(1, 1),
+                                     scale_rows_to_unit_interval=False,
+                                     output_pixel_vals=output_pixel_vals)
+        return img
+
+    # just for testing the ImageSaver callback
+    def generate_images(self, param, **kwargs):
+        if param == 'x_data':
+            return self.create_image_grid(kwargs['images'], **kwargs)
+
     def get_params(self, deep=True):
         out = super(GLM, self).get_params(deep=deep)
         param_names = GLM._get_param_names()

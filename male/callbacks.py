@@ -333,6 +333,26 @@ class Display(Callback):
         plt.show(block=self.block_on_end)
 
 
+class ImageSaver(Callback):
+    def __init__(self, freq=1, filepath=None, monitor=None):
+        super(ImageSaver, self).__init__()
+        self.freq = freq
+        self.filepath = filepath
+        self.monitor = monitor
+
+    def on_train_begin(self, logs={}):
+        # create directory for storing images if not exist
+        if not os.path.exists(os.path.dirname(self.filepath)):
+            os.makedirs(os.path.dirname(self.filepath))
+
+    def on_epoch_end(self, epoch, logs={}):
+        if not self.model.stop_training:
+            if ((epoch + 1) % self.freq == 0) and (self.monitor is not None):
+                imgs = self.model.generate_images(param=self.monitor['metrics'], epoch=epoch + 1, **self.monitor)
+                import scipy
+                scipy.misc.imsave(self.filepath.format(epoch=epoch + 1, **logs), imgs)
+
+
 class History(Callback):
     '''Callback that records events
     into a `History` object.

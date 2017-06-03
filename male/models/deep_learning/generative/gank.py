@@ -292,6 +292,31 @@ class GANK(DCGAN):
                 self.generate(num_samples=100)
             self.disp_generated_data(x, **kwargs)
 
+    def create_image_grid(self, x, tile_shape=None, output_pixel_vals=False, **kwargs):
+        if tile_shape is None:
+            tile_shape = (x.shape[0], 1)
+        if self.img_size[2] == 1:
+            img = tile_raster_images(x.reshape([x.shape[0], -1]),
+                                     img_shape=(self.img_size[0], self.img_size[1]),
+                                     tile_shape=tile_shape,
+                                     tile_spacing=(1, 1),
+                                     scale_rows_to_unit_interval=False,
+                                     output_pixel_vals=output_pixel_vals)
+        else:
+            img = tile_raster_images((x[..., 0], x[..., 1], x[..., 2], None),
+                                     img_shape=(self.img_size[0], self.img_size[1]),
+                                     tile_shape=tile_shape,
+                                     tile_spacing=(1, 1),
+                                     scale_rows_to_unit_interval=False,
+                                     output_pixel_vals=output_pixel_vals)
+        return img
+
+    def generate_images(self, param, **kwargs):
+        if param == 'x_samples':
+            x = self.generate(num_samples=kwargs['num_samples']) if 'num_samples' in kwargs else \
+                self.generate(num_samples=100)
+            return self.create_image_grid(x, **kwargs)
+
     def get_params(self, deep=True):
         out = super(GANK, self).get_params(deep=deep)
         param_names = GANK._get_param_names()
