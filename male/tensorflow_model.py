@@ -185,11 +185,15 @@ class TensorFlowModel(Model):
     @staticmethod
     def load_model(file_path):
         model = pkl.load(open(file_path + ".pkl", 'rb'))['model']
+        model.tf_graph = tf.Graph()
+        model.tf_config = tf_backend.get_default_config()
         model.tf_session = tf.Session(config=model.tf_config, graph=model.tf_graph)
         with model.tf_graph.as_default():
-            tf.get_variable_scope().reuse_variables()
+            # tf.get_variable_scope().reuse_variables()
             model._init_params(None)
             model._build_model(None)
+            # merge all summaries
+            model.tf_merged_summaries = tf.summary.merge_all()
             saver = tf.train.Saver()
             saver.restore(model.tf_session, file_path)
         return model
@@ -207,10 +211,10 @@ class TensorFlowModel(Model):
                     (not type(value).__module__.startswith('tensorflow')) and
                     (key != 'best_params')):
                 out[key] = value
-        param_names = ['tf_graph', 'tf_config', 'tf_merged_summaries', 'tf_summary_writer']
-        for key in param_names:
-            if key in self.__dict__:
-                out[key] = self.__getattribute__(key)
+        # param_names = ['tf_graph', 'tf_config', 'tf_merged_summaries']
+        # for key in param_names:
+        #     if key in self.__dict__:
+        #         out[key] = self.__getattribute__(key)
         return out
 
     def __getstate__(self):

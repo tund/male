@@ -88,7 +88,7 @@ def test_continue_training():
     clf1 = TensorFlowModel.load_model(save_file_path)
     clf1.num_epochs = 15
     print("Save, load, set number of epoch to {0:d}, "
-          "then continue training...".format(clf.num_epochs))
+          "then continue training...".format(clf1.num_epochs))
     clf1.fit(x_train, y_train)
     train_err = 1.0 - clf1.score(x_train, y_train)
     test_err = 1.0 - clf1.score(x_test, y_test)
