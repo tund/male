@@ -72,6 +72,7 @@ class InceptionScore(object):
 
     # Call this function with list of images. Each of elements should be a
     # numpy array with values ranging from 0 to 255.
+    @staticmethod
     def inception_score(images, splits=10):
         if InceptionScore.inception_model is None:
             InceptionScore.init_inception()
