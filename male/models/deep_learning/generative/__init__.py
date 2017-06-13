@@ -3,6 +3,7 @@ try:
     from .dcgan import DCGAN
     from .dfm import DFM
     from .gank import GANK
+    from .m2gan import M2GAN
     from .gan1d import GAN1D
     from .gan2d import GAN2D
     from .grn1d import GRN1D
@@ -13,6 +14,7 @@ except ImportError:
     DCGAN = None
     DFM = None
     GANK = None
+    M2GAN = None
     GAN1D = None
     GAN2D = None
     GRN1D = None
