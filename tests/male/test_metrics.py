@@ -7,7 +7,7 @@ import pytest
 import numpy as np
 
 from male.datasets import demo
-from male.metrics import init_inception, inception_score
+from male.metrics import InceptionScore
 
 
 @pytest.mark.skipif('tensorflow' not in sys.modules, reason="requires tensorflow library")
@@ -18,8 +18,7 @@ def test_inception_score():
     imgs = [0] * x_train.shape[0]
     for i in range(x_train.shape[0]):
         imgs[i] = x_train[i]
-    inception_model, inception_graph = init_inception()
-    score = inception_score(inception_model, inception_graph, imgs)
+    score = InceptionScore.inception_score(imgs)
     print("Inception score: {:.4f}+-{:.4f}".format(score[0], score[1]))
 
 
