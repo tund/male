@@ -1,6 +1,7 @@
 try:
     from .gan import GAN
     from .dcgan import DCGAN
+    from .weighted_gan import WeightedGAN
     from .dfm import DFM
     from .gank import GANK
     from .m2gan import M2GAN
@@ -12,6 +13,7 @@ try:
 except ImportError:
     GAN = None
     DCGAN = None
+    WeightedGAN = None
     DFM = None
     GANK = None
     M2GAN = None
