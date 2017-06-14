@@ -81,7 +81,7 @@ def test_checkpoint():
     checkpoint = ModelCheckpoint(filepath,
                                  mode='min',
                                  monitor='val_loss',
-                                 verbose=0,
+                                 verbose=1,
                                  save_best_only=True)
     optz = SGD(learning_rate=0.01)
     clf = GLM(model_name="checkpoint_callback",
