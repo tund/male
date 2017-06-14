@@ -12,6 +12,7 @@ from male import random_seed
 from male.datasets import demo
 from male import TensorFlowModel
 from male.callbacks import Display
+from male.callbacks import ImageSaver
 from male.callbacks import ModelCheckpoint
 from male.models.deep_learning.generative import DCGAN
 
@@ -188,7 +189,7 @@ def test_dcgan_cifar10_inception_score(block_figure_on_end=False):
     checkpoint = ModelCheckpoint(filepath,
                                  mode='max',
                                  monitor='inception_score',
-                                 verbose=0,
+                                 verbose=1,
                                  save_best_only=True)
     loss_display = Display(layout=(1, 1),
                            dpi='auto',
@@ -256,9 +257,73 @@ def test_dcgan_cifar10_inception_score(block_figure_on_end=False):
     model.fit(x_train)
 
 
+@pytest.mark.skipif('tensorflow' not in sys.modules, reason="requires tensorflow library")
+def test_dcgan_image_saver():
+    print("========== Test DCGAN with Image Saver ==========")
+
+    np.random.seed(random_seed())
+
+    (x_train, y_train), (x_test, y_test) = demo.load_mnist()
+    x_train = x_train.astype(np.float32).reshape([-1, 28, 28, 1]) / 0.5 - 1.
+    x_test = x_test.astype(np.float32).reshape([-1, 28, 28, 1]) / 0.5 - 1.
+
+    imgsaver = ImageSaver(freq=1,
+                          filepath=os.path.join(model_dir(), "male/DCGAN/imagesaver/"
+                                                             "mnist/mnist_{epoch:04d}.png"),
+                          monitor={'metrics': 'x_samples',
+                                   'num_samples': 100,
+                                   'tile_shape': (10, 10),
+                                   })
+
+    model = DCGAN(model_name="DCGAN_MNIST",
+                  num_z=10,  # set to 100 for a full run
+                  img_size=(28, 28, 1),
+                  batch_size=32,  # set to 64 for a full run
+                  num_conv_layers=3,  # set to 3 for a full run
+                  num_gen_feature_maps=4,  # set to 32 for a full run
+                  num_dis_feature_maps=4,  # set to 32 for a full run
+                  metrics=['d_loss', 'g_loss'],
+                  callbacks=[imgsaver],
+                  num_epochs=4,  # set to 100 for a full run
+                  random_state=random_seed(),
+                  verbose=1)
+
+    model.fit(x_train)
+
+    np.random.seed(random_seed())
+
+    (x_train, y_train), (x_test, y_test) = demo.load_cifar10()
+    x_train = x_train.astype(np.float32).reshape([-1, 32, 32, 3]) / 0.5 - 1.
+    x_test = x_test.astype(np.float32).reshape([-1, 32, 32, 3]) / 0.5 - 1.
+
+    imgsaver = ImageSaver(freq=1,
+                          filepath=os.path.join(model_dir(), "male/DCGAN/imagesaver/"
+                                                             "cifar10/cifar10_{epoch:04d}.png"),
+                          monitor={'metrics': 'x_samples',
+                                   'num_samples': 100,
+                                   'tile_shape': (10, 10),
+                                   })
+
+    model = DCGAN(model_name="DCGAN_CIFAR10",
+                  num_z=10,  # set to 100 for a full run
+                  img_size=(32, 32, 3),
+                  batch_size=32,  # set to 64 for a full run
+                  num_conv_layers=3,  # set to 3 for a full run
+                  num_gen_feature_maps=4,  # set to 32 for a full run
+                  num_dis_feature_maps=4,  # set to 32 for a full run
+                  metrics=['d_loss', 'g_loss'],
+                  callbacks=[imgsaver],
+                  num_epochs=4,  # set to 100 for a full run
+                  random_state=random_seed(),
+                  verbose=1)
+
+    model.fit(x_train)
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
     # test_dcgan_mnist(block_figure_on_end=True)
     # test_dcgan_save_and_load(block_figure_on_end=True)
     # test_dcgan_cifar10(block_figure_on_end=True)
     # test_dcgan_cifar10_inception_score(block_figure_on_end=True)
+    # test_dcgan_image_saver()

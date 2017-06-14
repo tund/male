@@ -14,6 +14,7 @@ from ...distribution import Uniform1D
 from ....activations import tf_lrelu as lrelu
 from ....utils.generic_utils import make_batches
 from ....utils.generic_utils import conv_out_size_same
+from ....utils.disp_utils import create_image_grid
 from ....utils.disp_utils import tile_raster_images
 from ....metrics import InceptionScore
 from ....backend.tensorflow_backend import linear, conv2d, deconv2d
@@ -228,22 +229,8 @@ class DCGAN(TensorFlowModel):
 
     def disp_generated_data(self, x, tile_shape=None,
                             output_pixel_vals=False, **kwargs):
-        if tile_shape is None:
-            tile_shape = (x.shape[0], 1)
-        if self.img_size[2] == 1:
-            img = tile_raster_images(x.reshape([x.shape[0], -1]),
-                                     img_shape=(self.img_size[0], self.img_size[1]),
-                                     tile_shape=tile_shape,
-                                     tile_spacing=(1, 1),
-                                     scale_rows_to_unit_interval=False,
-                                     output_pixel_vals=output_pixel_vals)
-        else:
-            img = tile_raster_images((x[..., 0], x[..., 1], x[..., 2], None),
-                                     img_shape=(self.img_size[0], self.img_size[1]),
-                                     tile_shape=tile_shape,
-                                     tile_spacing=(1, 1),
-                                     scale_rows_to_unit_interval=False,
-                                     output_pixel_vals=output_pixel_vals)
+        img = create_image_grid(x, img_size=self.img_size, tile_shape=tile_shape,
+                                output_pixel_vals=output_pixel_vals)
         if 'ax' in kwargs:
             ax = kwargs['ax']
             _ = ax.imshow(img, aspect='auto',
@@ -272,6 +259,12 @@ class DCGAN(TensorFlowModel):
             x = self.generate(num_samples=kwargs['num_samples']) if 'num_samples' in kwargs else \
                 self.generate(num_samples=100)
             self.disp_generated_data(x, **kwargs)
+
+    def generate_images(self, param, **kwargs):
+        if param == 'x_samples':
+            x = self.generate(num_samples=kwargs['num_samples']) if 'num_samples' in kwargs else \
+                self.generate(num_samples=100)
+            return create_image_grid(x, img_size=self.img_size, **kwargs)
 
     def get_params(self, deep=True):
         out = super(DCGAN, self).get_params(deep=deep)
