@@ -15,7 +15,6 @@ from ....activations import tf_lrelu as lrelu
 from ....utils.generic_utils import make_batches
 from ....utils.generic_utils import conv_out_size_same
 from ....utils.disp_utils import create_image_grid
-from ....utils.disp_utils import tile_raster_images
 from ....metrics import InceptionScore
 from ....backend.tensorflow_backend import linear, conv2d, deconv2d
 
@@ -27,6 +26,7 @@ class DCGAN(TensorFlowModel):
     def __init__(self,
                  model_name='DCGAN',
                  num_z=100,
+                 z_prior=Uniform1D(low=-1.0, high=1.0),
                  learning_rate=0.0002,
                  img_size=(32, 32, 3),  # (height, width, channels)
                  num_conv_layers=3,
@@ -37,6 +37,7 @@ class DCGAN(TensorFlowModel):
                  **kwargs):
         super(DCGAN, self).__init__(model_name=model_name, **kwargs)
         self.num_z = num_z
+        self.z_prior = z_prior
         self.learning_rate = learning_rate
         self.img_size = img_size
         self.num_conv_layers = num_conv_layers
@@ -52,7 +53,6 @@ class DCGAN(TensorFlowModel):
         self.x = tf.placeholder(tf.float32, [None,
                                              self.img_size[0], self.img_size[1], self.img_size[2]],
                                 name="real_data")
-        self.z_prior = Uniform1D(low=-1.0, high=1.0)
         self.z = tf.placeholder(tf.float32, [None, self.num_z], name='noise')
 
         # create generator G

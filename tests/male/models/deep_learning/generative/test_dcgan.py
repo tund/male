@@ -14,6 +14,8 @@ from male import TensorFlowModel
 from male.callbacks import Display
 from male.callbacks import ImageSaver
 from male.callbacks import ModelCheckpoint
+from male.models.distribution import Uniform1D
+from male.models.distribution import Gaussian1D
 from male.models.deep_learning.generative import DCGAN
 
 
@@ -53,6 +55,23 @@ def test_dcgan_mnist(block_figure_on_end=False):
 
     model = DCGAN(model_name="DCGAN_MNIST",
                   num_z=10,  # set to 100 for a full run
+                  z_prior=Uniform1D(low=-1.0, high=1.0),
+                  img_size=(28, 28, 1),
+                  batch_size=32,  # set to 64 for a full run
+                  num_conv_layers=3,  # set to 3 for a full run
+                  num_gen_feature_maps=4,  # set to 32 for a full run
+                  num_dis_feature_maps=4,  # set to 32 for a full run
+                  metrics=['d_loss', 'g_loss'],
+                  callbacks=[loss_display, sample_display],
+                  num_epochs=4,  # set to 100 for a full run
+                  random_state=random_seed(),
+                  verbose=1)
+
+    model.fit(x_train)
+
+    model = DCGAN(model_name="DCGAN_MNIST",
+                  num_z=10,  # set to 100 for a full run
+                  z_prior=Gaussian1D(mu=0.0, sigma=1.0),
                   img_size=(28, 28, 1),
                   batch_size=32,  # set to 64 for a full run
                   num_conv_layers=3,  # set to 3 for a full run

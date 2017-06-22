@@ -29,7 +29,6 @@ class WeightedGAN(DCGAN):
         self.x = tf.placeholder(tf.float32, [None,
                                              self.img_size[0], self.img_size[1], self.img_size[2]],
                                 name="real_data")
-        self.z_prior = Uniform1D(low=-1.0, high=1.0)
         self.z = tf.placeholder(tf.float32, [None, self.num_z], name='noise')
 
         # create generator G
