@@ -108,7 +108,7 @@ def test_svmguide1(block_figure_on_end=False):
         smooth_hinge_tau=0.5,
         callbacks=[loss_display],
         metrics=['train_loss', 'obj_func'],
-        freq_calc_metrics=10,
+        freq_calc_metrics=300,
         random_state=random_seed()
     )
 
