@@ -71,7 +71,7 @@ def test_svrg_s_visualization_2d(block_figure_on_end=False):
     print("Training error = %.4f" % (1 - metrics.accuracy_score(y_train, y_train_pred)))
 
 
-def test_svmguide1():
+def test_svmguide1(block_figure_on_end=False):
     print("========== Test SVRG_S on svmguide1 dataset ==========")
 
     data_name = 'svmguide1'
@@ -81,7 +81,7 @@ def test_svmguide1():
     loss_display = Display(
         freq=1,
         dpi='auto',
-        block_on_end=True,
+        block_on_end=block_figure_on_end,
         monitor=[{'metrics': ['train_loss', 'obj_func'],
                   'type': 'line',
                   'title': "Learning losses",
