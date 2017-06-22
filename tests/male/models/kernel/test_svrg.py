@@ -113,7 +113,7 @@ def check_grad():
         assert model.check_grad(x[n, :], y[n]) < eps
 
 
-def test_svmguide1():
+def test_svmguide1(block_figure_on_end=False):
     print("========== Test SVRG on svmguide1 dataset ==========")
 
     data_name = 'svmguide1'
@@ -123,7 +123,7 @@ def test_svmguide1():
     loss_display = Display(
         freq=1,
         dpi='auto',
-        block_on_end=True,
+        block_on_end=block_figure_on_end,
         monitor=[{'metrics': ['train_loss', 'obj_func'],
                   'type': 'line',
                   'title': "Learning losses",
