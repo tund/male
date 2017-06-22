@@ -25,7 +25,7 @@ def test_svrg_s_visualization_2d(block_figure_on_end=False):
     print('num_samples: {}'.format(x_train.shape[0]))
 
     predict_display = Display(
-        freq=1,
+        freq=10,
         dpi='auto',
         block_on_end=block_figure_on_end,
         monitor=[{'metrics': ['predict'],
@@ -69,7 +69,7 @@ def test_svrg_s_visualization_2d(block_figure_on_end=False):
         smooth_hinge_tau=0.5,
         callbacks=[loss_display, predict_display],
         metrics=['train_loss', 'obj_func'],
-        freq_calc_metrics=20,
+        freq_calc_metrics=50,
         random_state=random_seed())
 
     learner.fit(x_train, y_train)
@@ -151,7 +151,7 @@ def test_svmguide1(block_figure_on_end=False):
         smooth_hinge_tau=0.5,
         callbacks=[loss_display],
         metrics=['train_loss', 'obj_func'],
-        freq_calc_metrics=1,
+        freq_calc_metrics=300,
         random_state=random_seed()
     )
 
@@ -191,7 +191,7 @@ def run_svmguide1_gridsearch():
     y = np.concatenate((y_train, y_valid))
 
     params = {'regular_param': [0.0001, 0.00001],
-              'gamma': [0.25, 0.5, 1, 2]}
+              'gamma': [0.25, 0.5]}
 
     ps = PredefinedSplit(test_fold=[-1] * x_train.shape[0] + [1] * x_valid.shape[0])
 
