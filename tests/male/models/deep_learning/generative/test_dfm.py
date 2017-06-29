@@ -51,19 +51,19 @@ def test_dfm_mnist(block_figure_on_end=False):
                                       ])
 
     model = DFM(model_name="DFM_MNIST",
-                num_z=100,  # set to 100 for a full run
+                num_z=10,  # set to 100 for a full run
                 img_size=(28, 28, 1),
                 batch_size=32,  # set to 64 for a full run
                 num_conv_layers=3,  # set to 3 for a full run
-                num_gen_feature_maps=32,  # set to 32 for a full run
-                num_dis_feature_maps=32,  # set to 32 for a full run
+                num_gen_feature_maps=4,  # set to 32 for a full run
+                num_dis_feature_maps=4,  # set to 32 for a full run
                 alpha=0.03 / 10,
                 noise_std=1.0,
                 num_dfm_layers=1,
                 num_dfm_hidden=10,
                 metrics=['d_loss', 'g_loss'],
                 callbacks=[loss_display, sample_display],
-                num_epochs=100,  # set to 100 for a full run
+                num_epochs=4,  # set to 100 for a full run
                 random_state=random_seed(),
                 verbose=1)
 

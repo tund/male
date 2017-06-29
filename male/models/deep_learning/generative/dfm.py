@@ -10,11 +10,9 @@ import matplotlib.pyplot as plt
 plt.style.use('ggplot')
 
 from . import DCGAN
-from ...distribution import Uniform1D
 from ....activations import tf_lrelu as lrelu
 from ....utils.generic_utils import make_batches
-from ....utils.generic_utils import conv_out_size_same
-from ....backend.tensorflow_backend import linear, conv2d, deconv2d
+from ....backend.tensorflow_backend import linear, conv2d
 
 
 class DFM(DCGAN):
@@ -131,51 +129,6 @@ class DFM(DCGAN):
             callbacks.on_epoch_end(self.epoch, epoch_logs)
             self._on_epoch_end()
 
-    def _create_generator(self, z, train=True, reuse=False, name="generator"):
-        out_size = [(conv_out_size_same(self.img_size[0], 2),
-                     conv_out_size_same(self.img_size[1], 2),
-                     self.num_gen_feature_maps)]
-        for i in range(self.num_conv_layers - 1):
-            out_size = [(conv_out_size_same(out_size[0][0], 2),
-                         conv_out_size_same(out_size[0][1], 2),
-                         out_size[0][2] * 2)] + out_size
-
-        with tf.variable_scope(name) as scope:
-            if reuse:
-                scope.reuse_variables()
-
-            h0 = tf.nn.relu(batch_norm(linear(z, out_size[0][0] * out_size[0][1] * out_size[0][2],
-                                              scope='g_h0_linear', stddev=0.02),
-                                       decay=0.9,
-                                       updates_collections=None,
-                                       epsilon=1e-5,
-                                       scale=True,
-                                       is_training=train,
-                                       scope="g_bn0"),
-                            name="g_h0_relu")
-            h = tf.reshape(h0, [-1, out_size[0][0], out_size[0][1], out_size[0][2]])
-
-            for i in range(1, self.num_conv_layers):
-                h = tf.nn.relu(
-                    batch_norm(
-                        deconv2d(h,
-                                 [self.batch_size, out_size[i][0], out_size[i][1], out_size[i][2]],
-                                 stddev=0.02, name="g_h{}_deconv".format(i)),
-                        decay=0.9,
-                        updates_collections=None,
-                        epsilon=1e-5,
-                        scale=True,
-                        is_training=train,
-                        scope="g_bn{}".format(i)),
-                    name="g_h{}_relu".format(i))
-
-            g_out = tf.nn.tanh(
-                deconv2d(h, [self.batch_size, self.img_size[0], self.img_size[1], self.img_size[2]],
-                         stddev=0.02, name="g_out_deconv"),
-                name="g_out_tanh")
-
-            return g_out
-
     def _create_discriminator(self, x, train=True, reuse=False, name="discriminator"):
         with tf.variable_scope(name) as scope:
             if reuse:
@@ -209,17 +162,17 @@ class DFM(DCGAN):
             da_h = da_x + da_noise
             for i in range(self.num_dfm_layers):
                 if i == 0:
-                    da_h = lrelu(linear(da_h, self.num_dfm_hidden,
-                                        scope="da_h{}".format(i), stddev=0.02))
+                    da_h = tf.nn.relu(linear(da_h, self.num_dfm_hidden,
+                                             scope="da_h{}".format(i), stddev=0.02))
                 else:
-                    da_h = lrelu(batch_norm(linear(da_h, self.num_dfm_hidden,
-                                                   scope="da_h{}".format(i), stddev=0.02),
-                                            decay=0.9,
-                                            updates_collections=None,
-                                            epsilon=1e-5,
-                                            scale=True,
-                                            is_training=True,
-                                            scope="da_bn{}".format(i)))
+                    da_h = tf.nn.relu(batch_norm(linear(da_h, self.num_dfm_hidden,
+                                                        scope="da_h{}".format(i), stddev=0.02),
+                                                 decay=0.9,
+                                                 updates_collections=None,
+                                                 epsilon=1e-5,
+                                                 scale=True,
+                                                 is_training=True,
+                                                 scope="da_bn{}".format(i)))
             da_out = linear(da_h, da_x.get_shape()[1], scope="da_out", stddev=0.02)
             da_loss = tf.reduce_mean(tf.reduce_sum(tf.square(da_x - da_out), axis=1),
                                      name="da_loss")
