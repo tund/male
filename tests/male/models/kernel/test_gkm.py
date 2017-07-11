@@ -8,6 +8,7 @@ import os
 
 from sklearn import metrics
 from sklearn.base import clone
+from sklearn.datasets import load_svmlight_file
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import PredefinedSplit
 
@@ -15,17 +16,26 @@ import numpy as np
 
 from male import random_seed
 from male.datasets import demo
+from male.common import data_dir
 from male.models.kernel.gkm import GKM
 from male.callbacks import Display
 
 
 def test_gkm_visualization_2d(block_figure_on_end=False):
-    (x_train, y_train), (_, _) = demo.load_synthetic_2d()
+    data_name = '2d.semi'
+    n_features = 2
+    train_file_name = os.path.join(data_dir(), data_name + '.libsvm')
+
+    if not os.path.exists(train_file_name):
+        raise Exception('File train not found')
+
+    x_train, y_train = load_svmlight_file(train_file_name, n_features=n_features)
+    x_train = x_train.toarray()
 
     print('num_samples: {}'.format(x_train.shape[0]))
 
     predict_display = Display(
-        freq=1,
+        freq=2000,
         dpi='auto',
         block_on_end=block_figure_on_end,
         monitor=[{'metrics': ['predict'],
@@ -42,10 +52,10 @@ def test_gkm_visualization_2d(block_figure_on_end=False):
     )
 
     loss_display = Display(
-        freq=1,
+        freq=2,
         dpi='auto',
         block_on_end=block_figure_on_end,
-        monitor=[{'metrics': ['train_loss', 'obj_func'],
+        monitor=[{'metrics': ['train_loss'],
                   'type': 'line',
                   'title': "Learning losses",
                   'xlabel': "data points",
@@ -53,13 +63,14 @@ def test_gkm_visualization_2d(block_figure_on_end=False):
                   }]
     )
 
+    np.seterr(under='ignore')
     learner = GKM(
         model_name="GKM",
         mode='batch',
         unlabel=-128,
-        trade_off_1=0.1,
-        trade_off_2=0.1,
-        gamma=10,
+        trade_off_1=1.0,
+        trade_off_2=1.0,
+        gamma=500.0,
         loss_func=GKM.HINGE,
         smooth_hinge_theta=0.5,
         smooth_hinge_tau=0.5,
@@ -68,9 +79,14 @@ def test_gkm_visualization_2d(block_figure_on_end=False):
         sim_func=None,
         sim_params=(1.0, 0),
         callbacks=[predict_display],
+        # metrics=['train_loss'],
         random_state=random_seed()
     )
 
     learner.fit(x_train, y_train)
     y_train_pred = learner.predict(x_train)
     print("Training error = %.4f" % (1 - metrics.accuracy_score(y_train, y_train_pred)))
+
+if __name__ == '__main__':
+    # pytest.main([__file__])
+    test_gkm_visualization_2d(True)

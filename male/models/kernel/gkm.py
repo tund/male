@@ -31,6 +31,7 @@ class GKM(Model):
                  unlabel_loss_func_degree=2,
                  sim_func=None,
                  sim_params=(1.0, 0),
+                 freq_calc_metrics=1,
                  **kwargs):
         super(GKM, self).__init__(model_name=model_name, **kwargs)
         self.mode = mode
@@ -44,9 +45,12 @@ class GKM(Model):
         self.insensitive_epsilon = insensitive_epsilon
         self.unlabel_loss_func_degree = unlabel_loss_func_degree
         self.sim_func = sim_func
-        if self.sim_func is None:
-            self.sim_func = GKM.calc_similarity_1d
         self.sim_params = sim_params
+        if self.sim_func is None:
+            self.sim_func = GKM.calc_similarity_kernel
+            self.sim_params = self.gamma
+
+        self.freq_calc_metrics = freq_calc_metrics
 
     def _init(self):
         super(GKM, self)._init()
@@ -64,6 +68,11 @@ class GKM(Model):
     def calc_similarity_1d(x, y, params):
         scale, idx_feature = params
         return np.exp(-scale * np.abs(x[idx_feature]-y[idx_feature]))
+
+    @staticmethod
+    def calc_similarity_kernel(x, y, params):
+        gamma = params
+        return np.exp(-gamma * np.sum((x - y) ** 2))
 
     def _get_loss_label(self, wx, ywx, y):
         loss = 0
@@ -87,6 +96,8 @@ class GKM(Model):
                 loss = -y
             elif ywx <= 1:
                 loss = (wx - 1) * y / self.smooth_hinge_tau
+        else:
+            raise ValueError('Incorrect loss function')
         return loss
 
     def _get_dist2(self, xn):
@@ -101,13 +112,45 @@ class GKM(Model):
 
     def _get_wx(self, xn):
         kn = self._get_kernel(xn)
-        wxn = np.sum(self.w[:, :self.num_cores] * kn, axis=1)
+        wxn = np.sum(self.w[:self.num_cores] * kn)
         return wxn
 
     def _get_wbarx(self, xn):
         kn = self._get_kernel(xn)
-        wxn = np.sum(self.wbar[:, :self.num_cores] * kn, axis=1)
+        wxn = np.sum(self.wbar[:self.num_cores] * kn)
         return wxn
+
+    def _get_mean_loss(self, x, y):
+        num_tests = x.shape[0]
+        mean_loss = 0.0
+        for nn in range(num_tests):
+            xn = x[nn, :]
+            yn = y[nn]
+            if yn == GKM.UNLABEL:
+                continue
+            yn_pred, wxn = self._predict_one(xn)
+            loss_cur = self._get_loss_label(wxn, yn * wxn, yn)
+            mean_loss += np.maximum(0, loss_cur)
+        mean_loss = mean_loss / num_tests
+        return mean_loss
+
+    def _get_mean_loss_unlabel(self, x, y):
+        num_tests = x.shape[0]
+        mean_loss = 0.0
+        for n1 in range(num_tests):
+            xn1 = x[n1, :]
+            wxn1 = self._get_wx(xn1)
+            n2 = np.random.randint(0, num_tests)
+            xn2 = x[n2, :]
+            wxn2 = self._get_wx(xn2)
+
+            wxn12 = wxn1 - wxn2
+            mu = self.sim_func(xn1, xn2, self.sim_params)
+
+            loss_cur = mu * (np.abs(wxn12) ** self.unlabel_loss_func_degree)
+            mean_loss += np.maximum(0, loss_cur)
+        mean_loss = mean_loss / num_tests
+        return mean_loss
 
     def _fit_loop(self, x, y,
                   do_validation=False,
@@ -120,7 +163,7 @@ class GKM(Model):
         num_samples = self.x_.shape[0]
 
         # process unlabel data
-        self.encoded_unlabel = super(GKM, self)._transform_labels(self.unlabel)
+        self.encoded_unlabel = super(GKM, self)._transform_labels([self.unlabel])[0]
         self.num_classes -= 1
         if self.num_classes > 2:
             raise ValueError('Not support multi-class')
@@ -143,8 +186,11 @@ class GKM(Model):
         self.num_unlabel = len(self.idx_unlabel)
         self.num_label = len(self.idx_label)
 
-        trade_off_1 = self.trade_off_1 * num_samples
-        trade_off_2 = self.trade_off_2 * num_samples
+        print('num_labels:', self.num_label)
+        print('num_unlabel', self.num_unlabel)
+
+        trade_off_1 = self.trade_off_1 * self.num_label
+        trade_off_2 = self.trade_off_2 * self.num_label
 
         max_loop = self.num_epochs * num_samples
 
@@ -162,12 +208,21 @@ class GKM(Model):
         self.idx_data_cores[0] = 0
         self.num_cores += 1
 
-        for t in range(max_loop):
+        self.bias = 0
+
+        for t in range(1, max_loop):
+            epoch_logs = {}
+            callbacks.on_epoch_begin(self.epoch)
+            if (t % self.freq_calc_metrics) == 0:
+                if 'train_loss' in callback_metrics:
+                    mean_loss = self._get_mean_loss_unlabel(self.x_, self.y_)
+                    epoch_logs['train_loss'] = mean_loss
+
             eta = 2.0 / (t + 1.0)
 
-            it = np.random.randint(0, self.num_label)
-            ut = np.random.randint(0, self.num_unlabel)
-            vt = np.random.randint(0, len(updated_lst))
+            it = self.idx_label[np.random.randint(0, self.num_label)]
+            ut = updated_lst[np.random.randint(0, len(updated_lst))]
+            vt = self.idx_unlabel[np.random.randint(0, self.num_unlabel)]
 
             wxit = self._get_wx(self.x_[it, ])
             ywxit = wxit * self.y_[it]
@@ -207,20 +262,25 @@ class GKM(Model):
                     self.w[self.num_cores] = 0
                     self.wbar[self.num_cores] = 0
                     self.num_cores += 1
+                    np.append(updated_lst, vt)
 
                 self.w[self.idx_data_cores[ut]] -= trade_off_2 * eta * mu * loss_unlabel
                 self.w[self.idx_data_cores[vt]] += trade_off_2 * eta * mu * loss_unlabel
 
             self.wbar = (t - 1.0) / (t + 1.0) * self.wbar + eta * self.w
 
+            if (t % self.freq_calc_metrics) == 0:
+                self.epoch += 1
+                callbacks.on_epoch_end(self.epoch, epoch_logs)
+
     def _predict_one(self, xn):
         wx = self._get_wbarx(xn) - self.bias
-        return +1 if wx > 0 else -1
+        return +1 if wx > 0 else -1, wx
 
     def predict(self, x):
         y = np.zeros(x.shape[0], dtype=int)
         for n in range(x.shape[0]):
-            y[n] = self._predict_one(x[n])
+            y[n], _ = self._predict_one(x[n])
 
             # due to unlabel process step
             y[n] = self.encoded_poslabel if y[n] > 0 else self.encode_neglabel
@@ -229,7 +289,12 @@ class GKM(Model):
         return y
 
     def display_prediction(self, **kwargs):
-        visualize_classification_prediction(self, self.x_, self.y_, **kwargs)
+        y_tmp = self.y_.copy()
+        y_tmp[y_tmp == GKM.UNLABEL] = 0
+        y_tmp[y_tmp > 0] = self.encoded_poslabel
+        y_tmp[y_tmp < 0] = self.encode_neglabel
+        visualize_classification_prediction(
+            self, self.x_, y_tmp, **kwargs)
 
     def display(self, param, **kwargs):
         if param == 'predict':
