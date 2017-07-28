@@ -20,11 +20,24 @@ def _check_numpy_unicode_bug(labels):
 
 
 class LabelEncoderDict(LabelEncoder):
-    def __init__(self):
+    def __init__(self, source=None):
         self.encoded_label = None
         self.original_label = None
         self.encode_dict = None
         self.decode_dict = None
+
+        if source is not None:
+            self.__dict__.update(source.__dict__)
+            self.refresh()
+
+    def refresh(self):
+        self.encoded_label = np.arange(len(self.classes_))
+        self.original_label = self.classes_
+        self.refresh_dict()
+
+    def refresh_dict(self):
+        self.decode_dict = dict(zip(self.encoded_label, self.original_label))
+        self.encode_dict = dict(zip(self.original_label, self.encoded_label))
 
     def fit(self, y):
         """Fit label encoder
@@ -39,10 +52,8 @@ class LabelEncoderDict(LabelEncoder):
         self : returns an instance of self.
         """
         super(LabelEncoderDict, self).fit(y)
-        self.encoded_label = np.arange(len(self.classes_))
-        self.original_label = self.classes_
-        self.decode_dict = dict(zip(self.encoded_label, self.original_label))
-        self.encode_dict = dict(zip(self.original_label, self.encoded_label))
+        self.refresh()
+
         return self
 
     def fit_transform(self, y):
