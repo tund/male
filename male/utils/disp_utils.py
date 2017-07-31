@@ -201,9 +201,8 @@ def visualize_classification_prediction(estimator, x_train, y_train,
     print('Drawing at epoch {}...'.format(epoch))
     n_test = x_test.shape[0]
     y_test = estimator.predict(x_test)
-    y_test_zidx = estimator.label_encoder.transform(y_test.astype(int))
-    # y_train_zidx = estimator.label_encoder.inverse_transform(y_train.astype(int))
-    y_train_zidx = y_train.copy()
+    y_test_zidx = y_test.astype(int).copy()
+    y_train_zidx = estimator.label_encoder.inverse_transform(y_train.astype(int))
 
     img = np.zeros((n_test, 3))
     n_classes = estimator.num_classes
@@ -215,7 +214,7 @@ def visualize_classification_prediction(estimator, x_train, y_train,
     for ci in range(len(fore_colors_hex)):
         bg_colors[ci, :] = converter.to_rgb(bg_colors_hex[ci])
 
-    for ci in range(n_classes+1):  # BUG
+    for ci in range(n_classes):
         img[y_test_zidx == ci, :] = bg_colors[ci]
 
     img = img.reshape((grid_size, grid_size, 3))

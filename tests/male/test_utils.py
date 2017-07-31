@@ -49,8 +49,21 @@ def test_predict_visualization(block_figure_on_end=False):
                                         epoch=learner.epoch, grid_size=20)
 
 
+def test_label_encoder_dict():
+    from male.utils.label import LabelEncoderDict
+    y = np.array([-1, 1, 3, 3, 1, 20])
+    encoder = LabelEncoderDict()
+    y_encoded = encoder.fit_transform(y)
+    assert((y_encoded == np.array([0, 1, 2, 2, 1, 3])).all())
+
+    y_encoded = encoder.transform(np.array([3, 20]))
+    assert ((y_encoded == np.array([2, 3])).all())
+    y_decoded = encoder.inverse_transform(np.array([0, 1, 1, 3, 2]))
+    assert ((y_decoded == np.array([-1, 1, 1, 20, 3])).all())
+
 if __name__ == '__main__':
     pytest.main([__file__])
     # test_tuid()
     # test_logsumeone()
     # test_predict_visualization(block_figure_on_end=True)
+    # test_label_encoder_dict()

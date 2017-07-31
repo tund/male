@@ -17,11 +17,11 @@ import numpy as np
 from male import random_seed
 from male.datasets import demo
 from male.common import data_dir
-from male.models.kernel.gkm import GKM
+from male.models.kernel.gkm_cache import GKM_CACHE
 from male.callbacks import Display
 
 
-def test_gkm_visualization_2d(block_figure_on_end=False):
+def test_GKM_CACHE_visualization_2d(block_figure_on_end=False):
     data_name = '2d.semi'
     n_features = 2
     train_file_name = os.path.join(data_dir(), data_name + '.libsvm')
@@ -64,14 +64,14 @@ def test_gkm_visualization_2d(block_figure_on_end=False):
     )
 
     np.seterr(under='ignore')
-    learner = GKM(
-        model_name="GKM",
+    learner = GKM_CACHE(
+        model_name="GKM_CACHE",
         mode='batch',
         unlabel=-1,
         trade_off_1=1,
         trade_off_2=2,
         gamma=500.0,
-        loss_func=GKM.S_HINGE,
+        loss_func=GKM_CACHE.S_HINGE,
         smooth_hinge_theta=0.5,
         smooth_hinge_tau=0.5,
         insensitive_epsilon=0.001,
@@ -134,14 +134,14 @@ def run_gridsearch_a1a_u70():
 
     ps = PredefinedSplit(test_fold=[-1] * x_train.shape[0] + [1] * x_valid.shape[0])
 
-    clf = GKM(
-        model_name="GKM",
+    clf = GKM_CACHE(
+        model_name="GKM_CACHE",
         mode='batch',
         unlabel=-128,
         trade_off_1=1,
         trade_off_2=1,
         gamma=100.0,
-        loss_func=GKM.S_HINGE,
+        loss_func=GKM_CACHE.S_HINGE,
         smooth_hinge_theta=0.5,
         smooth_hinge_tau=0.5,
         insensitive_epsilon=0.001,
@@ -175,5 +175,5 @@ def run_gridsearch_a1a_u70():
 
 if __name__ == '__main__':
     # pytest.main([__file__])
-    test_gkm_visualization_2d(True)
-    # run_gridsearch_a1a_u70()
+    # test_GKM_CACHE_visualization_2d(True)
+    run_gridsearch_a1a_u70()
