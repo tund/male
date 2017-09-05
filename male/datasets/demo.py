@@ -142,6 +142,27 @@ def load_housing(shuffle_data=True, randseed='default'):
     return (x_train, y_train), (x_test, y_test)
 
 
+def load_20newsgroups(shuffle_data=True, randseed='default'):
+    train_path = get_file("20news_bydate_5Kwordcount_in_entire_data_countfeat_tiny_train.libsvm",
+                          origin=remote_data_dir()
+                                 + "/20news_bydate_5Kwordcount_in_entire_data_countfeat_tiny_train.libsvm",
+                          cache_subdir="demo")
+    test_path = get_file("20news_bydate_5Kwordcount_in_entire_data_countfeat_tiny_test.libsvm",
+                         origin=remote_data_dir()
+                                + "/20news_bydate_5Kwordcount_in_entire_data_countfeat_tiny_test.libsvm",
+                         cache_subdir="demo")
+
+    x_train, y_train = load_svmlight_file(train_path, n_features=5000)
+    x_test, y_test = load_svmlight_file(test_path, n_features=5000)
+    x_train = x_train.toarray()
+    x_test = x_test.toarray()
+
+    if shuffle_data:
+        shuffle(x_train, y_train, randseed=randseed)
+
+    return (x_train, y_train), (x_test, y_test)
+
+
 def shuffle(x, y=None, randseed='default'):
     if randseed == 'default':
         np.random.seed(random_seed())
