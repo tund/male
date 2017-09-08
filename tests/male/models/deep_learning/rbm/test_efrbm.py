@@ -8,7 +8,7 @@ import numpy as np
 from sklearn.metrics import accuracy_score
 from sklearn.linear_model import LogisticRegression
 
-from male import random_seed
+from male.configs import random_seed
 from male.datasets import demo
 from male.callbacks import Display
 from male.models.deep_learning.rbm import EFRBM
@@ -17,7 +17,7 @@ SUFFICIENT_STATISTICS_DIM = {'binary': 1, 'categorical': 10, 'continuous': 2}
 
 
 def test_efrbm_mnist(visible_layer_type='binary', hidden_layer_type='continuous',
-                     block_figure_on_end=False):
+                     show_figure=False, block_figure_on_end=False):
     (x_train, y_train), (x_test, y_test) = demo.load_mnist()
 
     num_train = 1000
@@ -35,6 +35,7 @@ def test_efrbm_mnist(visible_layer_type='binary', hidden_layer_type='continuous'
                                dpi='auto',
                                layout=(1, 2),
                                freq=1,
+                               show=show_figure,
                                block_on_end=block_figure_on_end,
                                monitor=[{'metrics': ['recon_err', 'val_recon_err'],
                                          'type': 'line',
@@ -57,6 +58,7 @@ def test_efrbm_mnist(visible_layer_type='binary', hidden_layer_type='continuous'
                           layout=(1, 1),
                           figsize=(8, 8),
                           freq=1,
+                          show=show_figure,
                           block_on_end=block_figure_on_end,
                           monitor=[{'metrics': ['generated_data'],
                                     'title': "Generated data",
@@ -72,6 +74,7 @@ def test_efrbm_mnist(visible_layer_type='binary', hidden_layer_type='continuous'
                             layout=(1, 1),
                             figsize=(8, 8),
                             freq=1,
+                            show=show_figure,
                             block_on_end=block_figure_on_end,
                             monitor=[{'metrics': ['reconstruction'],
                                       'title': "Reconstructed data",
@@ -131,4 +134,4 @@ def test_efrbm_mnist(visible_layer_type='binary', hidden_layer_type='continuous'
 if __name__ == '__main__':
     pytest.main([__file__])
     # test_efrbm_mnist(visible_layer_type='binary', hidden_layer_type='binary',
-    #                  block_figure_on_end=True)
+    #                  show_figure=True, block_figure_on_end=True)

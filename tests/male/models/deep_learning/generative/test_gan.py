@@ -6,7 +6,7 @@ import sys
 import pytest
 import numpy as np
 
-from male import random_seed
+from male.configs import random_seed
 from male.datasets import demo
 from male.callbacks import Display
 from male.models.distribution import Uniform
@@ -14,7 +14,7 @@ from male.models.deep_learning.generative import GAN
 
 
 @pytest.mark.skipif('tensorflow' not in sys.modules, reason="requires tensorflow library")
-def test_gan_mnist(block_figure_on_end=False):
+def test_gan_mnist(show_figure=False, block_figure_on_end=False):
     print("========== Test GAN on MNIST data ==========")
 
     np.random.seed(random_seed())
@@ -25,6 +25,7 @@ def test_gan_mnist(block_figure_on_end=False):
 
     loss_display = Display(layout=(1, 1),
                            dpi='auto',
+                           show=show_figure,
                            block_on_end=block_figure_on_end,
                            monitor=[{'metrics': ['d_loss', 'g_loss'],
                                      'type': 'line',
@@ -38,6 +39,7 @@ def test_gan_mnist(block_figure_on_end=False):
                              dpi='auto',
                              figsize=(10, 10),
                              freq=1,
+                             show=show_figure,
                              block_on_end=block_figure_on_end,
                              monitor=[{'metrics': ['x_samples'],
                                        'title': "Generated data",
@@ -97,4 +99,4 @@ def test_gan_mnist(block_figure_on_end=False):
 
 if __name__ == '__main__':
     pytest.main([__file__])
-    # test_gan_mnist(block_figure_on_end=True)
+    # test_gan_mnist(show_figure=True, block_figure_on_end=True)

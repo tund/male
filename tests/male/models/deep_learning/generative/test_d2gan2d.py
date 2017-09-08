@@ -5,7 +5,7 @@ from __future__ import absolute_import
 import sys
 import pytest
 
-from male import random_seed
+from male.configs import random_seed
 from male.callbacks import Display
 from male.models.distribution import GMM
 from male.models.distribution import Gaussian1D
@@ -13,11 +13,12 @@ from male.models.deep_learning.generative import D2GAN2D
 
 
 @pytest.mark.skipif('tensorflow' not in sys.modules, reason="requires tensorflow library")
-def test_d2gan2d_gmm2d(block_figure_on_end=False):
+def test_d2gan2d_gmm2d(show_figure=False, block_figure_on_end=False):
     loss_display = Display(layout=(3, 1),
                            dpi='auto',
                            title='Loss',
                            freq=1,  # set to 1000 for a full run
+                           show=show_figure,
                            block_on_end=block_figure_on_end,
                            monitor=[{'metrics': ['d_loss', 'g_loss'],
                                      'type': 'line',
@@ -46,6 +47,7 @@ def test_d2gan2d_gmm2d(block_figure_on_end=False):
                               dpi='auto',
                               freq=1,  # set to 1000 for a full run
                               title='Scatter',
+                              show=show_figure,
                               block_on_end=block_figure_on_end,
                               monitor=[{'metrics': ['scatter'],
                                         'type': 'scatter',
@@ -86,4 +88,4 @@ def test_d2gan2d_gmm2d(block_figure_on_end=False):
 
 if __name__ == '__main__':
     pytest.main([__file__])
-    # test_d2gan2d_gmm2d(block_figure_on_end=True)
+    # test_d2gan2d_gmm2d(show_figure=True, block_figure_on_end=True)

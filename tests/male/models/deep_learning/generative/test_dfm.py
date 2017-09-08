@@ -7,8 +7,8 @@ import sys
 import pytest
 import numpy as np
 
-from male import model_dir
-from male import random_seed
+from male.configs import model_dir
+from male.configs import random_seed
 from male.datasets import demo
 from male import TensorFlowModel
 from male.callbacks import Display
@@ -17,7 +17,7 @@ from male.models.deep_learning.generative import DFM
 
 
 @pytest.mark.skipif('tensorflow' not in sys.modules, reason="requires tensorflow library")
-def test_dfm_mnist(block_figure_on_end=False):
+def test_dfm_mnist(show_figure=False, block_figure_on_end=False):
     print("========== Test DFM on MNIST data ==========")
 
     np.random.seed(random_seed())
@@ -28,6 +28,7 @@ def test_dfm_mnist(block_figure_on_end=False):
 
     loss_display = Display(layout=(1, 1),
                            dpi='auto',
+                           show=show_figure,
                            block_on_end=block_figure_on_end,
                            monitor=[{'metrics': ['d_loss', 'g_loss'],
                                      'type': 'line',
@@ -41,6 +42,7 @@ def test_dfm_mnist(block_figure_on_end=False):
                              dpi='auto',
                              figsize=(10, 10),
                              freq=1,
+                             show=show_figure,
                              block_on_end=block_figure_on_end,
                              monitor=[{'metrics': ['x_samples'],
                                        'title': "Generated data",
@@ -71,7 +73,7 @@ def test_dfm_mnist(block_figure_on_end=False):
 
 
 @pytest.mark.skipif('tensorflow' not in sys.modules, reason="requires tensorflow library")
-def test_dfm_save_and_load(block_figure_on_end=False):
+def test_dfm_save_and_load(show_figure=False, block_figure_on_end=False):
     print("========== Test Save and Load functions of DFM on MNIST data ==========")
 
     np.random.seed(random_seed())
@@ -82,6 +84,7 @@ def test_dfm_save_and_load(block_figure_on_end=False):
 
     loss_display = Display(layout=(1, 1),
                            dpi='auto',
+                           show=show_figure,
                            block_on_end=block_figure_on_end,
                            monitor=[{'metrics': ['d_loss', 'g_loss'],
                                      'type': 'line',
@@ -95,6 +98,7 @@ def test_dfm_save_and_load(block_figure_on_end=False):
                              dpi='auto',
                              figsize=(10, 10),
                              freq=1,
+                             show=show_figure,
                              block_on_end=block_figure_on_end,
                              monitor=[{'metrics': ['x_samples'],
                                        'title': "Generated data",
@@ -131,7 +135,7 @@ def test_dfm_save_and_load(block_figure_on_end=False):
 
 
 @pytest.mark.skipif('tensorflow' not in sys.modules, reason="requires tensorflow library")
-def test_dfm_cifar10(block_figure_on_end=False):
+def test_dfm_cifar10(show_figure=False, block_figure_on_end=False):
     print("========== Test DFM on CIFAR10 data ==========")
 
     np.random.seed(random_seed())
@@ -142,6 +146,7 @@ def test_dfm_cifar10(block_figure_on_end=False):
 
     loss_display = Display(layout=(1, 1),
                            dpi='auto',
+                           show=show_figure,
                            block_on_end=block_figure_on_end,
                            monitor=[{'metrics': ['d_loss', 'g_loss'],
                                      'type': 'line',
@@ -155,6 +160,7 @@ def test_dfm_cifar10(block_figure_on_end=False):
                              dpi='auto',
                              figsize=(10, 10),
                              freq=1,
+                             show=show_figure,
                              block_on_end=block_figure_on_end,
                              monitor=[{'metrics': ['x_samples'],
                                        'title': "Generated data",
@@ -186,7 +192,7 @@ def test_dfm_cifar10(block_figure_on_end=False):
 
 @pytest.mark.skipif('tensorflow' not in sys.modules, reason="requires tensorflow library")
 @pytest.mark.skipif(sys.platform == 'win32', reason="does not run on windows")
-def test_dfm_cifar10_inception_score(block_figure_on_end=False):
+def test_dfm_cifar10_inception_score(show_figure=False, block_figure_on_end=False):
     print("========== Test DFM with Inception Score on CIFAR10 data ==========")
 
     np.random.seed(random_seed())
@@ -204,6 +210,7 @@ def test_dfm_cifar10_inception_score(block_figure_on_end=False):
                                  save_best_only=True)
     loss_display = Display(layout=(1, 1),
                            dpi='auto',
+                           show=show_figure,
                            block_on_end=block_figure_on_end,
                            filepath=[os.path.join(model_dir(), "male/DFM/cifar10/"
                                                                "loss/loss_{epoch:04d}.png"),
@@ -219,6 +226,7 @@ def test_dfm_cifar10_inception_score(block_figure_on_end=False):
                                     ])
     inception_score_display = Display(layout=(1, 1),
                                       dpi='auto',
+                                      show=show_figure,
                                       block_on_end=block_figure_on_end,
                                       filepath=[os.path.join(model_dir(),
                                                              "male/DFM/cifar10/inception_score/"
@@ -239,6 +247,7 @@ def test_dfm_cifar10_inception_score(block_figure_on_end=False):
                              dpi='auto',
                              figsize=(10, 10),
                              freq=1,
+                             show=show_figure,
                              block_on_end=block_figure_on_end,
                              filepath=os.path.join(model_dir(),
                                                    "male/DFM/cifar10/samples/"
@@ -274,7 +283,7 @@ def test_dfm_cifar10_inception_score(block_figure_on_end=False):
 
 if __name__ == '__main__':
     pytest.main([__file__])
-    # test_dfm_mnist(block_figure_on_end=True)
-    # test_dfm_save_and_load(block_figure_on_end=True)
-    # test_dfm_cifar10(block_figure_on_end=True)
-    # test_dfm_cifar10_inception_score(block_figure_on_end=True)
+    # test_dfm_mnist(show_figure=True, block_figure_on_end=True)
+    # test_dfm_save_and_load(show_figure=True, block_figure_on_end=True)
+    # test_dfm_cifar10(show_figure=True, block_figure_on_end=True)
+    # test_dfm_cifar10_inception_score(show_figure=True, block_figure_on_end=True)

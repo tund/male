@@ -6,9 +6,9 @@ import pytest
 import numpy as np
 
 from male import Model
-from male import random_seed
 from male.datasets import demo
 from male.models.linear import GLM
+from male.configs import random_seed
 
 
 def test_save_load():

@@ -5,13 +5,13 @@ from __future__ import absolute_import
 import pytest
 import numpy as np
 
-from male import random_seed
+from male.configs import random_seed
 from male.datasets import demo
 from male.callbacks import Display
 from male.models.deep_learning.rbm import NonnegativeRBM
 
 
-def test_nrbm_general(block_figure_on_end=False):
+def test_nrbm_general(show_figure=False, block_figure_on_end=False):
     print("========== Test NonnegativeRBM in General ==========")
 
     np.random.seed(random_seed())
@@ -28,6 +28,7 @@ def test_nrbm_general(block_figure_on_end=False):
                                dpi='auto',
                                layout=(2, 2),
                                freq=1,
+                               show=show_figure,
                                block_on_end=block_figure_on_end,
                                monitor=[{'metrics': ['recon_err', 'val_recon_err'],
                                          'type': 'line',
@@ -73,6 +74,7 @@ def test_nrbm_general(block_figure_on_end=False):
                              layout=(1, 1),
                              figsize=(8, 8),
                              freq=1,
+                             show=show_figure,
                              block_on_end=block_figure_on_end,
                              monitor=[{'metrics': ['filters'],
                                        'title': "Receptive Fields",
@@ -119,4 +121,4 @@ def test_nrbm_general(block_figure_on_end=False):
 
 if __name__ == '__main__':
     pytest.main([__file__])
-    # test_nrbm_general(block_figure_on_end=True)
+    # test_nrbm_general(show_figure=True, block_figure_on_end=True)

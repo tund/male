@@ -7,7 +7,7 @@ import sys
 import math
 import numpy as np
 
-from . import model_dir
+from .configs import model_dir
 
 
 class InceptionScore(object):

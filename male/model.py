@@ -1,28 +1,27 @@
+from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-from __future__ import absolute_import
 
-import os
 import abc
-import sys
 import copy
+import os
+import sys
 import time
 import warnings
 
-import numpy as np
 import dill as pkl
-
+import numpy as np
+from scipy.optimize import check_grad as scipy_check_grad
 from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
 from sklearn.base import RegressorMixin
 from sklearn.base import TransformerMixin
 from sklearn.metrics import accuracy_score
-from sklearn.utils import check_random_state
 from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import LabelEncoder
-from scipy.optimize import check_grad as scipy_check_grad
+from sklearn.utils import check_random_state
 
-from .common import model_dir
+from .configs import model_dir
 from . import callbacks as cbks
 from .utils.generic_utils import tuid
 from .utils.io_utils import ask_to_proceed_with_overwrite

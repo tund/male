@@ -5,7 +5,7 @@ from __future__ import absolute_import
 import pytest
 import numpy as np
 
-from male import random_seed
+from male.configs import random_seed
 
 
 def test_tuid():
@@ -23,7 +23,7 @@ def test_logsumeone():
     assert np.all(np.abs(logsumone(x) - r) < 1e-2)
 
 
-def test_predict_visualization(block_figure_on_end=False):
+def test_predict_visualization(show=False, block_figure_on_end=False):
     from male.datasets import demo
     from male.models.kernel import KSGD
     from male.utils.disp_utils import visualize_classification_prediction
@@ -44,7 +44,7 @@ def test_predict_visualization(block_figure_on_end=False):
 
     learner.fit(x_train, y_train)
 
-    visualize_classification_prediction(learner, x_train, y_train,
+    visualize_classification_prediction(learner, x_train, y_train, show=show,
                                         block_on_end=block_figure_on_end,
                                         epoch=learner.epoch, grid_size=20)
 
@@ -53,4 +53,4 @@ if __name__ == '__main__':
     pytest.main([__file__])
     # test_tuid()
     # test_logsumeone()
-    # test_predict_visualization(block_figure_on_end=True)
+    # test_predict_visualization(show=True, block_figure_on_end=True)

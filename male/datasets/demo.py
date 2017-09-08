@@ -6,8 +6,8 @@ import pickle
 import numpy as np
 from sklearn.datasets import load_svmlight_file
 
-from .. import random_seed
-from .. import remote_data_dir
+from ..configs import random_seed
+from ..configs import remote_data_dir
 from ..utils.data_utils import get_file
 
 

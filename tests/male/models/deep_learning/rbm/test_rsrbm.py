@@ -5,13 +5,13 @@ from __future__ import absolute_import
 import pytest
 import numpy as np
 
-from male import random_seed
+from male.configs import random_seed
 from male.datasets import demo
 from male.callbacks import Display
 from male.models.deep_learning.rbm import ReplicatedSoftmaxRBM
 
 
-def test_rsrbm_cd(block_figure_on_end=False):
+def test_rsrbm_cd(show_figure=False, block_figure_on_end=False):
     print("========== Test ReplicatedSoftmaxRBM using Contrastive Divergence ==========")
 
     np.random.seed(random_seed())
@@ -20,20 +20,6 @@ def test_rsrbm_cd(block_figure_on_end=False):
     from sklearn.neighbors import KNeighborsClassifier
 
     (x_train, y_train), (x_test, y_test) = demo.load_20newsgroups()
-    # import os
-    # from sklearn.datasets import load_svmlight_file
-    # from male import data_dir
-    # train_path = os.path.join(data_dir(), "20newsgroups/20news_bydate/libsvm/"
-    #                                       "20news_bydate_5Kwordcount_in_entire_data_countfeat_train.libsvm")
-    # test_path = os.path.join(data_dir(), "20newsgroups/20news_bydate/libsvm/"
-    #                                      "20news_bydate_5Kwordcount_in_entire_data_countfeat_test.libsvm")
-    # x_train, y_train = load_svmlight_file(train_path, n_features=5000)
-    # x_test, y_test = load_svmlight_file(test_path, n_features=5000)
-    # x_train = x_train.toarray()
-    # x_test = x_test.toarray()
-    #
-    # x_train, y_train = demo.shuffle(x_train, y_train, randseed=random_seed())
-
     x = np.vstack([x_train, x_test])
     y = np.concatenate([y_train, y_test])
 
@@ -41,6 +27,7 @@ def test_rsrbm_cd(block_figure_on_end=False):
                                dpi='auto',
                                layout=(2, 1),
                                freq=1,
+                               show=show_figure,
                                block_on_end=block_figure_on_end,
                                monitor=[{'metrics': ['recon_err', 'val_recon_err'],
                                          'type': 'line',
@@ -63,6 +50,7 @@ def test_rsrbm_cd(block_figure_on_end=False):
                              layout=(1, 1),
                              figsize=(8, 8),
                              freq=1,
+                             show=show_figure,
                              block_on_end=block_figure_on_end,
                              monitor=[{'metrics': ['filters'],
                                        'title': "Receptive Fields",
@@ -78,6 +66,7 @@ def test_rsrbm_cd(block_figure_on_end=False):
                              layout=(1, 1),
                              figsize=(8, 8),
                              freq=1,
+                             show=show_figure,
                              block_on_end=block_figure_on_end,
                              monitor=[{'metrics': ['hidden_activations'],
                                        'title': "Hidden Activations",
@@ -191,7 +180,7 @@ def test_rsrbm_gridsearch():
 
 
 @pytest.mark.skip(reason="Very long running time.")
-def test_rsrbm_cd_on_full_20newsgroups_dataset(block_figure_on_end=False):
+def test_rsrbm_cd_on_full_20newsgroups_dataset(show_figure=False, block_figure_on_end=False):
     print("========== Test ReplicatedSoftmaxRBM using Contrastive Divergence ==========")
 
     np.random.seed(random_seed())
@@ -201,7 +190,7 @@ def test_rsrbm_cd_on_full_20newsgroups_dataset(block_figure_on_end=False):
 
     import os
     from sklearn.datasets import load_svmlight_file
-    from male import data_dir
+    from male.configs import data_dir
     train_path = os.path.join(data_dir(), "20newsgroups/20news_bydate/libsvm/"
                                           "20news_bydate_5Kwordcount_in_entire_data_countfeat_train.libsvm")
     test_path = os.path.join(data_dir(), "20newsgroups/20news_bydate/libsvm/"
@@ -220,6 +209,7 @@ def test_rsrbm_cd_on_full_20newsgroups_dataset(block_figure_on_end=False):
                                dpi='auto',
                                layout=(2, 1),
                                freq=1,
+                               show=show_figure,
                                block_on_end=block_figure_on_end,
                                monitor=[{'metrics': ['recon_err', 'val_recon_err'],
                                          'type': 'line',
@@ -242,6 +232,7 @@ def test_rsrbm_cd_on_full_20newsgroups_dataset(block_figure_on_end=False):
                              layout=(1, 1),
                              figsize=(8, 8),
                              freq=1,
+                             show=show_figure,
                              block_on_end=block_figure_on_end,
                              monitor=[{'metrics': ['filters'],
                                        'title': "Receptive Fields",
@@ -257,6 +248,7 @@ def test_rsrbm_cd_on_full_20newsgroups_dataset(block_figure_on_end=False):
                              layout=(1, 1),
                              figsize=(8, 8),
                              freq=1,
+                             show=show_figure,
                              block_on_end=block_figure_on_end,
                              monitor=[{'metrics': ['hidden_activations'],
                                        'title': "Hidden Activations",
@@ -296,7 +288,7 @@ def test_rsrbm_cd_on_full_20newsgroups_dataset(block_figure_on_end=False):
 
 if __name__ == '__main__':
     pytest.main([__file__])
-    # test_rsrbm_cd(block_figure_on_end=True)
+    # test_rsrbm_cd(show_figure=True, block_figure_on_end=True)
     # test_rsrbm_pipeline()
     # test_rsrbm_gridsearch()
-    # test_rsrbm_cd_on_full_20newsgroups_dataset(block_figure_on_end=True)
+    # test_rsrbm_cd_on_full_20newsgroups_dataset(show_figure=True, block_figure_on_end=True)

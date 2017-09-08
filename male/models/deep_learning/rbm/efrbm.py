@@ -826,7 +826,7 @@ class EFRBM(RBM):
             plt.grid(False)
             plt.title(title)
 
-        plt.show(block=block)
+        # plt.show(block=block)
         return fig
 
     def get_params(self, deep=True):

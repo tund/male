@@ -7,9 +7,9 @@ import pytest
 import numpy as np
 
 from male import Model
-from male import data_dir
-from male import model_dir
-from male import random_seed
+from male.configs import data_dir
+from male.configs import model_dir
+from male.configs import random_seed
 from male.datasets import demo
 from male.callbacks import Display
 from male.callbacks import EarlyStopping
@@ -19,7 +19,7 @@ from male.models.deep_learning.rbm.rbm import INFERENCE_ENGINE
 from male.models.deep_learning.rbm.srbm import APPROX_METHOD
 
 
-def test_srbm_hidden_posterior_approximation(block_figure_on_end=False):
+def test_srbm_hidden_posterior_approximation(show_figure=False, block_figure_on_end=False):
     print("========== Test hidden posterior approximation of Supervised RBM ==========")
 
     np.random.seed(random_seed())
@@ -122,7 +122,7 @@ def test_srbm_hidden_posterior_approximation(block_figure_on_end=False):
     h_vi_2nd = model._get_hidden_prob(x, y=y)
     model.inference_engine = INFERENCE_ENGINE['gibbs']
     h_gibbs = model._get_hidden_prob(x, y=y)
-    import matplotlib.pyplot as plt
+
     fig, axes = plt.subplots(1, 3)
     cax = [None] * 3
     cax[0] = axes[0].imshow(np.abs(h_vi_1st - h_vi_2nd),
@@ -149,6 +149,7 @@ def test_srbm_hidden_posterior_approximation(block_figure_on_end=False):
     h_vi_2nd = model._get_hidden_prob(v, y=y)
     model.inference_engine = INFERENCE_ENGINE['gibbs']
     h_gibbs = model._get_hidden_prob(v, y=y)
+
     fig, axes = plt.subplots(1, 3)
     cax = [None] * 3
     cax[0] = axes[0].imshow(np.abs(h_vi_1st - h_true),
@@ -164,10 +165,11 @@ def test_srbm_hidden_posterior_approximation(block_figure_on_end=False):
         cb = fig.colorbar(cax[i], ax=axes[i])
         cb.ax.tick_params(labelsize=20)
 
-    plt.show(block=block_figure_on_end)
+    if show_figure:
+        plt.show(block=block_figure_on_end)
 
 
-def test_srbm_classification(block_figure_on_end=False):
+def test_srbm_classification(show_figure=False, block_figure_on_end=False):
     print("========== Test Supervised RBM for Classification ==========")
 
     from sklearn.metrics import accuracy_score
@@ -184,6 +186,7 @@ def test_srbm_classification(block_figure_on_end=False):
                                dpi='auto',
                                layout=(3, 1),
                                freq=1,
+                               show=show_figure,
                                block_on_end=block_figure_on_end,
                                monitor=[{'metrics': ['recon_err', 'val_recon_err'],
                                          'type': 'line',
@@ -221,6 +224,7 @@ def test_srbm_classification(block_figure_on_end=False):
                              layout=(1, 1),
                              figsize=(8, 8),
                              freq=1,
+                             show=show_figure,
                              block_on_end=block_figure_on_end,
                              monitor=[{'metrics': ['filters'],
                                        'title': "Receptive Fields",
@@ -236,6 +240,7 @@ def test_srbm_classification(block_figure_on_end=False):
                              layout=(1, 1),
                              figsize=(8, 8),
                              freq=1,
+                             show=show_figure,
                              block_on_end=block_figure_on_end,
                              monitor=[{'metrics': ['hidden_activations'],
                                        'title': "Hidden Activations",
@@ -290,7 +295,7 @@ def test_srbm_classification(block_figure_on_end=False):
         accuracy_score(y_test, clf.predict(x_test1))))
 
 
-def test_srbm_regression(block_figure_on_end=False):
+def test_srbm_regression(show_figure=False, block_figure_on_end=False):
     print("========== Test Supervised RBM for Regression ==========")
 
     from sklearn.metrics import mean_squared_error
@@ -307,6 +312,7 @@ def test_srbm_regression(block_figure_on_end=False):
                                dpi='auto',
                                layout=(3, 1),
                                freq=1,
+                               show=show_figure,
                                block_on_end=block_figure_on_end,
                                monitor=[{'metrics': ['recon_err', 'val_recon_err'],
                                          'type': 'line',
@@ -344,6 +350,7 @@ def test_srbm_regression(block_figure_on_end=False):
                              layout=(1, 1),
                              figsize=(8, 8),
                              freq=1,
+                             show=show_figure,
                              block_on_end=block_figure_on_end,
                              monitor=[{'metrics': ['filters'],
                                        'title': "Receptive Fields",
@@ -359,6 +366,7 @@ def test_srbm_regression(block_figure_on_end=False):
                              layout=(1, 1),
                              figsize=(8, 8),
                              freq=1,
+                             show=show_figure,
                              block_on_end=block_figure_on_end,
                              monitor=[{'metrics': ['hidden_activations'],
                                        'title': "Hidden Activations",
@@ -506,8 +514,8 @@ def test_srbm_gridsearch():
 
 if __name__ == '__main__':
     pytest.main([__file__])
-    # test_srbm_hidden_posterior_approximation(block_figure_on_end=True)
-    # test_srbm_classification(block_figure_on_end=True)
-    # test_srbm_regression(block_figure_on_end=True)
+    # test_srbm_hidden_posterior_approximation(show_figure=True, block_figure_on_end=True)
+    # test_srbm_classification(show_figure=True, block_figure_on_end=True)
+    # test_srbm_regression(show_figure=True, block_figure_on_end=True)
     # test_srbm_load_to_continue_training()
     # test_srbm_gridsearch()
