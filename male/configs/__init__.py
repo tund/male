@@ -49,13 +49,13 @@ if os.path.exists(_config_path):
     assert isinstance(_random_seed, int)
     _matplotlib_backend = _config.get('matplotlib_backend', matplotlib_backend())
     assert isinstance(_matplotlib_backend, str)
-    _data_dir = _config.get('data_dir', os.path.join(_male_dir, 'datasets'))
+    _data_dir = _config.get('data_dir', data_dir())
     assert isinstance(_data_dir, str)
-    _model_dir = _config.get('model_dir', os.path.join(_male_dir, 'models'))
+    _model_dir = _config.get('model_dir', model_dir())
     assert isinstance(_model_dir, str)
-    _remote_data_dir = _config.get('remote_data_dir', 'http://prada-research.net/demo/datasets')
+    _remote_data_dir = _config.get('remote_data_dir', remote_data_dir())
     assert isinstance(_remote_data_dir, str)
-    _remote_model_dir = _config.get('remote_model_dir', 'http://prada-research.net/demo/models')
+    _remote_model_dir = _config.get('remote_model_dir', remote_model_dir())
     assert isinstance(_remote_model_dir, str)
 
     set_epsilon(_epsilon)
@@ -71,10 +71,10 @@ if os.path.exists(_config_path):
 _config = {'epsilon': epsilon(),
            'random_seed': random_seed(),
            'matplotlib_backend': matplotlib_backend(),
-           'data_dir': os.path.join(_male_dir, 'datasets'),
-           'model_dir': os.path.join(_male_dir, 'models'),
-           'remote_data_dir': 'http://prada-research.net/demo/datasets',
-           'remote_model_dir': 'http://prada-research.net/demo/models'}
+           'data_dir': data_dir(),
+           'model_dir': model_dir(),
+           'remote_data_dir': remote_data_dir(),
+           'remote_model_dir': remote_model_dir()}
 with open(_config_path, 'w') as f:
     f.write(json.dumps(_config, indent=4))
     # </editor-fold>
