@@ -7,8 +7,8 @@ import pytest
 import numpy as np
 
 from male import TensorFlowModel
-from male import random_seed
 from male.datasets import demo
+from male.configs import random_seed
 from male.models.linear import TensorFlowGLM
 
 

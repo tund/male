@@ -5,7 +5,7 @@ from __future__ import absolute_import
 import pytest
 import numpy as np
 
-from male import random_seed
+from male.configs import random_seed
 from male.datasets import demo
 from male.optimizers import SGD
 from male.optimizers import Adam

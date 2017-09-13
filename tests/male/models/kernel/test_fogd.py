@@ -10,7 +10,7 @@ from sklearn.base import clone
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import PredefinedSplit
 
-from male import random_seed
+from male.configs import random_seed
 from male.datasets import demo
 from male.models.kernel import FOGD
 

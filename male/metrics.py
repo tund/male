@@ -6,8 +6,14 @@ import os
 import sys
 import math
 import numpy as np
+from sklearn import metrics
 
-from . import model_dir
+from .configs import model_dir
+
+
+def auc(y_true, y_pred, pos_label=1):
+    fpr, tpr, thresholds = metrics.roc_curve(y_true, y_pred, pos_label=pos_label)
+    return metrics.auc(fpr, tpr)
 
 
 class InceptionScore(object):

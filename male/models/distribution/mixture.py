@@ -6,7 +6,7 @@ import numpy as np
 from scipy.stats import norm
 from scipy.stats import multivariate_normal
 
-from ... import epsilon
+from ...configs import epsilon
 
 
 class GMM1D(object):

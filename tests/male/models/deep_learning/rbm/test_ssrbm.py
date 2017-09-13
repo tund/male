@@ -9,8 +9,8 @@ import numpy as np
 from sklearn.model_selection import ShuffleSplit
 from sklearn.model_selection import StratifiedShuffleSplit
 
-from male import model_dir
-from male import random_seed
+from male.configs import model_dir
+from male.configs import random_seed
 from male.datasets import demo
 from male.callbacks import Display
 from male.callbacks import EarlyStopping
@@ -18,7 +18,7 @@ from male.callbacks import ModelCheckpoint
 from male.models.deep_learning.rbm import SemiSupervisedRBM
 
 
-def test_ssrbm_classification(block_figure_on_end=False):
+def test_ssrbm_classification(show_figure=False, block_figure_on_end=False):
     print("========== Test Semi-Supervised RBM for Classification ==========")
 
     num_labeled_data = 1000
@@ -43,6 +43,7 @@ def test_ssrbm_classification(block_figure_on_end=False):
                                dpi='auto',
                                layout=(3, 1),
                                freq=1,
+                               show=show_figure,
                                block_on_end=block_figure_on_end,
                                monitor=[{'metrics': ['recon_err', 'val_recon_err'],
                                          'type': 'line',
@@ -80,6 +81,7 @@ def test_ssrbm_classification(block_figure_on_end=False):
                              layout=(1, 1),
                              figsize=(8, 8),
                              freq=1,
+                             show=show_figure,
                              block_on_end=block_figure_on_end,
                              monitor=[{'metrics': ['filters'],
                                        'title': "Receptive Fields",
@@ -95,6 +97,7 @@ def test_ssrbm_classification(block_figure_on_end=False):
                              layout=(1, 1),
                              figsize=(8, 8),
                              freq=1,
+                             show=show_figure,
                              block_on_end=block_figure_on_end,
                              monitor=[{'metrics': ['hidden_activations'],
                                        'title': "Hidden Activations",
@@ -149,7 +152,7 @@ def test_ssrbm_classification(block_figure_on_end=False):
         accuracy_score(y_test, clf.predict(x_test1))))
 
 
-def test_ssrbm_regression(block_figure_on_end=False):
+def test_ssrbm_regression(show_figure=False, block_figure_on_end=False):
     print("========== Test Semi-Supervised RBM for Classification ==========")
 
     num_labeled_data = 100
@@ -175,6 +178,7 @@ def test_ssrbm_regression(block_figure_on_end=False):
                                dpi='auto',
                                layout=(3, 1),
                                freq=1,
+                               show=show_figure,
                                block_on_end=block_figure_on_end,
                                monitor=[{'metrics': ['recon_err', 'val_recon_err'],
                                          'type': 'line',
@@ -212,6 +216,7 @@ def test_ssrbm_regression(block_figure_on_end=False):
                              layout=(1, 1),
                              figsize=(8, 8),
                              freq=1,
+                             show=show_figure,
                              block_on_end=block_figure_on_end,
                              monitor=[{'metrics': ['filters'],
                                        'title': "Receptive Fields",
@@ -227,6 +232,7 @@ def test_ssrbm_regression(block_figure_on_end=False):
                              layout=(1, 1),
                              figsize=(8, 8),
                              freq=1,
+                             show=show_figure,
                              block_on_end=block_figure_on_end,
                              monitor=[{'metrics': ['hidden_activations'],
                                        'title': "Hidden Activations",
@@ -282,5 +288,5 @@ def test_ssrbm_regression(block_figure_on_end=False):
 
 if __name__ == '__main__':
     pytest.main([__file__])
-    # test_ssrbm_classification(block_figure_on_end=True)
-    # test_ssrbm_regression(block_figure_on_end=True)
+    # test_ssrbm_classification(show_figure=True, block_figure_on_end=True)
+    # test_ssrbm_regression(show_figure=True, block_figure_on_end=True)

@@ -7,12 +7,15 @@ import time
 import warnings
 import numpy as np
 from collections import deque
+from .configs import matplotlib_backend
 from .utils.generic_utils import Progbar
 from .utils.disp_utils import get_figure_dpi
 from .utils.disp_utils import get_screen_resolution
 
 import matplotlib.pyplot as plt
 
+if matplotlib_backend() != "default":
+    plt.switch_backend(matplotlib_backend())
 plt.style.use('ggplot')
 
 
@@ -221,7 +224,7 @@ class Display(Callback):
     LINESTYLE = ['-', '--', '-.', ':']
     LINE_WIDTH = 4
 
-    def __init__(self, title=None, dpi=None, layout=(1, 1),
+    def __init__(self, title=None, dpi=None, layout=(1, 1), show=True,
                  block_on_end=True, figsize=None, freq=1, filepath=None, monitor=None):
         super(Display, self).__init__()
         self.title = title
@@ -235,6 +238,7 @@ class Display(Callback):
                 self.filepath = tuple(filepath)
             else:
                 self.filepath = filepath if isinstance(filepath, tuple) else (filepath,)
+        self.show = show
         self.block_on_end = block_on_end
         self.monitor = monitor
 
@@ -261,8 +265,11 @@ class Display(Callback):
         fig_width, fig_height = self.figsize if self.figsize is not None else (
             12 * self.layout[1], 6.75 * self.layout[0])
         if self.dpi == 'auto':
-            width, height = get_screen_resolution()
-            self.dpi = min(width * 0.5 / fig_width, height * 0.7 / fig_height)
+            if self.show:
+                width, height = get_screen_resolution()
+                self.dpi = min(width * 0.5 / fig_width, height * 0.7 / fig_height)
+            else:
+                self.dpi = None
         if self.monitor is not None:
             self.fig, self.axs = plt.subplots(
                 self.layout[0], self.layout[1], squeeze=False,
@@ -272,7 +279,10 @@ class Display(Callback):
             for i in range(len(self.monitor)):
                 u, v = np.unravel_index(i, self.layout, order='C')
                 self.draw(self.axs[u, v], **self.monitor[i])
-            plt.ion()
+            if self.show:
+                plt.ion()
+            else:
+                plt.ioff()
 
     def on_epoch_end(self, epoch, logs={}):
         if not self.model.stop_training:
@@ -299,7 +309,8 @@ class Display(Callback):
 
                     if self.axs[u, v].get_legend() is None:
                         self.axs[u, v].legend(fontsize=24, numpoints=1)
-                plt.pause(0.0001)
+                if self.show:
+                    plt.pause(0.0001)
                 self.fig.tight_layout()
                 # save to figures
                 if self.filepath is not None:
@@ -330,7 +341,8 @@ class Display(Callback):
                               'interpolation'] if 'interpolation' in kwargs else 'none')
 
     def on_train_end(self, logs={}):
-        plt.show(block=self.block_on_end)
+        if self.show:
+            plt.show(block=self.block_on_end)
 
 
 class ImageSaver(Callback):

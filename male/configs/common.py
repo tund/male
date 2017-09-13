@@ -9,6 +9,7 @@ HOME = expanduser("~")
 
 _EPSILON = 1e-8
 _RANDOM_SEED = 6789
+_MATPLOTLIB_BACKEND = "default"
 _DATA_DIR = os.path.join(HOME, ".male/datasets")
 _MODEL_DIR = os.path.join(HOME, ".male/models")
 _REMOTE_DATA_DIR = "http://prada-research.net/demo/datasets"
@@ -40,7 +41,7 @@ def set_epsilon(e):
 
     # Example
     ```python
-        >>> from male import common as M
+        >>> from male.configs import common as M
         >>> M.epsilon()
         1e-08
         >>> M.set_epsilon(1e-05)
@@ -59,6 +60,15 @@ def random_seed():
 def set_random_seed(s):
     global _RANDOM_SEED
     _RANDOM_SEED = s
+
+
+def matplotlib_backend():
+    return _MATPLOTLIB_BACKEND
+
+
+def set_matplotlib_backend(b):
+    global _MATPLOTLIB_BACKEND
+    _MATPLOTLIB_BACKEND = b
 
 
 def data_dir():

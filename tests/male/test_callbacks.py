@@ -7,11 +7,11 @@ import pytest
 import numpy as np
 
 from male import Model
-from male import model_dir
-from male import random_seed
 from male.datasets import demo
 from male.optimizers import SGD
 from male.models.linear import GLM
+from male.configs import model_dir
+from male.configs import random_seed
 from male.callbacks import Display
 from male.callbacks import ImageSaver
 from male.callbacks import EarlyStopping
@@ -112,7 +112,7 @@ def test_checkpoint():
     print("Testing error = %.4f" % test_err)
 
 
-def test_display_callbacks(block_figure_on_end=False):
+def test_display_callbacks(show=False, block_figure_on_end=False):
     np.random.seed(random_seed())
 
     (x_train, y_train), (x_test, y_test) = demo.load_mnist()
@@ -134,6 +134,7 @@ def test_display_callbacks(block_figure_on_end=False):
                           dpi='auto',
                           layout=(1, 1),
                           freq=1,
+                          show=show,
                           block_on_end=block_figure_on_end,
                           monitor=[{'metrics': ['err', 'val_err'],
                                     'type': 'line',
@@ -145,6 +146,7 @@ def test_display_callbacks(block_figure_on_end=False):
                            dpi='auto',
                            layout=(3, 1),
                            freq=1,
+                           show=show,
                            block_on_end=block_figure_on_end,
                            filepath=[os.path.join(model_dir(), "male/callbacks/"
                                                                "display/loss/loss_{epoch:04d}.png"),
@@ -178,6 +180,7 @@ def test_display_callbacks(block_figure_on_end=False):
                              layout=(1, 1),
                              figsize=(6, 15),
                              freq=1,
+                             show=show,
                              block_on_end=block_figure_on_end,
                              filepath=os.path.join(model_dir(), "male/callbacks/display/"
                                                                 "weights/weights_{epoch:04d}.png"),
@@ -246,5 +249,5 @@ if __name__ == '__main__':
     pytest.main([__file__])
     # test_early_stopping()
     # test_checkpoint()
-    # test_display_callbacks(block_figure_on_end=True)
+    # test_display_callbacks(show=True, block_figure_on_end=True)
     # test_image_saver_callback()

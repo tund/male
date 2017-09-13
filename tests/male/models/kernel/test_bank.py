@@ -12,7 +12,7 @@ from male.utils.disp_utils import visualize_classification_prediction
 from male.datasets import demo
 
 
-def test_bank_2d(block_figure_on_end=False):
+def test_bank_2d(show=False, block_figure_on_end=False):
     print("========== Test BaNK on 2D data ==========")
 
     (x_train, y_train), (_, _) = demo.load_synthetic_2d()
@@ -37,7 +37,7 @@ def test_bank_2d(block_figure_on_end=False):
     print(np.unique(y_train))
     print(np.unique(y_train_pred))
     print("Training error = %.4f" % (1 - metrics.accuracy_score(y_train, y_train_pred)))
-    visualize_classification_prediction(learner, x_train, y_train, grid_size=50,
+    visualize_classification_prediction(learner, x_train, y_train, grid_size=50, show=show,
                                         epoch=0, marker_size=20, block_on_end=block_figure_on_end)
 
 
@@ -71,5 +71,5 @@ def test_bank_svmguide1():
 
 if __name__ == '__main__':
     pytest.main([__file__])
-    # test_bank_2d(block_figure_on_end=True)
+    # test_bank_2d(show=True, block_figure_on_end=True)
     # test_bank_svmguide1()

@@ -12,9 +12,9 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import PredefinedSplit
 from sklearn.model_selection import StratifiedShuffleSplit
 
-from male import data_dir
-from male import model_dir
-from male import random_seed
+from male.configs import data_dir
+from male.configs import model_dir
+from male.configs import random_seed
 from male.datasets import demo
 from male.callbacks import Display
 from male.models.kernel import RKS
@@ -338,7 +338,7 @@ def test_rks_cv_gridsearch():
     assert abs(test_err - (1.0 - gs.best_score_)) < 1e-4
 
 
-def test_rks_syn2d_cv(block_figure_on_end=False):
+def test_rks_syn2d_cv(show=False, block_figure_on_end=False):
     print("========== Test cross-validation for RKS on 2D data ==========")
 
     np.random.seed(random_seed())
@@ -368,6 +368,7 @@ def test_rks_syn2d_cv(block_figure_on_end=False):
 
     display = Display(layout=(3, 1),
                       dpi='auto',
+                      show=show,
                       block_on_end=block_figure_on_end,
                       monitor=[{'metrics': ['loss', 'val_loss'],
                                 'type': 'line',
@@ -428,4 +429,4 @@ if __name__ == '__main__':
     # test_rks_regression_gridsearch()
     # test_rks_cv()
     # test_rks_cv_gridsearch()
-    # test_rks_syn2d_cv(block_figure_on_end=True)
+    # test_rks_syn2d_cv(show=True, block_figure_on_end=True)

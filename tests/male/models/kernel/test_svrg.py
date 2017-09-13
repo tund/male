@@ -13,13 +13,13 @@ from sklearn.model_selection import PredefinedSplit
 
 import numpy as np
 
-from male import random_seed
+from male.configs import random_seed
 from male.datasets import demo
 from male.models.kernel.svrg import SVRG
 from male.callbacks import Display
 
 
-def test_svrg_s_visualization_2d(block_figure_on_end=False):
+def test_svrg_s_visualization_2d(show=False, block_figure_on_end=False):
     (x_train, y_train), (_, _) = demo.load_synthetic_2d()
 
     print('num_samples: {}'.format(x_train.shape[0]))
@@ -27,6 +27,7 @@ def test_svrg_s_visualization_2d(block_figure_on_end=False):
     predict_display = Display(
         freq=10,
         dpi='auto',
+        show=show,
         block_on_end=block_figure_on_end,
         monitor=[{'metrics': ['predict'],
                   'title': "Visualization",
@@ -44,6 +45,7 @@ def test_svrg_s_visualization_2d(block_figure_on_end=False):
     loss_display = Display(
         freq=1,
         dpi='auto',
+        show=show,
         block_on_end=block_figure_on_end,
         monitor=[{'metrics': ['train_loss', 'obj_func'],
                   'type': 'line',
@@ -113,7 +115,7 @@ def check_grad():
         assert model.check_grad(x[n, :], y[n]) < eps
 
 
-def test_svmguide1(block_figure_on_end=False):
+def test_svmguide1(show_figure=False, block_figure_on_end=False):
     print("========== Test SVRG on svmguide1 dataset ==========")
 
     data_name = 'svmguide1'
@@ -123,6 +125,7 @@ def test_svmguide1(block_figure_on_end=False):
     loss_display = Display(
         freq=1,
         dpi='auto',
+        show=show_figure,
         block_on_end=block_figure_on_end,
         monitor=[{'metrics': ['train_loss', 'obj_func'],
                   'type': 'line',
@@ -232,7 +235,7 @@ def run_svmguide1_gridsearch():
 
 if __name__ == '__main__':
     pytest.main([__file__])
-    # test_svrg_s_visualization_2d(block_figure_on_end=True)
+    # test_svrg_s_visualization_2d(show=True, block_figure_on_end=True)
     # check_grad()
-    # test_svmguide1()
+    # test_svmguide1(show_figure=True, block_figure_on_end=True)
     # run_svmguide1_gridsearch()
