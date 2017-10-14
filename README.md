@@ -1,4 +1,4 @@
-# male: MAchine LEarning (MALE)
+# male: MAchine LEarning
 
 ## Installation
 
@@ -13,7 +13,7 @@ git clone git@github.com:tund/male.git
 
 ## PyTesting
 
-- To test the installation, first add *male* folder to `PYTHONPATH`, then `cd` to the test folder and run the install command:
+- To test the installation, first add *male* folder to `PYTHONPATH`, then `cd` to the test folder and run the following command:
 ```sh
 cd male/tests
 pytest
