@@ -10,6 +10,7 @@ try:
     from .grn1d import GRN1D
     from .d2gan1d import D2GAN1D
     from .d2gan2d import D2GAN2D
+    from .mggan2d import MGGAN2D
 except ImportError:
     GAN = None
     DCGAN = None
@@ -22,3 +23,4 @@ except ImportError:
     GRN1D = None
     D2GAN1D = None
     D2GAN2D = None
+    MGGAN2D = None
