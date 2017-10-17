@@ -54,11 +54,11 @@ def test_mggan2d_gmm2d(show_figure=False, block_figure_on_end=False):
     scatter_display = Display(layout=(1, 1),
                               figsize=(12, 12),
                               dpi='auto',
-                              filepath=[os.path.join(model_dir(), "male/MGGAN2D/loss/"
-                                                                  "loss_{epoch:04d}.png"),
-                                        os.path.join(model_dir(), "male/MGGAN2D/loss/"
-                                                                  "loss_{epoch:04d}.pdf")],
-                              freq=1000,  # set to 1000 for a full run
+                              filepath=[os.path.join(model_dir(), "male/MGGAN2D/samples/"
+                                                                  "scatter_{epoch:04d}.png"),
+                                        os.path.join(model_dir(), "male/MGGAN2D/samples/"
+                                                                  "scatter_{epoch:04d}.pdf")],
+                              freq=1,  # set to 1000 for a full run
                               title='Scatter',
                               show=show_figure,
                               block_on_end=block_figure_on_end,
@@ -104,5 +104,5 @@ def test_mggan2d_gmm2d(show_figure=False, block_figure_on_end=False):
 
 
 if __name__ == '__main__':
-    pytest.main([__file__])
-    # test_mggan2d_gmm2d(show_figure=True, block_figure_on_end=True)
+    # pytest.main([__file__])
+    test_mggan2d_gmm2d(show_figure=True, block_figure_on_end=True)
