@@ -1,11 +1,9 @@
 from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
-
 import pickle
 import numpy as np
 from sklearn.datasets import load_svmlight_file
-
 from ..configs import random_seed
 from ..configs import remote_data_dir
 from ..utils.data_utils import get_file
@@ -177,7 +175,7 @@ def load_fashion_mnist(shuffle_data=True, randseed='default'):
     if shuffle_data:
         shuffle(x_train, y_train, randseed=randseed)
 
-    return (x_train, y_train), (x_test, y_test)	
+    return (x_train, y_train), (x_test, y_test)
 
 
 def shuffle(x, y=None, randseed='default'):
