@@ -549,8 +549,8 @@ def test_fashion_mnist(show=False, block_figure_on_end=False):
                              monitor=[{'metrics': ['weights'],
                                        'title': "Learned weights",
                                        'type': 'img',
-                                       'disp_dim': (2, 2),
-                                       'tile_shape': (3, 1),
+                                       'disp_dim': (28, 28),
+                                       'tile_shape': (10, 1),
                                        },
                                       ])
 
@@ -558,7 +558,7 @@ def test_fashion_mnist(show=False, block_figure_on_end=False):
               link='softmax',
               loss='softmax',
               optimizer='sgd',
-              num_epochs=1,
+              num_epochs=30,
               batch_size=10,
               task='classification',
               metrics=['loss', 'err'],
@@ -585,4 +585,4 @@ if __name__ == '__main__':
     # test_glm_regression()
     # test_glm_regression_gridsearch()
     # test_glm_cv(show=True, block_figure_on_end=True)
-	test_fashion_mnist()
+    test_fashion_mnist(show=True, block_figure_on_end=True)
