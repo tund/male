@@ -163,6 +163,23 @@ def load_20newsgroups(shuffle_data=True, randseed='default'):
     return (x_train, y_train), (x_test, y_test)
 
 
+def load_fashion_mnist(shuffle_data=True, randseed='default'):
+    train_path = get_file("fashion_mnist_train.libsvm", origin=remote_data_dir() + "/fashion_mnist_test.libsvm",
+                          cache_subdir="demo")
+    test_path = get_file("fashion_mnist_test.libsvm", origin=remote_data_dir() + "/fashion_mnist_test.libsvm",
+                         cache_subdir="demo")
+
+    x_train, y_train = load_svmlight_file(train_path, n_features=784)
+    x_test, y_test = load_svmlight_file(test_path, n_features=784)
+    x_train = x_train.toarray() / 255.0
+    x_test = x_test.toarray() / 255.0
+
+    if shuffle_data:
+        shuffle(x_train, y_train, randseed=randseed)
+
+    return (x_train, y_train), (x_test, y_test)	
+
+
 def shuffle(x, y=None, randseed='default'):
     if randseed == 'default':
         np.random.seed(random_seed())
