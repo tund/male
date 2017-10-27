@@ -1,9 +1,15 @@
+from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-from __future__ import absolute_import
 
-from matplotlib.colors import ColorConverter
+# import matplotlib
 import numpy as np
+from matplotlib.colors import ColorConverter
+
+from ..configs import matplotlib_backend
+
+# if matplotlib_backend() != "default":
+#     matplotlib.use(matplotlib_backend())
 import matplotlib.pyplot as plt
 
 
@@ -165,7 +171,7 @@ def get_figure_dpi():
 
 
 def visualize_classification_prediction(estimator, x_train, y_train,
-                                        block_on_end=False, **kwargs):
+                                        show=False, block_on_end=False, **kwargs):
     if x_train.shape[1] > 2:
         print('Support only 2D datasets')
         return
@@ -228,4 +234,5 @@ def visualize_classification_prediction(estimator, x_train, y_train,
     axes.set_ylim([0, grid_size])
     # plt.legend()
     kwargs['ax'] = axes
-    plt.show(block=block_on_end)
+    if show:
+        plt.show(block=block_on_end)

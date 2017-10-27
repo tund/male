@@ -13,9 +13,9 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import PredefinedSplit
 from sklearn.model_selection import StratifiedShuffleSplit
 
-from male import data_dir
-from male import model_dir
-from male import random_seed
+from male.configs import data_dir
+from male.configs import model_dir
+from male.configs import random_seed
 from male.datasets import demo
 from male.models.kernel import KMM
 from male.callbacks import Display
@@ -676,7 +676,7 @@ def test_kmm_cv_gridsearch():
     assert abs(test_err - (1 - gs.best_score_)) < 1e-4
 
 
-def test_kmm_cv_disp(block_figure_on_end=False):
+def test_kmm_cv_disp(show=False, block_figure_on_end=False):
     print("========== Test cross-validation for KMM with Display ==========")
 
     np.random.seed(random_seed())
@@ -697,6 +697,7 @@ def test_kmm_cv_disp(block_figure_on_end=False):
                                  save_best_only=True)
     display = Display(layout=(3, 1),
                       dpi='auto',
+                      show=show,
                       block_on_end=block_figure_on_end,
                       monitor=[{'metrics': ['loss', 'val_loss'],
                                 'type': 'line',
@@ -749,7 +750,7 @@ def test_kmm_cv_disp(block_figure_on_end=False):
     print("Testing error = %.4f" % test_err)
 
 
-def test_kmm_syn2d(block_figure_on_end=False):
+def test_kmm_syn2d(show=False, block_figure_on_end=False):
     print("========== Test KMM on 2D data ==========")
 
     np.random.seed(random_seed())
@@ -778,6 +779,7 @@ def test_kmm_syn2d(block_figure_on_end=False):
 
     display = Display(layout=(3, 1),
                       dpi='auto',
+                      show=show,
                       block_on_end=block_figure_on_end,
                       monitor=[{'metrics': ['loss', 'val_loss'],
                                 'type': 'line',
@@ -835,7 +837,7 @@ def test_kmm_syn2d(block_figure_on_end=False):
                            zero_based=False)
 
 
-def test_kmm_syndata2(block_figure_on_end=False):
+def test_kmm_syndata2(show=False, block_figure_on_end=False):
     print("========== Test KMM on Synthetic 2D data ==========")
 
     np.random.seed(random_seed())
@@ -879,6 +881,7 @@ def test_kmm_syndata2(block_figure_on_end=False):
 
     loss_display = Display(layout=(2, 1),
                            dpi='auto',
+                           show=show,
                            block_on_end=block_figure_on_end,
                            monitor=[{'metrics': ['err'],
                                      'type': 'line',
@@ -897,6 +900,7 @@ def test_kmm_syndata2(block_figure_on_end=False):
 
     display = Display(layout=(1, 1),
                       dpi='auto',
+                      show=show,
                       block_on_end=block_figure_on_end,
                       monitor=[{'metrics': ['syndata'],
                                 'type': 'line',
@@ -1040,6 +1044,6 @@ if __name__ == '__main__':
     # test_kmm_regression_gridsearch()
     # test_kmm_cv()
     # test_kmm_cv_gridsearch()
-    # test_kmm_cv_disp(block_figure_on_end=True)
-    # test_kmm_syn2d(block_figure_on_end=True)
-    # test_kmm_syndata2(block_figure_on_end=True)
+    # test_kmm_cv_disp(show=True, block_figure_on_end=True)
+    # test_kmm_syn2d(show=True, block_figure_on_end=True)
+    # test_kmm_syndata2(show=True, block_figure_on_end=True)

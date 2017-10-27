@@ -5,7 +5,7 @@ from __future__ import absolute_import
 import sys
 import pytest
 
-from male import random_seed
+from male.configs import random_seed
 from male.callbacks import Display
 from male.models.distribution import GMM1D
 from male.models.distribution import Uniform1D

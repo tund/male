@@ -4,17 +4,18 @@ from __future__ import absolute_import
 
 import pytest
 
-from male import random_seed
+from male.configs import random_seed
 from male.datasets import demo
 from male.models.kernel import KSGD
 from male.callbacks import Display
 
 
-def test_sgd_visualization_2d(block_figure_on_end=False):
+def test_sgd_visualization_2d(show=False, block_figure_on_end=False):
     (x_train, y_train), (_, _) = demo.load_synthetic_2d()
 
     display = Display(freq=10,
                       dpi='auto',
+                      show=show,
                       block_on_end=block_figure_on_end,
                       monitor=[{'metrics': ['predict'],
                                 'title': "Learning losses",
@@ -65,5 +66,5 @@ def test_sgd_svmguide1_bin():
 
 if __name__ == '__main__':
     pytest.main([__file__])
-    # test_sgd_visualization_2d(block_figure_on_end=True)
+    # test_sgd_visualization_2d(show=False, block_figure_on_end=True)
     # test_sgd_svmguide1_bin()

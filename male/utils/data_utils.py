@@ -53,7 +53,7 @@ def get_file(fname, origin, untar=False,
     # Returns
         Path to the downloaded file
     '''
-    from .. import data_dir
+    from ..configs import data_dir
     from .generic_utils import Progbar
 
     datadir = os.path.join(data_dir(), cache_subdir)

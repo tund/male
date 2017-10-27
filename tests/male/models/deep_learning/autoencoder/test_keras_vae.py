@@ -6,7 +6,7 @@ import sys
 import pytest
 import numpy as np
 
-from male import random_seed
+from male.configs import random_seed
 from male.datasets import demo
 from male.models.deep_learning.autoencoder import KerasVAE
 

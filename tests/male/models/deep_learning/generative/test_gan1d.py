@@ -5,7 +5,7 @@ from __future__ import absolute_import
 import sys
 import pytest
 
-from male import random_seed
+from male.configs import random_seed
 from male.callbacks import Display
 from male.models.distribution import GMM1D
 from male.models.distribution import Uniform1D
@@ -14,12 +14,13 @@ from male.models.deep_learning.generative import GAN1D
 
 
 @pytest.mark.skipif('tensorflow' not in sys.modules, reason="requires tensorflow library")
-def test_gan1d_gaussian1d(block_figure_on_end=False):
+def test_gan1d_gaussian1d(show_figure=False, block_figure_on_end=False):
     print("========== Test GAN on 1D data generated from a Gaussian distribution ==========")
 
     loss_display = Display(layout=(2, 1),
                            dpi='auto',
                            title='Loss',
+                           show=show_figure,
                            block_on_end=block_figure_on_end,
                            monitor=[{'metrics': ['d_loss', 'g_loss'],
                                      'type': 'line',
@@ -40,6 +41,7 @@ def test_gan1d_gaussian1d(block_figure_on_end=False):
                                    dpi='auto',
                                    freq=1,
                                    title='Histogram',
+                                   show=show_figure,
                                    block_on_end=block_figure_on_end,
                                    monitor=[{'metrics': ['distribution'],
                                              'type': 'hist',
@@ -52,6 +54,7 @@ def test_gan1d_gaussian1d(block_figure_on_end=False):
                                        dpi='auto',
                                        freq=1,
                                        title='Average Histogram',
+                                       show=show_figure,
                                        block_on_end=block_figure_on_end,
                                        monitor=[{'metrics': ['avg_distribution'],
                                                  'type': 'hist',
@@ -79,12 +82,13 @@ def test_gan1d_gaussian1d(block_figure_on_end=False):
 
 
 @pytest.mark.skipif('tensorflow' not in sys.modules, reason="requires tensorflow library")
-def test_gan1d_gmm1d(block_figure_on_end=False):
+def test_gan1d_gmm1d(show_figure=False, block_figure_on_end=False):
     print("========== Test GAN on 1D data generated from a Gaussian Mixture Model ==========")
 
     loss_display = Display(layout=(2, 1),
                            dpi='auto',
                            title='Loss',
+                           show=show_figure,
                            block_on_end=block_figure_on_end,
                            monitor=[{'metrics': ['d_loss', 'g_loss'],
                                      'type': 'line',
@@ -105,6 +109,7 @@ def test_gan1d_gmm1d(block_figure_on_end=False):
                                    dpi='auto',
                                    freq=1,
                                    title='Histogram',
+                                   show=show_figure,
                                    block_on_end=block_figure_on_end,
                                    monitor=[{'metrics': ['distribution'],
                                              'type': 'hist',
@@ -117,6 +122,7 @@ def test_gan1d_gmm1d(block_figure_on_end=False):
                                        dpi='auto',
                                        freq=1,
                                        title='Average Histogram',
+                                       show=show_figure,
                                        block_on_end=block_figure_on_end,
                                        monitor=[{'metrics': ['avg_distribution'],
                                                  'type': 'hist',
@@ -144,5 +150,5 @@ def test_gan1d_gmm1d(block_figure_on_end=False):
 
 if __name__ == '__main__':
     pytest.main([__file__])
-    # test_gan1d_gaussian1d(block_figure_on_end=True)
-    # test_gan1d_gmm1d(block_figure_on_end=True)
+    # test_gan1d_gaussian1d(show_figure=True, block_figure_on_end=True)
+    # test_gan1d_gmm1d(show_figure=True, block_figure_on_end=True)

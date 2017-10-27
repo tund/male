@@ -4,10 +4,10 @@ from __future__ import absolute_import
 
 import pickle
 import numpy as np
-from sklearn.datasets import load_svmlight_file
 
-from .. import random_seed
-from .. import remote_data_dir
+from sklearn.datasets import load_svmlight_file
+from ..configs import random_seed
+from ..configs import remote_data_dir
 from ..utils.data_utils import get_file
 
 
@@ -135,6 +135,50 @@ def load_housing(shuffle_data=True, randseed='default'):
     x_test, y_test = load_svmlight_file(test_path, n_features=13)
     x_train = x_train.toarray()
     x_test = x_test.toarray()
+
+    if shuffle_data:
+        shuffle(x_train, y_train, randseed=randseed)
+
+    return (x_train, y_train), (x_test, y_test)
+
+
+def load_20newsgroups(shuffle_data=True, randseed='default'):
+    train_path = get_file("20news_bydate_5Kwordcount_in_entire_data_"
+                          "countfeat_tiny_train.libsvm",
+                          origin=remote_data_dir()
+                                 + "/20news_bydate_5Kwordcount_in_entire_data_"
+                                   "countfeat_tiny_train.libsvm",
+                          cache_subdir="demo")
+    test_path = get_file("20news_bydate_5Kwordcount_in_entire_data_"
+                         "countfeat_tiny_test.libsvm",
+                         origin=remote_data_dir()
+                                + "/20news_bydate_5Kwordcount_in_entire_data_"
+                                  "countfeat_tiny_test.libsvm",
+                         cache_subdir="demo")
+
+    x_train, y_train = load_svmlight_file(train_path, n_features=5000)
+    x_test, y_test = load_svmlight_file(test_path, n_features=5000)
+    x_train = x_train.toarray()
+    x_test = x_test.toarray()
+
+    if shuffle_data:
+        shuffle(x_train, y_train, randseed=randseed)
+
+    return (x_train, y_train), (x_test, y_test)
+
+
+def load_fashion_mnist(shuffle_data=True, randseed='default'):
+    train_path = get_file("fashion_mnist_train.libsvm",
+                          origin=remote_data_dir() + "/fashion_mnist_train.libsvm",
+                          cache_subdir="demo")
+    test_path = get_file("fashion_mnist_test.libsvm",
+                         origin=remote_data_dir() + "/fashion_mnist_test.libsvm",
+                         cache_subdir="demo")
+
+    x_train, y_train = load_svmlight_file(train_path, n_features=784)
+    x_test, y_test = load_svmlight_file(test_path, n_features=784)
+    x_train = x_train.toarray() / 255.0
+    x_test = x_test.toarray() / 255.0
 
     if shuffle_data:
         shuffle(x_train, y_train, randseed=randseed)

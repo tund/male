@@ -11,7 +11,7 @@ import dill as pkl
 import tensorflow as tf
 
 from . import Model
-from . import model_dir
+from .configs import model_dir
 from . import callbacks as cbks
 from .backend import tensorflow_backend as tf_backend
 from .utils.generic_utils import tuid

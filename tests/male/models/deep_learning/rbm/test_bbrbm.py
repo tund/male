@@ -5,13 +5,13 @@ from __future__ import absolute_import
 import pytest
 import numpy as np
 
-from male import random_seed
+from male.configs import random_seed
 from male.datasets import demo
 from male.callbacks import Display
 from male.models.deep_learning.rbm import BernoulliBernoulliRBM
 
 
-def test_bbrbm_cd(block_figure_on_end=False):
+def test_bbrbm_cd(show_figure=False, block_figure_on_end=False):
     print("========== Test BernoulliBernoulliRBM using Contrastive Divergence ==========")
 
     np.random.seed(random_seed())
@@ -28,6 +28,7 @@ def test_bbrbm_cd(block_figure_on_end=False):
                                dpi='auto',
                                layout=(2, 2),
                                freq=1,
+                               show=show_figure,
                                block_on_end=block_figure_on_end,
                                monitor=[{'metrics': ['recon_err', 'val_recon_err'],
                                          'type': 'line',
@@ -73,6 +74,7 @@ def test_bbrbm_cd(block_figure_on_end=False):
                              layout=(1, 1),
                              figsize=(8, 8),
                              freq=1,
+                             show=show_figure,
                              block_on_end=block_figure_on_end,
                              monitor=[{'metrics': ['filters'],
                                        'title': "Receptive Fields",
@@ -88,6 +90,7 @@ def test_bbrbm_cd(block_figure_on_end=False):
                              layout=(1, 1),
                              figsize=(8, 8),
                              freq=1,
+                             show=show_figure,
                              block_on_end=block_figure_on_end,
                              monitor=[{'metrics': ['hidden_activations'],
                                        'title': "Hidden Activations",
@@ -131,7 +134,7 @@ def test_bbrbm_cd(block_figure_on_end=False):
     print("BBRBM->kNN: test error = %.4f" % test_pred_err)
 
 
-def test_bbrbm_pcd(block_figure_on_end=False):
+def test_bbrbm_pcd(show_figure=False, block_figure_on_end=False):
     print("========== Test BernoulliBernoulliRBM using "
           "Persistent Contrastive Divergence ==========")
 
@@ -149,6 +152,7 @@ def test_bbrbm_pcd(block_figure_on_end=False):
                                dpi='auto',
                                layout=(2, 2),
                                freq=1,
+                               show=show_figure,
                                block_on_end=block_figure_on_end,
                                monitor=[{'metrics': ['recon_err', 'val_recon_err'],
                                          'type': 'line',
@@ -194,6 +198,7 @@ def test_bbrbm_pcd(block_figure_on_end=False):
                              layout=(1, 1),
                              figsize=(8, 8),
                              freq=1,
+                             show=show_figure,
                              block_on_end=block_figure_on_end,
                              monitor=[{'metrics': ['filters'],
                                        'title': "Receptive Fields",
@@ -209,6 +214,7 @@ def test_bbrbm_pcd(block_figure_on_end=False):
                              layout=(1, 1),
                              figsize=(8, 8),
                              freq=1,
+                             show=show_figure,
                              block_on_end=block_figure_on_end,
                              monitor=[{'metrics': ['hidden_activations'],
                                        'title': "Hidden Activations",
@@ -287,7 +293,7 @@ def test_bbrbm_csl():
     print("Testing log-likelihood computed using CSL = %.4f" % test_csl)
 
 
-def test_bbrbm_generate_data(block_figure_on_end=False):
+def test_bbrbm_generate_data(show_figure=False, block_figure_on_end=False):
     print("========== Test Data Generation of BernoulliBernoulliRBM ==========")
 
     np.random.seed(random_seed())
@@ -322,7 +328,8 @@ def test_bbrbm_generate_data(block_figure_on_end=False):
     plt.colorbar()
     plt.axis('off')
     plt.tight_layout()
-    plt.show(block=block_figure_on_end)
+    if show_figure:
+        plt.show(block=block_figure_on_end)
 
 
 def test_bbrbm_logpartition():
@@ -430,10 +437,10 @@ def test_bbrbm_gridsearch():
 
 if __name__ == '__main__':
     pytest.main([__file__])
-    # test_bbrbm_cd(block_figure_on_end=True)
-    # test_bbrbm_pcd(block_figure_on_end=True)
+    # test_bbrbm_cd(show_figure=True, block_figure_on_end=True)
+    # test_bbrbm_pcd(show_figure=True, block_figure_on_end=True)
     # test_bbrbm_csl()
-    # test_bbrbm_generate_data(block_figure_on_end=True)
+    # test_bbrbm_generate_data(show_figure=True, block_figure_on_end=True)
     # test_bbrbm_logpartition()
     # test_bbrbm_pipeline()
     # test_bbrbm_gridsearch()

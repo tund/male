@@ -7,7 +7,7 @@ import numpy as np
 
 from sklearn import metrics
 
-from male import random_seed
+from male.configs import random_seed
 from male.datasets import demo
 from male.models.kernel import DualSGD
 

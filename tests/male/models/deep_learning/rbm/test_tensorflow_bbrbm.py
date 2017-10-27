@@ -6,14 +6,14 @@ import sys
 import pytest
 import numpy as np
 
-from male import random_seed
+from male.configs import random_seed
 from male.datasets import demo
 from male.callbacks import Display
 from male.models.deep_learning.rbm import BernoulliBernoulliTensorFlowRBM
 
 
 @pytest.mark.skipif('tensorflow' not in sys.modules, reason="requires tensorflow library")
-def test_bbtfrbm_mnist(block_figure_on_end=False):
+def test_bbtfrbm_mnist(show_figure=False, block_figure_on_end=False):
     print("========== Test TensorFLow BernoulliBernoulliRBM "
           "using Contrastive Divergence ==========")
 
@@ -31,6 +31,7 @@ def test_bbtfrbm_mnist(block_figure_on_end=False):
                                dpi='auto',
                                layout=(2, 2),
                                freq=1,
+                               show=show_figure,
                                block_on_end=block_figure_on_end,
                                monitor=[{'metrics': ['recon_err', 'val_recon_err'],
                                          'type': 'line',
@@ -76,6 +77,7 @@ def test_bbtfrbm_mnist(block_figure_on_end=False):
                              layout=(1, 1),
                              figsize=(8, 8),
                              freq=1,
+                             show=show_figure,
                              block_on_end=block_figure_on_end,
                              monitor=[{'metrics': ['filters'],
                                        'title': "Receptive Fields",
@@ -120,4 +122,4 @@ def test_bbtfrbm_mnist(block_figure_on_end=False):
 
 if __name__ == '__main__':
     pytest.main([__file__])
-    # test_bbtfrbm_mnist(block_figure_on_end=True)
+    # test_bbtfrbm_mnist(show_figure=True, block_figure_on_end=True)

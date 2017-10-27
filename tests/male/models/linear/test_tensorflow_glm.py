@@ -11,8 +11,8 @@ from sklearn.base import clone
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import PredefinedSplit
 
-from male import model_dir
-from male import random_seed
+from male.configs import model_dir
+from male.configs import random_seed
 from male.datasets import demo
 from male.models.linear import TensorFlowGLM
 from male.callbacks import Display
@@ -219,7 +219,7 @@ def test_tfglm_regression_gridsearch():
 
 
 @pytest.mark.skipif('tensorflow' not in sys.modules, reason="requires tensorflow library")
-def test_tfglm_cv(block_figure_on_end=False):
+def test_tfglm_cv(show=False, block_figure_on_end=False):
     print("========== Test cross-validation for TensorFlowGLM ==========")
 
     np.random.seed(random_seed())
@@ -242,6 +242,7 @@ def test_tfglm_cv(block_figure_on_end=False):
                            dpi='auto',
                            layout=(3, 1),
                            freq=1,
+                           show=show,
                            block_on_end=block_figure_on_end,
                            monitor=[{'metrics': ['loss', 'val_loss'],
                                      'type': 'line',
@@ -270,6 +271,7 @@ def test_tfglm_cv(block_figure_on_end=False):
                              layout=(1, 1),
                              figsize=(6, 15),
                              freq=1,
+                             show=show,
                              block_on_end=block_figure_on_end,
                              monitor=[{'metrics': ['weights'],
                                        'title': "Learned weights",
@@ -308,4 +310,4 @@ if __name__ == '__main__':
     # test_tfglm_softmax_gridsearch()
     # test_tfglm_regression()
     # test_tfglm_regression_gridsearch()
-    # test_tfglm_cv(block_figure_on_end=True)
+    # test_tfglm_cv(show=False, block_figure_on_end=True)

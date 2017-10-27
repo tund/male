@@ -7,13 +7,13 @@ import pickle
 
 from sklearn import metrics
 
-from male import random_seed
+from male.configs import random_seed
 from male.datasets import demo
 from male.models.kernel.svrg_s import SVRG_S
 from male.callbacks import Display
 
 
-def test_svrg_s_visualization_2d(block_figure_on_end=False):
+def test_svrg_s_visualization_2d(show=False, block_figure_on_end=False):
     (x_train, y_train), (_, _) = demo.load_synthetic_2d()
 
     print('num_samples: {}'.format(x_train.shape[0]))
@@ -21,6 +21,7 @@ def test_svrg_s_visualization_2d(block_figure_on_end=False):
     predict_display = Display(
         freq=1,
         dpi='auto',
+        show=show,
         block_on_end=block_figure_on_end,
         monitor=[{'metrics': ['predict'],
                   'title': "Visualization",
@@ -38,6 +39,7 @@ def test_svrg_s_visualization_2d(block_figure_on_end=False):
     loss_display = Display(
         freq=1,
         dpi='auto',
+        show=show,
         block_on_end=block_figure_on_end,
         monitor=[{'metrics': ['train_loss', 'obj_func'],
                   'type': 'line',
@@ -71,7 +73,7 @@ def test_svrg_s_visualization_2d(block_figure_on_end=False):
     print("Training error = %.4f" % (1 - metrics.accuracy_score(y_train, y_train_pred)))
 
 
-def test_svmguide1(block_figure_on_end=False):
+def test_svmguide1(show=False, block_figure_on_end=False):
     print("========== Test SVRG_S on svmguide1 dataset ==========")
 
     data_name = 'svmguide1'
@@ -81,6 +83,7 @@ def test_svmguide1(block_figure_on_end=False):
     loss_display = Display(
         freq=1,
         dpi='auto',
+        show=show,
         block_on_end=block_figure_on_end,
         monitor=[{'metrics': ['train_loss', 'obj_func'],
                   'type': 'line',
@@ -124,5 +127,5 @@ def test_svmguide1(block_figure_on_end=False):
 
 if __name__ == '__main__':
     pytest.main([__file__])
-    # test_svrg_s_visualization_2d(block_figure_on_end=True)
-    # test_svmguide1()
+    # test_svrg_s_visualization_2d(show=True, block_figure_on_end=True)
+    # test_svmguide1(show=True, block_figure_on_end=True)
