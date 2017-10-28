@@ -12,7 +12,7 @@ from ...models.kernel.gkm import GKM
 from cachetools import LRUCache
 
 
-class GKM_CACHE(GKM):
+class CacheGKM(GKM):
     """ Graph-based Kernel Machine
     """
     HINGE = 0
@@ -27,11 +27,11 @@ class GKM_CACHE(GKM):
                  model_name="GKM_CACHE",
                  cache_size=100,
                  **kwargs):
-        super(GKM_CACHE, self).__init__(model_name=model_name, **kwargs)
+        super(CacheGKM, self).__init__(model_name=model_name, **kwargs)
         self.cache_size = cache_size
 
     def _init(self):
-        super(GKM_CACHE, self)._init()
+        super(CacheGKM, self)._init()
 
     @staticmethod
     def calc_similarity_1d(x, y, params):
@@ -82,7 +82,7 @@ class GKM_CACHE(GKM):
         num_samples = self.x_.shape[0]
 
         # process unlabel data
-        self.encoded_unlabel = super(GKM_CACHE, self)._transform_labels([self.unlabel])[0]
+        self.encoded_unlabel = super(CacheGKM, self)._transform_labels([self.unlabel])[0]
         self.num_classes -= 1
         if self.num_classes > 2:
             raise ValueError('Not support multi-class')
@@ -96,18 +96,18 @@ class GKM_CACHE(GKM):
             self.encoded_poslabel = 1
             self.encoded_neglabel = 0
 
-        self.y_[self.y_ == self.encoded_unlabel] = GKM_CACHE.UNLABEL
+        self.y_[self.y_ == self.encoded_unlabel] = CacheGKM.UNLABEL
         self.y_[self.y_ == self.encoded_neglabel] = -1
         self.y_[self.y_ == self.encoded_poslabel] = 1
 
         self.label_encoder = LabelEncoderDict(self.label_encoder)
         self.label_encoder.encoded_label[self.encoded_poslabel] = 1
         self.label_encoder.encoded_label[self.encoded_neglabel] = -1
-        self.label_encoder.encoded_label[self.encoded_unlabel] = GKM_CACHE.UNLABEL
+        self.label_encoder.encoded_label[self.encoded_unlabel] = CacheGKM.UNLABEL
         self.label_encoder.refresh_dict()
 
-        self.idx_unlabel = np.arange(num_samples)[self.y_ == GKM_CACHE.UNLABEL]
-        self.idx_label = np.arange(num_samples)[self.y_ != GKM_CACHE.UNLABEL]
+        self.idx_unlabel = np.arange(num_samples)[self.y_ == CacheGKM.UNLABEL]
+        self.idx_label = np.arange(num_samples)[self.y_ != CacheGKM.UNLABEL]
         self.num_unlabel = len(self.idx_unlabel)
         self.num_label = len(self.idx_label)
 

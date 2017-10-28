@@ -12,7 +12,7 @@ from ...models.kernel.gkm import GKM
 from cachetools import LRUCache
 
 
-class GKM_BUDGET(GKM):
+class BudgetGKM(GKM):
     """ Graph-based Kernel Machine
     """
     HINGE = 0
@@ -28,12 +28,12 @@ class GKM_BUDGET(GKM):
                  cache_size=100,
                  core_max=100,
                  **kwargs):
-        super(GKM_BUDGET, self).__init__(model_name=model_name, **kwargs)
+        super(BudgetGKM, self).__init__(model_name=model_name, **kwargs)
         self.cache_size = cache_size
         self.core_max = core_max
 
     def _init(self):
-        super(GKM_BUDGET, self)._init()
+        super(BudgetGKM, self)._init()
 
     @staticmethod
     def calc_similarity_1d(x, y, params):
@@ -87,7 +87,7 @@ class GKM_BUDGET(GKM):
         num_samples = self.x_.shape[0]
 
         # process unlabel data
-        self.encoded_unlabel = super(GKM_BUDGET, self)._transform_labels([self.unlabel])[0]
+        self.encoded_unlabel = super(BudgetGKM, self)._transform_labels([self.unlabel])[0]
         self.num_classes -= 1
         if self.num_classes > 2:
             raise ValueError('Not support multi-class')
@@ -101,18 +101,18 @@ class GKM_BUDGET(GKM):
             self.encoded_poslabel = 1
             self.encoded_neglabel = 0
 
-        self.y_[self.y_ == self.encoded_unlabel] = GKM_BUDGET.UNLABEL
+        self.y_[self.y_ == self.encoded_unlabel] = BudgetGKM.UNLABEL
         self.y_[self.y_ == self.encoded_neglabel] = -1
         self.y_[self.y_ == self.encoded_poslabel] = 1
 
         self.label_encoder = LabelEncoderDict(self.label_encoder)
         self.label_encoder.encoded_label[self.encoded_poslabel] = 1
         self.label_encoder.encoded_label[self.encoded_neglabel] = -1
-        self.label_encoder.encoded_label[self.encoded_unlabel] = GKM_BUDGET.UNLABEL
+        self.label_encoder.encoded_label[self.encoded_unlabel] = BudgetGKM.UNLABEL
         self.label_encoder.refresh_dict()
 
-        self.idx_unlabel = np.arange(num_samples)[self.y_ == GKM_BUDGET.UNLABEL]
-        self.idx_label = np.arange(num_samples)[self.y_ != GKM_BUDGET.UNLABEL]
+        self.idx_unlabel = np.arange(num_samples)[self.y_ == BudgetGKM.UNLABEL]
+        self.idx_label = np.arange(num_samples)[self.y_ != BudgetGKM.UNLABEL]
         self.num_unlabel = len(self.idx_unlabel)
         self.num_label = len(self.idx_label)
 
