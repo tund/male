@@ -12,7 +12,7 @@ from sklearn.model_selection import PredefinedSplit
 import numpy as np
 
 from male.datasets import demo
-from male.models.kernel.gkm_budget import BudgetGKM
+from male.models.kernel.gkm_budget import BudgetedGKM
 from male.callbacks import Display
 
 
@@ -39,14 +39,14 @@ def test_gkm_budget_visualization_2d(show=False, block_figure_on_end=False):
                   }]
     )
 
-    learner = BudgetGKM(
+    learner = BudgetedGKM(
         model_name="GKM_BUDGET",
         mode='batch',
         unlabel=-1,
         trade_off_1=1,
         trade_off_2=2,
         gamma=500.0,
-        loss_func=BudgetGKM.S_HINGE,
+        loss_func=BudgetedGKM.S_HINGE,
         smooth_hinge_theta=0.5,
         smooth_hinge_tau=0.5,
         insensitive_epsilon=0.001,
@@ -94,14 +94,14 @@ def run_gridsearch_a1a_u70():
 
     ps = PredefinedSplit(test_fold=[-1] * x_train.shape[0] + [1] * x_valid.shape[0])
 
-    clf = BudgetGKM(
+    clf = BudgetedGKM(
         model_name="GKM_BUDGET",
         mode='batch',
         unlabel=-1,
         trade_off_1=1,
         trade_off_2=1,
         gamma=100.0,
-        loss_func=BudgetGKM.S_HINGE,
+        loss_func=BudgetedGKM.S_HINGE,
         smooth_hinge_theta=0.5,
         smooth_hinge_tau=0.5,
         insensitive_epsilon=0.001,
