@@ -22,7 +22,7 @@ def test_gkm_budget_visualization_2d(show=False, block_figure_on_end=False):
     print('num_samples: {}'.format(x_train.shape[0]))
 
     predict_display = Display(
-        freq=1,
+        freq=100,
         dpi='auto',
         show=show,
         block_on_end=block_figure_on_end,

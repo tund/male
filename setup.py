@@ -8,7 +8,8 @@ install_requires = [
     'scipy',
     'dill',
     'pytest',
-    'future'
+    'future',
+    'cachetools'
 ]
 
 setup(
