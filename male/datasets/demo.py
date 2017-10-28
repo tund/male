@@ -123,6 +123,25 @@ def load_synthetic_2d(shuffle_data=True, randseed='default'):
     return (x_train, y_train), (x_test, y_test)
 
 
+def load_synthetic_2d_semi(shuffle_data=True, randseed='default'):
+    train_path = get_file("2d.semi.libsvm",
+                          origin=remote_data_dir() + "/2d.semi.libsvm",
+                          cache_subdir="demo")
+    test_path = get_file("2d.semi.libsvm",
+                         origin=remote_data_dir() + "/2d.semi.libsvm",
+                         cache_subdir="demo")
+
+    x_train, y_train = load_svmlight_file(train_path, n_features=2)
+    x_test, y_test = load_svmlight_file(test_path, n_features=2)
+    x_train = x_train.toarray()
+    x_test = x_test.toarray()
+
+    if shuffle_data:
+        shuffle(x_train, y_train, randseed=randseed)
+
+    return (x_train, y_train), (x_test, y_test)
+
+
 def load_housing(shuffle_data=True, randseed='default'):
     train_path = get_file("housing_scale_train.libsvm",
                           origin=remote_data_dir() + "/housing_scale_train.libsvm",
@@ -179,6 +198,25 @@ def load_fashion_mnist(shuffle_data=True, randseed='default'):
     x_test, y_test = load_svmlight_file(test_path, n_features=784)
     x_train = x_train.toarray() / 255.0
     x_test = x_test.toarray() / 255.0
+
+    if shuffle_data:
+        shuffle(x_train, y_train, randseed=randseed)
+
+    return (x_train, y_train), (x_test, y_test)
+
+
+def load_a1a_semi(shuffle_data=True, randseed='default'):
+    train_path = get_file("dla1a.txt_train.70u.libsvm",
+                          origin=remote_data_dir() + "/dla1a.txt_train.70u.libsvm",
+                          cache_subdir="demo")
+    test_path = get_file("dla1a.txt_test.70u.libsvm",
+                         origin=remote_data_dir() + "/dla1a.txt_test.70u.libsvm",
+                         cache_subdir="demo")
+
+    x_train, y_train = load_svmlight_file(train_path, n_features=4)
+    x_test, y_test = load_svmlight_file(test_path, n_features=4)
+    x_train = x_train.toarray()
+    x_test = x_test.toarray()
 
     if shuffle_data:
         shuffle(x_train, y_train, randseed=randseed)

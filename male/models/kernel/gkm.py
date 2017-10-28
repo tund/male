@@ -50,6 +50,7 @@ class GKM(Model):
         self.sim_params = sim_params
         if self.sim_func is None:
             self.sim_func = GKM.calc_similarity_kernel
+        if self.sim_params is None:
             self.sim_params = self.gamma
 
         self.freq_calc_metrics = freq_calc_metrics
@@ -99,7 +100,7 @@ class GKM(Model):
             if ywx < 1 - self.smooth_hinge_tau:
                 loss = -y
             elif ywx <= 1:
-                loss = (wx - 1) * y / self.smooth_hinge_tau
+                loss = (ywx - 1) * y / self.smooth_hinge_tau
         else:
             raise ValueError('Incorrect loss function')
         return loss
@@ -287,6 +288,8 @@ class GKM(Model):
 
                 if self.verbose > 0:
                     print('Update unlabel')
+                # print(trade_off_2 * eta * mu * loss_unlabel)
+                # print(self.w)
                 self.w[self.idx_data_cores[ut]] -= trade_off_2 * eta * mu * loss_unlabel
                 self.w[self.idx_data_cores[vt]] += trade_off_2 * eta * mu * loss_unlabel
 
