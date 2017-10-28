@@ -48,11 +48,6 @@ class GKM(Model):
         self.unlabel_loss_func_degree = unlabel_loss_func_degree
         self.sim_func = sim_func
         self.sim_params = sim_params
-        if self.sim_func is None:
-            self.sim_func = GKM.calc_similarity_kernel
-        if self.sim_params is None:
-            self.sim_params = self.gamma
-
         self.freq_calc_metrics = freq_calc_metrics
 
     def _init(self):
@@ -68,6 +63,11 @@ class GKM(Model):
         self.encoded_unlabel = None
 
         self.selected_indices = None
+
+        if self.sim_func is None:
+            self.sim_func = GKM.calc_similarity_kernel
+        if self.sim_params is None:
+            self.sim_params = self.gamma
 
     @staticmethod
     def calc_similarity_1d(x, y, params):
