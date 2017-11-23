@@ -28,6 +28,22 @@ def load_mnist(shuffle_data=True, randseed='default'):
     return (x_train, y_train), (x_test, y_test)
 
 
+def load_tiny_shakespeare():
+    # data I/O
+    file_path = get_file("tinyshakespeare.txt", origin=remote_data_dir() + "/tinyshakespeare.txt",
+                          cache_subdir="demo")
+
+    data = open(file_path).read()
+    # use set() to count the vacab size
+    chars = list(set(data))
+
+    # dictionary to convert char to idx, idx to char
+    char_to_ix = {ch: i for i, ch in enumerate(chars)}
+    ix_to_char = {i: ch for i, ch in enumerate(chars)}
+
+    return data, char_to_ix, ix_to_char
+
+
 def load_cifar10(shuffle_data=True, randseed='default'):
     train_path = get_file("cifar10_5k_train.pkl",
                           origin=remote_data_dir() + "/cifar10_5k_train.pkl",
