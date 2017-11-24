@@ -63,6 +63,13 @@ def linear(input, output_dim, scope='linear', stddev=0.01):
         return tf.matmul(input, w) + b
 
 
+def conv_cond_concat(x, y):
+    """Concatenate conditioning vector on feature map axis."""
+    x_shapes = x.get_shape()
+    y_shapes = y.get_shape()
+    return tf.concat([x, y * tf.ones([x_shapes[0], x_shapes[1], x_shapes[2], y_shapes[3]])], 3)
+
+
 def batchnorm(inputs, is_training, decay=0.999, scope='batchnorm'):
     with tf.variable_scope(scope):
         scale = tf.Variable(tf.ones([inputs.get_shape()[-1]]))
