@@ -31,7 +31,7 @@ def load_mnist(shuffle_data=True, randseed='default'):
 def load_tiny_shakespeare():
     # data I/O
     file_path = get_file("tinyshakespeare.txt", origin=remote_data_dir() + "/tinyshakespeare.txt",
-                          cache_subdir="demo")
+                         cache_subdir="demo")
 
     data = open(file_path).read()
     # use set() to count the vacab size
@@ -42,6 +42,15 @@ def load_tiny_shakespeare():
     ix_to_char = {i: ch for i, ch in enumerate(chars)}
 
     return data, char_to_ix, ix_to_char
+
+
+def load_text8_1pct():
+    file_path = get_file("text8_1pct.txt",
+                         origin=remote_data_dir() + "/text8_1pct.txt",
+                         cache_subdir="demo")
+    with open(file_path, "r") as f:
+        txt = f.read()
+    return txt
 
 
 def load_cifar10(shuffle_data=True, randseed='default'):

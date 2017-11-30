@@ -66,10 +66,10 @@ class TensorFlowModel(Model):
         """
 
         # copy to avoid modifying
-        x = x.copy() if x is not None else x
-        y = y.copy() if y is not None else y
+        x = copy.deepcopy(x) if x is not None else x
+        y = copy.deepcopy(y) if y is not None else y
 
-        if (x is not None) and (x.ndim < 2):
+        if (x is not None) and (hasattr(x, 'ndim')) and (x.ndim < 2):
             x = x[..., np.newaxis]
 
         if self.cv is not None:
@@ -89,7 +89,7 @@ class TensorFlowModel(Model):
 
         if (not hasattr(self, 'epoch')) or self.epoch == 0:
             self._init()
-            if x_train is not None:
+            if (x_train is not None) and (hasattr(x_train, 'shape')):
                 self.data_dim = x_train.shape[1]
             if y_train is not None:
                 # encode labels
@@ -120,7 +120,9 @@ class TensorFlowModel(Model):
         callbacks._set_params({
             'batch_size': self.batch_size,
             'num_epochs': self.num_epochs,
-            'num_samples': x_train.shape[0] if x_train is not None else self.batch_size,
+            'num_samples': x_train.shape[0]
+                           if (x_train is not None) and (hasattr(x_train, 'shape'))
+                           else self.batch_size,
             'verbose': self.verbose,
             'do_validation': do_validation,
             'metrics': callback_metrics,
