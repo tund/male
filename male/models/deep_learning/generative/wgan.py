@@ -47,9 +47,9 @@ class WGAN(DCGAN):
         # create optimizers
         d_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='discriminator')
         g_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='generator')
-        self.d_opt = tf.train.AdamOptimizer(self.learning_rate, beta1=0.5) \
+        self.d_opt = tf.train.RMSPropOptimizer(self.learning_rate) \
             .minimize(self.d_loss, var_list=d_params)
-        self.g_opt = tf.train.AdamOptimizer(self.learning_rate, beta1=0.5) \
+        self.g_opt = tf.train.RMSPropOptimizer(self.learning_rate) \
             .minimize(self.g_loss, var_list=g_params)
         self.d_clipping = [dp.assign(tf.clip_by_value(dp, -0.01, 0.01)) for dp in d_params]
 
