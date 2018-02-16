@@ -55,33 +55,35 @@ def test_dcgan_mnist(show_figure=False, block_figure_on_end=False):
                                        },
                                       ])
 
-    model = DCGAN(model_name="DCGAN_MNIST",
+    model = DCGAN(model_name="DCGAN_MNIST_z_uniform",
                   num_z=10,  # set to 100 for a full run
                   z_prior=Uniform1D(low=-1.0, high=1.0),
                   img_size=(28, 28, 1),
-                  batch_size=32,  # set to 64 for a full run
+                  batch_size=8,  # set to 64 for a full run
                   num_conv_layers=3,  # set to 3 for a full run
                   num_gen_feature_maps=4,  # set to 32 for a full run
                   num_dis_feature_maps=4,  # set to 32 for a full run
                   metrics=['d_loss', 'g_loss'],
                   callbacks=[loss_display, sample_display],
                   num_epochs=4,  # set to 100 for a full run
+                  # summary_freq=1,  # uncomment this for a full run
                   random_state=random_seed(),
                   verbose=1)
 
     model.fit(x_train)
 
-    model = DCGAN(model_name="DCGAN_MNIST",
-                  num_z=10,  # set to 100 for a full run
+    model = DCGAN(model_name="DCGAN_MNIST_z_Gaussian",
+                  num_z=100,  # set to 100 for a full run
                   z_prior=Gaussian1D(mu=0.0, sigma=1.0),
                   img_size=(28, 28, 1),
-                  batch_size=32,  # set to 64 for a full run
+                  batch_size=64,  # set to 64 for a full run
                   num_conv_layers=3,  # set to 3 for a full run
-                  num_gen_feature_maps=4,  # set to 32 for a full run
-                  num_dis_feature_maps=4,  # set to 32 for a full run
+                  num_gen_feature_maps=32,  # set to 32 for a full run
+                  num_dis_feature_maps=32,  # set to 32 for a full run
                   metrics=['d_loss', 'g_loss'],
                   callbacks=[loss_display, sample_display],
-                  num_epochs=4,  # set to 100 for a full run
+                  num_epochs=100,  # set to 100 for a full run
+                  summary_freq=1,
                   random_state=random_seed(),
                   verbose=1)
 
@@ -340,7 +342,7 @@ def test_dcgan_cifar10_inception_score(show_figure=False, block_figure_on_end=Fa
     model = DCGAN(model_name="DCGAN_CIFAR10",
                   num_z=10,  # set to 100 for a full run
                   img_size=(32, 32, 3),
-                  batch_size=32,  # set to 64 for a full run
+                  batch_size=8,  # set to 64 for a full run
                   num_conv_layers=3,  # set to 3 for a full run
                   num_gen_feature_maps=4,  # set to 32 for a full run
                   num_dis_feature_maps=4,  # set to 32 for a full run
@@ -348,6 +350,7 @@ def test_dcgan_cifar10_inception_score(show_figure=False, block_figure_on_end=Fa
                   callbacks=[loss_display, inception_score_display, sample_display, checkpoint],
                   num_epochs=4,  # set to 100 for a full run
                   inception_score_freq=1,
+                  # summary_freq=1,  # uncomment this for a full run
                   random_state=random_seed(),
                   verbose=1)
 

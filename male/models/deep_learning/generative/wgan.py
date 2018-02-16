@@ -76,9 +76,10 @@ class WGAN(DCGAN):
                 # update discriminator D
                 d_loss = 0.0
                 for _ in range(5):
-                    d_loss, _, _ = self.tf_session.run(
-                        [self.d_loss, self.d_opt, self.d_clipping],
+                    d_loss, _ = self.tf_session.run(
+                        [self.d_loss, self.d_opt],
                         feed_dict={self.x: x_batch, self.z: z_batch})
+                    self.tf_session.run(self.d_clipping)
 
                 # update generator G
                 g_loss, _ = self.tf_session.run([self.g_loss, self.g_opt],
