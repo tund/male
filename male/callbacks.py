@@ -266,8 +266,13 @@ class Display(Callback):
             12 * self.layout[1], 6.75 * self.layout[0])
         if self.dpi == 'auto':
             if self.show:
-                width, height = get_screen_resolution()
-                self.dpi = min(width * 0.5 / fig_width, height * 0.7 / fig_height)
+                try:
+                    width, height = get_screen_resolution()
+                    self.dpi = min(width * 0.5 / fig_width, height * 0.7 / fig_height)
+                except Exception as msg:
+                    print("Failed to get screen resolution. Set DPI to None."
+                          "Exception: {}".format(msg))
+                    self.dpi = None
             else:
                 self.dpi = None
         if self.monitor is not None:
@@ -308,10 +313,17 @@ class Display(Callback):
                                                **self.monitor[i])
 
                     if self.axs[u, v].get_legend() is None:
-                        self.axs[u, v].legend(fontsize=24, numpoints=1)
+                        handles, _ = self.axs[u, v].get_legend_handles_labels()
+                        if len(handles) > 0:
+                            self.axs[u, v].legend(fontsize=24, numpoints=1)
                 if self.show:
-                    plt.pause(0.0001)
+                    if plt.get_backend().lower() == "nbagg":
+                        time.sleep(0.0001)
+                    else:
+                        plt.pause(0.0001)
                 self.fig.tight_layout()
+                if plt.get_backend().lower() == "nbagg":
+                    self.fig.canvas.draw()
                 # save to figures
                 if self.filepath is not None:
                     for fp in self.filepath:
