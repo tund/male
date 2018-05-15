@@ -39,7 +39,7 @@ conda update anaconda
 ```
 - Install some important libraries:
 ```sh
-conda install dill scipy scikit-learn matplotlib pillow
+conda install pytest dill scipy scikit-learn matplotlib pillow
 ```
 **Important**: Try to avoid using *pip* (use *conda* if possible)
 

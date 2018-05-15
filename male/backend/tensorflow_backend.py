@@ -3,6 +3,7 @@ from __future__ import print_function
 from __future__ import absolute_import
 
 import tensorflow as tf
+from functools import partial
 
 
 def get_default_config():
@@ -11,6 +12,13 @@ def get_default_config():
     tf_config.log_device_placement = False
     tf_config.allow_soft_placement = True
     return tf_config
+
+
+batch_norm = partial(tf.contrib.layers.batch_norm,
+                     decay=0.9,
+                     updates_collections=None,
+                     epsilon=1e-5,
+                     scale=True)
 
 
 def conv2d(input_, output_dim,
@@ -100,3 +108,44 @@ def minibatch(input, num_kernels=5, kernel_dim=3, scope='minibatch'):
     abs_diffs = tf.reduce_sum(tf.abs(diffs), 2)
     minibatch_features = tf.reduce_sum(tf.exp(-abs_diffs), 2)
     return tf.concat(1, [input, minibatch_features])
+
+
+def adam_optimizer(loss, learning_rate, beta1, params):
+    opt = tf.train.AdamOptimizer(learning_rate, beta1=beta1)
+    grads = opt.compute_gradients(loss, var_list=params)
+    train_op = opt.apply_gradients(grads)
+
+    for var in params:
+        m = opt.get_slot(var, "m")  # get the first-moment vector
+        v = opt.get_slot(var, "v")  # get the second-moment vector
+
+        m_hat = m / (1 - opt._beta1_power)  # bias correction
+        v_hat = v / (1 - opt._beta2_power)  # bias correction
+
+        step = learning_rate * m_hat / (v_hat ** 0.5 + opt._epsilon_t)  # update size
+        update_ratio = tf.abs(step) / (tf.abs(var) + 1e-8)  # update ratio
+
+        tf.summary.histogram(var.op.name + '/values', var)
+        tf.summary.histogram(var.op.name + '/update_size', step)
+        tf.summary.histogram(var.op.name + '/update_ratio', update_ratio)
+
+    for grad, var in grads:
+        if grad is not None:
+            tf.summary.histogram(var.op.name + '/gradients', grad)
+
+    return train_op
+
+
+def get_active_fraction(x):
+    positive = tf.cast(tf.greater(x, 0.), tf.float32)  # 1 if positive, 0 otherwise
+    # calculate average times being active across a batch
+    batch_positive = tf.reduce_mean(positive, axis=0)
+    # define active as being active at least 10% of the batch
+    batch_active = tf.greater(batch_positive, 0.1)
+    fraction = tf.reduce_mean(tf.cast(batch_active, tf.float32))
+    return fraction
+
+
+def get_activation_summary(x, name):
+    tf.summary.histogram(name + '/activations', x)
+    tf.summary.scalar(name + '/active_fraction', get_active_fraction(x))

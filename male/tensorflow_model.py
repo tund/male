@@ -164,10 +164,20 @@ class TensorFlowModel(Model):
         super(TensorFlowModel, self)._on_train_end()
         self.tf_summary_writer.close()
 
+    def _on_epoch_end(self, **kwargs):
+        super(TensorFlowModel, self)._on_epoch_end()
+        if self.epoch % self.summary_freq == 0:
+            if "input_data" in kwargs:
+                _summary = self.tf_session.run(self.tf_merged_summaries,
+                                               feed_dict=kwargs["input_data"])
+            else:
+                _summary = self.tf_session.run(self.tf_merged_summaries)
+            self.tf_summary_writer.add_summary(_summary, self.epoch)
+
     def save(self, file_path=None, overwrite=True):
         if file_path is None:
-            file_path = os.path.join(model_dir(), self.model_name,
-                                     "{}_{}.ckpt".format(tuid(), self.model_name))
+            file_path = os.path.join(model_dir(),
+                                     "male/{}/{}.ckpt".format(self.model_name, tuid()))
         if not os.path.exists(os.path.dirname(file_path)):
             os.makedirs(os.path.dirname(file_path))
         self._save_model(file_path, overwrite)

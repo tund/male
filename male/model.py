@@ -265,7 +265,7 @@ class Model(BaseEstimator, ClassifierMixin,
 
     def save(self, file_path=None, overwrite=True):
         if file_path is None:
-            file_path = os.path.join(model_dir(), "{}_{}.pkl".format(tuid(), self.model_name))
+            file_path = os.path.join(model_dir(), "male/{}/{}.pkl".format(self.model_name, tuid()))
         if not os.path.exists(os.path.dirname(file_path)):
             os.makedirs(os.path.dirname(file_path))
         self._save_model(file_path, overwrite)
