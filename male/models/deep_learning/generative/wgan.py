@@ -91,13 +91,8 @@ class WGAN(DCGAN):
 
                 callbacks.on_batch_end(batch_idx, batch_logs)
 
-            if (self.epoch + 1) % self.inception_score_freq == 0 and \
-                            "inception_score" in self.metrics:
-                epoch_logs['inception_score'] = self._compute_inception_score(
-                    self.generate(num_samples=self.num_inception_samples))
-
-            callbacks.on_epoch_end(self.epoch, epoch_logs)
-            self._on_epoch_end()
+            self._on_epoch_end(epoch_logs, input_data={self.x: x_batch, self.z: z_batch})
+            callbacks.on_epoch_end(self.epoch - 1, epoch_logs)
 
     def _create_discriminator(self, x, train=True, reuse=False, name="discriminator"):
         with tf.variable_scope(name) as scope:
@@ -118,3 +113,9 @@ class WGAN(DCGAN):
             d_out = linear(tf.reshape(h, [-1, dim]), 1,
                            stddev=0.02, scope="d_out")
         return d_out
+
+    def get_params(self, deep=True):
+        out = super(WGAN, self).get_params(deep=deep)
+        param_names = WGAN._get_param_names()
+        out.update(self._get_params(param_names=param_names, deep=deep))
+        return out

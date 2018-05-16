@@ -126,13 +126,8 @@ class DCGAN(TensorFlowModel):
 
                 callbacks.on_batch_end(batch_idx, batch_logs)
 
-            if (self.epoch + 1) % self.inception_score_freq == 0 and \
-                    "inception_score" in self.metrics:
-                epoch_logs['inception_score'] = InceptionScore.inception_score(
-                    self.generate(num_samples=self.num_inception_samples))[0]
-
-            callbacks.on_epoch_end(self.epoch, epoch_logs)
-            self._on_epoch_end(input_data={self.x: x_batch, self.z: z_batch})
+            self._on_epoch_end(epoch_logs, input_data={self.x: x_batch, self.z: z_batch})
+            callbacks.on_epoch_end(self.epoch - 1, epoch_logs)
 
     def _create_generator(self, z, train=True, reuse=False, name="generator"):
         out_size = [(conv_out_size_same(self.img_size[0], 2),
@@ -208,6 +203,12 @@ class DCGAN(TensorFlowModel):
             get_activation_summary(d_out, "d_out_sigmoid")
 
             return d_out, d_logits
+
+    def _on_epoch_end(self, epoch_logs, **kwargs):
+        super(DCGAN, self)._on_epoch_end(**kwargs)
+        if self.epoch % self.inception_score_freq == 0 and "inception_score" in self.metrics:
+            epoch_logs['inception_score'] = InceptionScore.inception_score(
+                self.generate(num_samples=self.num_inception_samples))[0]
 
     def generate(self, num_samples=100):
         sess = self._get_session()
