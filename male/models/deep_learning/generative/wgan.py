@@ -4,12 +4,11 @@ from __future__ import absolute_import
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.contrib.layers import batch_norm
 
 from . import DCGAN
 from ....activations import tf_lrelu as lrelu
 from ....utils.generic_utils import make_batches
-from ....backend.tensorflow_backend import linear, conv2d
+from ....backend.tensorflow_backend import linear, conv2d, batch_norm
 
 
 class WGAN(DCGAN):
@@ -103,10 +102,6 @@ class WGAN(DCGAN):
             for i in range(1, self.num_conv_layers):
                 h = lrelu(batch_norm(conv2d(h, self.num_dis_feature_maps * (2 ** i),
                                             stddev=0.02, name="d_h{}_conv".format(i)),
-                                     decay=0.9,
-                                     updates_collections=None,
-                                     epsilon=1e-5,
-                                     scale=True,
                                      is_training=train,
                                      scope="d_bn{}".format(i)))
             dim = h.get_shape()[1:].num_elements()

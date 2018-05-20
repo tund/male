@@ -29,10 +29,13 @@ def test_wgan_mnist(show_figure=False, block_figure_on_end=False):
     x_train = x_train.astype(np.float32).reshape([-1, 28, 28, 1]) / 0.5 - 1.
     x_test = x_test.astype(np.float32).reshape([-1, 28, 28, 1]) / 0.5 - 1.
 
+    root_dir = os.path.join(model_dir(), "male/WGAN/MNIST")
     loss_display = Display(layout=(1, 1),
                            dpi='auto',
                            show=show_figure,
                            block_on_end=block_figure_on_end,
+                           filepath=[os.path.join(root_dir, "loss/loss_{epoch:04d}.png"),
+                                     os.path.join(root_dir, "loss/loss_{epoch:04d}.pdf")],
                            monitor=[{'metrics': ['d_loss', 'g_loss'],
                                      'type': 'line',
                                      'labels': ["discriminator loss", "generator loss"],
@@ -47,6 +50,7 @@ def test_wgan_mnist(show_figure=False, block_figure_on_end=False):
                              freq=1,
                              show=show_figure,
                              block_on_end=block_figure_on_end,
+                             filepath=os.path.join(root_dir, "samples/samples_{epoch:04d}.png"),
                              monitor=[{'metrics': ['x_samples'],
                                        'title': "Generated data",
                                        'type': 'img',
@@ -59,13 +63,14 @@ def test_wgan_mnist(show_figure=False, block_figure_on_end=False):
                  num_z=10,  # set to 100 for a full run
                  z_prior=Uniform1D(low=-1.0, high=1.0),
                  img_size=(28, 28, 1),
-                 batch_size=64,  # set to 64 for a full run
+                 batch_size=16,  # set to 64 for a full run
                  num_conv_layers=3,  # set to 3 for a full run
                  num_gen_feature_maps=4,  # set to 32 for a full run
                  num_dis_feature_maps=4,  # set to 32 for a full run
                  metrics=['d_loss', 'g_loss'],
                  callbacks=[loss_display, sample_display],
                  num_epochs=4,  # set to 100 for a full run
+                 log_path=os.path.join(root_dir, "logs"),
                  random_state=random_seed(),
                  verbose=1)
 
@@ -78,14 +83,18 @@ def test_wgan_cifar10(show_figure=False, block_figure_on_end=False):
 
     np.random.seed(random_seed())
 
+    num_data = 128
     (x_train, y_train), (x_test, y_test) = demo.load_cifar10()
-    x_train = x_train.astype(np.float32).reshape([-1, 32, 32, 3]) / 0.5 - 1.
+    x_train = x_train[:num_data].astype(np.float32).reshape([-1, 32, 32, 3]) / 0.5 - 1.
     x_test = x_test.astype(np.float32).reshape([-1, 32, 32, 3]) / 0.5 - 1.
 
+    root_dir = os.path.join(model_dir(), "male/WGAN/CIFAR10")
     loss_display = Display(layout=(1, 1),
                            dpi='auto',
                            show=show_figure,
                            block_on_end=block_figure_on_end,
+                           filepath=[os.path.join(root_dir, "loss/loss_{epoch:04d}.png"),
+                                     os.path.join(root_dir, "loss/loss_{epoch:04d}.pdf")],
                            monitor=[{'metrics': ['d_loss', 'g_loss'],
                                      'type': 'line',
                                      'labels': ["discriminator loss", "generator loss"],
@@ -100,6 +109,7 @@ def test_wgan_cifar10(show_figure=False, block_figure_on_end=False):
                              freq=1,
                              show=show_figure,
                              block_on_end=block_figure_on_end,
+                             filepath=os.path.join(root_dir, "samples/samples_{epoch:04d}.png"),
                              monitor=[{'metrics': ['x_samples'],
                                        'title': "Generated data",
                                        'type': 'img',
@@ -112,13 +122,14 @@ def test_wgan_cifar10(show_figure=False, block_figure_on_end=False):
                  num_z=10,  # set to 100 for a full run
                  z_prior=Uniform1D(low=-1.0, high=1.0),
                  img_size=(32, 32, 3),
-                 batch_size=64,  # set to 64 for a full run
+                 batch_size=16,  # set to 64 for a full run
                  num_conv_layers=3,  # set to 3 for a full run
                  num_gen_feature_maps=4,  # set to 32 for a full run
                  num_dis_feature_maps=4,  # set to 32 for a full run
                  metrics=['d_loss', 'g_loss'],
                  callbacks=[loss_display, sample_display],
                  num_epochs=4,  # set to 100 for a full run
+                 log_path=os.path.join(root_dir, "logs"),
                  random_state=random_seed(),
                  verbose=1)
 

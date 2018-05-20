@@ -2,9 +2,9 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
+import six
 import numpy as np
 import tensorflow as tf
-from tensorflow.contrib.layers import batch_norm
 import matplotlib.pyplot as plt
 
 plt.style.use('ggplot')
@@ -15,7 +15,10 @@ from ....activations import tf_lrelu as lrelu
 from ....utils.generic_utils import make_batches
 from ....utils.generic_utils import conv_out_size_same
 from ....utils.disp_utils import create_image_grid
+from ....metrics import FID
 from ....metrics import InceptionScore
+from ....metrics import InceptionMetricList
+from ....backend.tensorflow_backend import batch_norm
 from ....backend.tensorflow_backend import adam_optimizer
 from ....backend.tensorflow_backend import get_activation_summary
 from ....backend.tensorflow_backend import linear, conv2d, deconv2d
@@ -34,7 +37,9 @@ class DCGAN(TensorFlowModel):
                  num_conv_layers=3,
                  num_gen_feature_maps=128,  # number of feature maps of generator
                  num_dis_feature_maps=128,  # number of feature maps of discriminator
-                 inception_score_freq=int(1e+8),
+                 inception_metrics = InceptionMetricList([InceptionScore(),
+                                                          FID(data="cifar10")]),
+                 inception_metrics_freq=int(1e+8),
                  num_inception_samples=100,
                  **kwargs):
         super(DCGAN, self).__init__(model_name=model_name, **kwargs)
@@ -45,11 +50,17 @@ class DCGAN(TensorFlowModel):
         self.num_conv_layers = num_conv_layers
         self.num_gen_feature_maps = num_gen_feature_maps
         self.num_dis_feature_maps = num_dis_feature_maps
-        self.inception_score_freq = inception_score_freq
+        self.inception_metrics = inception_metrics
+        self.inception_metrics_freq = inception_metrics_freq
         self.num_inception_samples = num_inception_samples
 
     def _init(self):
         super(DCGAN, self)._init()
+        if not isinstance(self.inception_metrics, InceptionMetricList):
+            if isinstance(self.inception_metrics, list):
+                self.inception_metrics = InceptionMetricList(self.inception_metrics)
+            else:
+                self.inception_metrics = InceptionMetricList([self.inception_metrics])
 
     def _build_model(self, x):
         self.x = tf.placeholder(tf.float32, [None,
@@ -144,10 +155,6 @@ class DCGAN(TensorFlowModel):
 
             h0 = tf.nn.relu(batch_norm(linear(z, out_size[0][0] * out_size[0][1] * out_size[0][2],
                                               scope='g_h0_linear', stddev=0.02),
-                                       decay=0.9,
-                                       updates_collections=None,
-                                       epsilon=1e-5,
-                                       scale=True,
                                        is_training=train,
                                        scope="g_h0_batchnorm"),
                             name="g_h0_relu")
@@ -160,10 +167,6 @@ class DCGAN(TensorFlowModel):
                         deconv2d(h,
                                  [self.batch_size, out_size[i][0], out_size[i][1], out_size[i][2]],
                                  stddev=0.02, name="g_h{}_deconv".format(i)),
-                        decay=0.9,
-                        updates_collections=None,
-                        epsilon=1e-5,
-                        scale=True,
                         is_training=train,
                         scope="g_h{}_batchnorm".format(i)),
                     name="g_h{}_relu".format(i))
@@ -188,10 +191,6 @@ class DCGAN(TensorFlowModel):
             for i in range(1, self.num_conv_layers):
                 h = lrelu(batch_norm(conv2d(h, self.num_dis_feature_maps * (2 ** i),
                                             stddev=0.02, name="d_h{}_conv".format(i)),
-                                     decay=0.9,
-                                     updates_collections=None,
-                                     epsilon=1e-5,
-                                     scale=True,
                                      is_training=train,
                                      scope="d_h{}_batchnorm".format(i)))
                 get_activation_summary(h, "d_h{}_lrelu".format(i))
@@ -206,9 +205,11 @@ class DCGAN(TensorFlowModel):
 
     def _on_epoch_end(self, epoch_logs, **kwargs):
         super(DCGAN, self)._on_epoch_end(**kwargs)
-        if self.epoch % self.inception_score_freq == 0 and "inception_score" in self.metrics:
-            epoch_logs['inception_score'] = InceptionScore.inception_score(
-                self.generate(num_samples=self.num_inception_samples))[0]
+        if self.epoch % self.inception_metrics_freq == 0:
+            scores = self.inception_metrics.score(
+                self.generate(num_samples=self.num_inception_samples)
+            )
+            epoch_logs.update(self.inception_metrics.get_score_dict(scores))
 
     def generate(self, num_samples=100):
         sess = self._get_session()
@@ -273,4 +274,20 @@ class DCGAN(TensorFlowModel):
         out = super(DCGAN, self).get_params(deep=deep)
         param_names = DCGAN._get_param_names()
         out.update(self._get_params(param_names=param_names, deep=deep))
+        return out
+
+    def _get_params_to_dump(self, deep=True):
+        out = dict()
+        for key, value in six.iteritems(self.__dict__):
+            if ((not type(value).__module__.startswith('tf')) and
+                    (not type(value).__module__.startswith('tensorflow')) and
+                    (key != 'best_params') and
+                    (not isinstance(value, InceptionScore)) and
+                    (not isinstance(value, FID)) and
+                    (not isinstance(value, InceptionMetricList))):
+                out[key] = value
+        # param_names = ['tf_graph', 'tf_config', 'tf_merged_summaries']
+        # for key in param_names:
+        #     if key in self.__dict__:
+        #         out[key] = self.__getattribute__(key)
         return out
