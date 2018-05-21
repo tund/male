@@ -31,14 +31,14 @@ class DCGAN(TensorFlowModel):
     def __init__(self,
                  model_name='DCGAN',
                  num_z=100,
-                 z_prior=Uniform1D(low=-1.0, high=1.0),
+                 z_prior=Uniform1D(low=-1.0, high=1.0, random_state=None),
                  learning_rate=0.0002,
                  img_size=(32, 32, 3),  # (height, width, channels)
                  num_conv_layers=3,
                  num_gen_feature_maps=128,  # number of feature maps of generator
                  num_dis_feature_maps=128,  # number of feature maps of discriminator
-                 inception_metrics = InceptionMetricList([InceptionScore(),
-                                                          FID(data="cifar10")]),
+                 inception_metrics=InceptionMetricList([InceptionScore(),
+                                                        FID(data="cifar10")]),
                  inception_metrics_freq=int(1e+8),
                  num_inception_samples=100,
                  **kwargs):
@@ -56,6 +56,7 @@ class DCGAN(TensorFlowModel):
 
     def _init(self):
         super(DCGAN, self)._init()
+        self.z_prior.set_random_engine(self.random_engine)
         if not isinstance(self.inception_metrics, InceptionMetricList):
             if isinstance(self.inception_metrics, list):
                 self.inception_metrics = InceptionMetricList(self.inception_metrics)

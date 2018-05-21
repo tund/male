@@ -8,6 +8,7 @@ try:
     from .cgan import CGAN
     from .cgan import CGANv1
     from .wgan import WGAN
+    from .wgan_gp import WGAN_GP
 except ImportError:
     GAN = None
     DCGAN = None
@@ -16,3 +17,4 @@ except ImportError:
     CGAN = None
     CGANv1 = None
     WGAN = None
+    WGAN_GP = None
