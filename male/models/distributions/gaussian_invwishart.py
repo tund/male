@@ -4,13 +4,15 @@ from __future__ import absolute_import
 
 import numpy as np
 import scipy.stats as stats
+from ..distributions import Distribution
 
 
-class GaussianInvWishart(object):
-    """Gaussian Inverse Wishart distribution
+class GaussianInvWishart(Distribution):
+    """Gaussian Inverse Wishart distributions
     Prioritize speed
     """
-    def __init__(self, dim, loc, lbd, degree, scale_mat):
+
+    def __init__(self, dim, loc, lbd, degree, scale_mat, **kwargs):
         """
         Complete Initialize
         :param dim: dimension of data
@@ -19,6 +21,7 @@ class GaussianInvWishart(object):
         :param degree: degree of freedom, scalar > d - 1
         :param scale_mat: (d,d)
         """
+        super(GaussianInvWishart, self).__init__(**kwargs)
         self.dim = dim
         if degree <= dim - 1:
             raise ValueError("degree must be greater than dim - 1")
@@ -39,15 +42,17 @@ class GaussianInvWishart(object):
         self.data_lst = []
         self.invalid = False
 
-    def sample(self):
+    def sample(self, **kwargs):
         """
         Sample mean & cov from (mu, lbd, nu, psi_m)
         :return: mean, cov
         """
         if self.invalid:
             self.update()
-        cov = stats.invwishart.rvs(df=self.degree, scale=self.scale_mat)
-        mean = stats.multivariate_normal.rvs(mean=self.loc, cov=cov / self.lbd)
+        cov = stats.invwishart.rvs(df=self.degree, scale=self.scale_mat,
+                                   random_state=self.random_engine)
+        mean = stats.multivariate_normal.rvs(mean=self.loc, cov=cov / self.lbd,
+                                             random_state=self.random_engine)
         return mean, cov
 
     def update(self):
@@ -65,7 +70,8 @@ class GaussianInvWishart(object):
         data_bar_mu = (data_bar - self.loc0).reshape((self.dim, 1))
         self.loc = (self.lbd0 * self.loc0 + self.data_sum) / self.lbd
         self.scale_mat = \
-            self.scale_mat + C + (self.lbd0 * self.num_samples) * np.dot(data_bar_mu, data_bar_mu.T) / self.lbd
+            self.scale_mat + C + (self.lbd0 * self.num_samples) * np.dot(data_bar_mu,
+                                                                         data_bar_mu.T) / self.lbd
 
     def add_item(self, data):
         """
@@ -95,9 +101,9 @@ class GaussianInvWishart(object):
         self.invalid = True
 
     @staticmethod
-    def sample_posterior(dim, data, lbd0, loc0, degree0, scale_mat0):
+    def sample_posterior(dim, data, lbd0, loc0, degree0, scale_mat0, random_state=None):
         """
-        Sample from posterior distribution given observed data
+        Sample from posterior distributions given observed data
         without requiring any immediate function call (e.g. add, del items)
         :param dim: dimension of data
         :param data: (num_samples,dim)
@@ -105,7 +111,7 @@ class GaussianInvWishart(object):
         :param loc0: location of data (dim,)
         :param degree0: degree of freedom, scalar > dim - 1
         :param scale_mat0: (dim,dim)
-        :return: [mean_new, cov_new] of normal distribution
+        :return: [mean_new, cov_new] of normal distributions
         """
         num_samples = data.shape[0]
         lbd0_loc0 = lbd0 * loc0
@@ -121,7 +127,10 @@ class GaussianInvWishart(object):
         kappa_new = lbd0 + num_samples
         data_bar_loc = (data_bar - loc0).reshape((dim, 1))
         scale_mat_new = \
-            scale_mat0 + C + (lbd0 * num_samples / (lbd0 + num_samples)) * np.dot(data_bar_loc, data_bar_loc.T)
-        cov_new = stats.invwishart.rvs(df=degree_new, scale=scale_mat_new)
-        mean_new = stats.multivariate_normal.rvs(loc_new, cov_new / kappa_new)
+            scale_mat0 + C + (lbd0 * num_samples / (lbd0 + num_samples)) * np.dot(data_bar_loc,
+                                                                                  data_bar_loc.T)
+        cov_new = stats.invwishart.rvs(df=degree_new, scale=scale_mat_new,
+                                       random_state=random_state)
+        mean_new = stats.multivariate_normal.rvs(loc_new, cov_new / kappa_new,
+                                                 random_state=random_state)
         return [mean_new, cov_new]

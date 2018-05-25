@@ -7,7 +7,7 @@ from scipy.stats import norm
 from scipy.stats import multivariate_normal
 
 from ...configs import epsilon
-from ..distribution import Distribution
+from ..distributions import Distribution
 
 
 class Gaussian1D(Distribution):
