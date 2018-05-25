@@ -6,7 +6,7 @@ import pytest
 import numpy as np
 import scipy.stats as stats
 
-from male.models.distribution.gaussian_invwishart import GaussianInvWishart as GIW
+from male.models.distributions.gaussian_invwishart import GaussianInvWishart as GIW
 
 
 # TODO:

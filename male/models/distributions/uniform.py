@@ -4,7 +4,7 @@ from __future__ import absolute_import
 
 import numpy as np
 
-from ..distribution import Distribution
+from ..distributions import Distribution
 
 
 class Uniform(Distribution):
