@@ -50,7 +50,10 @@ class WGAN(DCGAN):
             .minimize(self.d_loss, var_list=d_params)
         self.g_opt = tf.train.RMSPropOptimizer(self.learning_rate) \
             .minimize(self.g_loss, var_list=g_params)
-        self.d_clipping = [dp.assign(tf.clip_by_value(dp, -0.01, 0.01)) for dp in d_params]
+        # self.d_clipping = tf.group(dp.assign(tf.clip_by_value(dp, -0.01, 0.01)) for dp in d_params)
+        with tf.control_dependencies(
+                dp.assign(tf.clip_by_value(dp, -0.01, 0.01)) for dp in d_params):
+            self.d_clipping = tf.no_op()
 
     def _fit_loop(self, x, y,
                   do_validation=False,
