@@ -8,6 +8,8 @@ import tensorflow as tf
 from . import DCGAN
 from ....activations import tf_lrelu as lrelu
 from ....utils.generic_utils import make_batches
+from ....backend.tensorflow_backend import rmsprop_optimizer
+from ....backend.tensorflow_backend import get_activation_summary
 from ....backend.tensorflow_backend import linear, conv2d, batch_norm
 
 
@@ -46,10 +48,8 @@ class WGAN(DCGAN):
         # create optimizers
         d_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='discriminator')
         g_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='generator')
-        self.d_opt = tf.train.RMSPropOptimizer(self.learning_rate) \
-            .minimize(self.d_loss, var_list=d_params)
-        self.g_opt = tf.train.RMSPropOptimizer(self.learning_rate) \
-            .minimize(self.g_loss, var_list=g_params)
+        self.d_opt = rmsprop_optimizer(self.d_loss, self.learning_rate, params=d_params)
+        self.g_opt = rmsprop_optimizer(self.g_loss, self.learning_rate, params=g_params)
         # self.d_clipping = tf.group(dp.assign(tf.clip_by_value(dp, -0.01, 0.01)) for dp in d_params)
         with tf.control_dependencies(
                 dp.assign(tf.clip_by_value(dp, -0.01, 0.01)) for dp in d_params):
@@ -102,14 +102,19 @@ class WGAN(DCGAN):
                 scope.reuse_variables()
 
             h = lrelu(conv2d(x, self.num_dis_feature_maps, stddev=0.02, name="d_h0_conv"))
+            get_activation_summary(h, "d_h0_lrelu")
+
             for i in range(1, self.num_conv_layers):
                 h = lrelu(batch_norm(conv2d(h, self.num_dis_feature_maps * (2 ** i),
                                             stddev=0.02, name="d_h{}_conv".format(i)),
                                      is_training=train,
                                      scope="d_bn{}".format(i)))
+                get_activation_summary(h, "d_h{}_lrelu".format(i))
+
             dim = h.get_shape()[1:].num_elements()
             d_out = linear(tf.reshape(h, [-1, dim]), 1,
                            stddev=0.02, scope="d_out")
+            get_activation_summary(d_out, "d_out_linear")
         return d_out
 
     def get_params(self, deep=True):
