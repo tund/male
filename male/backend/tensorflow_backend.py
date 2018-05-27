@@ -110,6 +110,26 @@ def minibatch(input, num_kernels=5, kernel_dim=3, scope='minibatch'):
     return tf.concat(1, [input, minibatch_features])
 
 
+def rmsprop_optimizer(loss, learning_rate, params):
+    opt = tf.train.RMSPropOptimizer(learning_rate)
+    grads = opt.compute_gradients(loss, var_list=params)
+    train_op = opt.apply_gradients(grads)
+
+    for var in params:
+        step = opt.get_slot(var, "momentum")
+        update_ratio = tf.abs(step) / (tf.abs(var) + 1e-8)  # update ratio
+
+        tf.summary.histogram(var.op.name + '/values', var)
+        tf.summary.histogram(var.op.name + '/update_size', step)
+        tf.summary.histogram(var.op.name + '/update_ratio', update_ratio)
+
+    for grad, var in grads:
+        if grad is not None:
+            tf.summary.histogram(var.op.name + '/gradients', grad)
+
+    return train_op
+
+
 def adam_optimizer(loss, learning_rate, beta1, params):
     opt = tf.train.AdamOptimizer(learning_rate, beta1=beta1)
     grads = opt.compute_gradients(loss, var_list=params)
