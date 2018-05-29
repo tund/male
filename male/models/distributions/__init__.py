@@ -26,3 +26,4 @@ from .uniform import Uniform1D
 from .gaussian import Gaussian
 from .gaussian import Gaussian1D
 from .gaussian import InverseGaussian1D
+from .multinomial import Multinomial
