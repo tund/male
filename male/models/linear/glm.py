@@ -65,7 +65,7 @@ class GLM(Model):
 
     def _init_params(self, x):
         # initialize weights
-        if self.num_classes > 2:
+        if self.num_classes > 2 or (self.num_classes == 2 and self.task == 'multilabel'):
             self.w = 0.01 * self.random_engine.randn(x.shape[1], self.num_classes)
             self.b = np.zeros(self.num_classes)
         else:
@@ -155,6 +155,9 @@ class GLM(Model):
         elif self.loss == 'softmax':
             t = np.maximum(t, EPS)
             f = - np.sum(y * np.log(t))
+        elif self.loss == 'multilogit':
+            t = np.clip(t, EPS, 1 - EPS)
+            f = - np.sum(y * np.log(t) + (1 - y) * np.log(1 - t))
         elif self.loss == 'quadratic':
             f = 0.5 * np.sum((y - t) ** 2)
         f /= x.shape[0]
@@ -213,7 +216,7 @@ class GLM(Model):
         check_is_fitted(self, "b")
 
         y = self.predict_proba(x)
-        if self.loss == 'logit':
+        if (self.loss == 'logit') or (self.loss == 'multilogit'):
             y = np.require(y >= 0.5, dtype=np.uint8)
         # elif self.loss == 'softmax':
         #     y = np.argmax(y, axis=1)

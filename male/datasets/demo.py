@@ -23,7 +23,7 @@ def load_mnist(shuffle_data=True, randseed='default'):
     x_test = x_test.toarray() / 255.0
 
     if shuffle_data:
-        shuffle(x_train, y_train, randseed=randseed)
+        x_train, y_train = shuffle(x_train, y_train, randseed=randseed)
 
     return (x_train, y_train), (x_test, y_test)
 
@@ -67,7 +67,7 @@ def load_cifar10(shuffle_data=True, randseed='default'):
     x_test, y_test = tmp['data'] / 255.0, tmp['labels']
 
     if shuffle_data:
-        shuffle(x_train, y_train, randseed=randseed)
+        x_train, y_train = shuffle(x_train, y_train, randseed=randseed)
 
     return (x_train, y_train), (x_test, y_test)
 
@@ -86,7 +86,7 @@ def load_svmguide1(shuffle_data=True, randseed='default'):
     x_test = x_test.toarray()
 
     if shuffle_data:
-        shuffle(x_train, y_train, randseed=randseed)
+        x_train, y_train = shuffle(x_train, y_train, randseed=randseed)
 
     return (x_train, y_train), (x_test, y_test)
 
@@ -105,7 +105,7 @@ def load_iris(shuffle_data=True, randseed='default'):
     x_test = x_test.toarray()
 
     if shuffle_data:
-        shuffle(x_train, y_train, randseed=randseed)
+        x_train, y_train = shuffle(x_train, y_train, randseed=randseed)
 
     return (x_train, y_train), (x_test, y_test)
 
@@ -124,7 +124,7 @@ def load_pima(shuffle_data=True, randseed='default'):
     x_test = x_test.toarray()
 
     if shuffle_data:
-        shuffle(x_train, y_train, randseed=randseed)
+        x_train, y_train = shuffle(x_train, y_train, randseed=randseed)
 
     return (x_train, y_train), (x_test, y_test)
 
@@ -143,7 +143,7 @@ def load_synthetic_2d(shuffle_data=True, randseed='default'):
     x_test = x_test.toarray()
 
     if shuffle_data:
-        shuffle(x_train, y_train, randseed=randseed)
+        x_train, y_train = shuffle(x_train, y_train, randseed=randseed)
 
     return (x_train, y_train), (x_test, y_test)
 
@@ -162,7 +162,7 @@ def load_synthetic_2d_semi(shuffle_data=True, randseed='default'):
     x_test = x_test.toarray()
 
     if shuffle_data:
-        shuffle(x_train, y_train, randseed=randseed)
+        x_train, y_train = shuffle(x_train, y_train, randseed=randseed)
 
     return (x_train, y_train), (x_test, y_test)
 
@@ -181,7 +181,7 @@ def load_housing(shuffle_data=True, randseed='default'):
     x_test = x_test.toarray()
 
     if shuffle_data:
-        shuffle(x_train, y_train, randseed=randseed)
+        x_train, y_train = shuffle(x_train, y_train, randseed=randseed)
 
     return (x_train, y_train), (x_test, y_test)
 
@@ -206,7 +206,7 @@ def load_20newsgroups(shuffle_data=True, randseed='default'):
     x_test = x_test.toarray()
 
     if shuffle_data:
-        shuffle(x_train, y_train, randseed=randseed)
+        x_train, y_train = shuffle(x_train, y_train, randseed=randseed)
 
     return (x_train, y_train), (x_test, y_test)
 
@@ -225,7 +225,7 @@ def load_fashion_mnist(shuffle_data=True, randseed='default'):
     x_test = x_test.toarray() / 255.0
 
     if shuffle_data:
-        shuffle(x_train, y_train, randseed=randseed)
+        x_train, y_train = shuffle(x_train, y_train, randseed=randseed)
 
     return (x_train, y_train), (x_test, y_test)
 
@@ -244,7 +244,24 @@ def load_a1a_semi(shuffle_data=True, randseed='default'):
     x_test = x_test.toarray()
 
     if shuffle_data:
-        shuffle(x_train, y_train, randseed=randseed)
+        x_train, y_train = shuffle(x_train, y_train, randseed=randseed)
+
+    return (x_train, y_train), (x_test, y_test)
+
+
+def load_yeast(shuffle_data=True, randseed='default'):
+    train_path = get_file("yeast_train.libsvm", origin=remote_data_dir() + "/yeast_train.libsvm",
+                          cache_subdir="demo")
+    test_path = get_file("yeast_test.libsvm", origin=remote_data_dir() + "/yeast_test.libsvm",
+                         cache_subdir="demo")
+
+    x_train, y_train = load_svmlight_file(train_path, multilabel=True, n_features=103)
+    x_test, y_test = load_svmlight_file(test_path, multilabel=True, n_features=103)
+    x_train, y_train = x_train.toarray(), np.array(y_train)
+    x_test, y_test = x_test.toarray(), np.array(y_test)
+
+    if shuffle_data:
+        x_train, y_train = shuffle(x_train, y_train, randseed=randseed)
 
     return (x_train, y_train), (x_test, y_test)
 

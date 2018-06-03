@@ -16,9 +16,11 @@ from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
 from sklearn.base import RegressorMixin
 from sklearn.base import TransformerMixin
+from sklearn.metrics import f1_score
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.utils import check_random_state
 
 from .configs import model_dir
@@ -231,16 +233,20 @@ class Model(BaseEstimator, ClassifierMixin,
             self.label_encoder = LabelEncoder()
             yy = self.label_encoder.fit_transform(yy)
             self.num_classes = len(self.label_encoder.classes_)
+        elif self.task == 'multilabel':
+            self.label_encoder = MultiLabelBinarizer()
+            yy = self.label_encoder.fit_transform(yy)
+            self.num_classes = len(self.label_encoder.classes_)
         return yy
 
     def _decode_labels(self, y):
-        if self.task == 'classification':
+        if self.task == 'classification' or self.task == 'multilabel':
             return self.label_encoder.inverse_transform(y)
         else:
             return y
 
     def _transform_labels(self, y):
-        if self.task == 'classification':
+        if self.task == 'classification' or self.task == 'multilabel':
             return self.label_encoder.transform(y)
         else:
             return y
@@ -254,14 +260,21 @@ class Model(BaseEstimator, ClassifierMixin,
     def predict(self, x):
         pass
 
+    def predict_proba(self, x):
+        pass
+
     def score(self, x, y, sample_weight=None):
         if self.exception:
             return -INF
         else:
             if self.task == 'classification':
-                return float(accuracy_score(self.predict(x), y))
+                return float(accuracy_score(y, self.predict(x)))
+            elif self.task == 'multilabel':
+                return float(f1_score(self._transform_labels(y),
+                                      self._transform_labels(self.predict(x)),
+                                      average='weighted'))
             else:
-                return -float(mean_squared_error(self.predict(x), y))
+                return -float(mean_squared_error(y, self.predict(x)))
 
     def save(self, file_path=None, overwrite=True):
         if file_path is None:
