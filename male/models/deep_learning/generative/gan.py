@@ -10,7 +10,7 @@ plt.style.use('ggplot')
 
 from .... import TensorFlowModel
 from .... import activations
-from ...distribution import Uniform
+from ...distributions import Uniform
 from ....utils.generic_utils import make_batches
 from ....utils.disp_utils import tile_raster_images
 from ....backend.tensorflow_backend import linear, batchnorm

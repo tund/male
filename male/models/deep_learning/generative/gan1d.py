@@ -9,8 +9,8 @@ import matplotlib.pyplot as plt
 plt.style.use('ggplot')
 
 from .... import TensorFlowModel
-from ...distribution import Uniform1D
-from ...distribution import Gaussian1D
+from ...distributions import Uniform1D
+from ...distributions import Gaussian1D
 from ....utils.generic_utils import make_batches
 from ....backend.tensorflow_backend import linear
 

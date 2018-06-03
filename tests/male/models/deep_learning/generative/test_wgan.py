@@ -14,8 +14,8 @@ from male import TensorFlowModel
 from male.callbacks import Display
 from male.callbacks import ImageSaver
 from male.callbacks import ModelCheckpoint
-from male.models.distribution import Uniform1D
-from male.models.distribution import Gaussian1D
+from male.models.distributions import Uniform1D
+from male.models.distributions import Gaussian1D
 from male.models.deep_learning.generative import WGAN
 
 

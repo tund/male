@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 plt.style.use('ggplot')
 
 from . import GAN1D
-from ...distribution import Gaussian
+from ...distributions import Gaussian
 from ....utils.generic_utils import make_batches
 from ....backend.tensorflow_backend import linear
 

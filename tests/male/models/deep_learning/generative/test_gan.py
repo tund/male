@@ -12,7 +12,7 @@ from male.configs import random_seed
 from male.datasets import demo
 from male import TensorFlowModel
 from male.callbacks import Display
-from male.models.distribution import Uniform
+from male.models.distributions import Uniform
 from male.models.deep_learning.generative import GAN
 
 

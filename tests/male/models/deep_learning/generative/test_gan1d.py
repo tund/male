@@ -9,9 +9,9 @@ import pytest
 from male.configs import model_dir
 from male.configs import random_seed
 from male.callbacks import Display
-from male.models.distribution import GMM1D
-from male.models.distribution import Uniform1D
-from male.models.distribution import Gaussian1D
+from male.models.distributions import GMM1D
+from male.models.distributions import Uniform1D
+from male.models.distributions import Gaussian1D
 from male.models.deep_learning.generative import GAN1D
 
 
