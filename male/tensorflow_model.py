@@ -105,7 +105,8 @@ class TensorFlowModel(Model):
             if y_train is not None:
                 y_train = self._transform_labels(y_train)
 
-        self.history = cbks.History()
+        if (not hasattr(self, 'history')) or self.history is None:
+            self.history = cbks.History()
         callbacks = [cbks.BaseLogger()] + [self.history] + self.callbacks
         if self.verbose:
             callbacks += [cbks.ProgbarLogger()]
@@ -153,7 +154,7 @@ class TensorFlowModel(Model):
         callbacks.on_train_end()
         self._on_train_end()
 
-        return self.history
+        return self
 
     def _on_train_begin(self):
         super(TensorFlowModel, self)._on_train_begin()
@@ -208,6 +209,7 @@ class TensorFlowModel(Model):
             model.tf_merged_summaries = tf.summary.merge_all()
             saver = tf.train.Saver()
             saver.restore(model.tf_session, file_path)
+        model.best_params = model.get_all_params()
         return model
 
     def get_params(self, deep=True):

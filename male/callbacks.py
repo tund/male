@@ -73,7 +73,7 @@ class CallbackList(object):
         self._delta_ts_batch_end.append(time.time() - t_before_callbacks)
         delta_t_median = np.median(self._delta_ts_batch_end)
         if self._delta_t_batch > 0. and (
-                        delta_t_median > 0.95 * self._delta_t_batch and delta_t_median > 0.1):
+                delta_t_median > 0.95 * self._delta_t_batch and delta_t_median > 0.1):
             warnings.warn('Method on_batch_end() is slow compared '
                           'to the batch update (%f). Check your callbacks.'
                           % delta_t_median)
@@ -372,7 +372,8 @@ class ImageSaver(Callback):
     def on_epoch_end(self, epoch, logs={}):
         if not self.model.stop_training:
             if ((epoch + 1) % self.freq == 0) and (self.monitor is not None):
-                imgs = self.model.generate_images(param=self.monitor['metrics'], epoch=epoch + 1, **self.monitor)
+                imgs = self.model.generate_images(param=self.monitor['metrics'], epoch=epoch + 1,
+                                                  **self.monitor)
                 import scipy
                 scipy.misc.imsave(self.filepath.format(epoch=epoch + 1, **logs), imgs)
 
@@ -386,7 +387,8 @@ class History(Callback):
     gets returned by the `fit` method of models.
     '''
 
-    def on_train_begin(self, logs={}):
+    def __init__(self):
+        super(History, self).__init__()
         self.epoch = []
         self.history = {}
 
@@ -549,7 +551,6 @@ class EarlyStopping(Callback):
         else:
             self.min_delta *= -1
 
-    def on_train_begin(self, logs={}):
         self.wait = 0  # Allow instances to be re-used
         self.best = np.Inf if self.monitor_op == np.less else -np.Inf
         self.best_idx = 0  # index of the epoch with the best performance

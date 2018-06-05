@@ -112,7 +112,8 @@ class Model(BaseEstimator, ClassifierMixin,
             if y_train is not None:
                 y_train = self._transform_labels(y_train)
 
-        self.history = cbks.History()
+        if (not hasattr(self, 'history')) or self.history is None:
+            self.history = cbks.History()
         callbacks = [cbks.BaseLogger()] + [self.history] + self.callbacks
         if self.verbose:
             callbacks += [cbks.ProgbarLogger()]
