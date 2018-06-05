@@ -5,6 +5,7 @@ from __future__ import absolute_import
 import pickle
 import numpy as np
 
+import networkx as nx
 from sklearn.datasets import load_svmlight_file
 from ..configs import random_seed
 from ..configs import remote_data_dir
@@ -264,6 +265,23 @@ def load_yeast(shuffle_data=True, randseed='default'):
         x_train, y_train = shuffle(x_train, y_train, randseed=randseed)
 
     return (x_train, y_train), (x_test, y_test)
+
+
+def load_wikipos():
+    graph_path = get_file("wiki_pos.graph", origin=remote_data_dir() + "/wiki_pos.graph",
+                          cache_subdir="demo")
+    label_path = get_file("wiki_pos.labels", origin=remote_data_dir() + "/wiki_pos.labels",
+                          cache_subdir="demo")
+
+    G = nx.read_edgelist(graph_path, nodetype=int,
+                         data=(('weight', float),),
+                         create_using=nx.DiGraph()).to_undirected()
+    labels = []
+    with open(label_path) as fin:
+        for line in fin:
+            labels.append(tuple([int(i) for i in line.split()]))
+
+    return G, np.array(labels)
 
 
 def shuffle(x, y=None, randseed='default'):
