@@ -61,7 +61,7 @@ class TensorFlowModel(Model):
     def _build_model(self, x):
         pass
 
-    def fit(self, x=None, y=None):
+    def fit(self, x=None, y=None, **kwargs):
         """Fit the model to the data X and the label y if available
         """
 
@@ -137,7 +137,7 @@ class TensorFlowModel(Model):
                 self._fit_loop(x_train, y_train,
                                do_validation=do_validation,
                                x_valid=x_valid, y_valid=y_valid,
-                               callbacks=callbacks, callback_metrics=callback_metrics)
+                               callbacks=callbacks, callback_metrics=callback_metrics, **kwargs)
             except KeyboardInterrupt:
                 sys.exit()
             except:
@@ -149,7 +149,7 @@ class TensorFlowModel(Model):
             self._fit_loop(x_train, y_train,
                            do_validation=do_validation,
                            x_valid=x_valid, y_valid=y_valid,
-                           callbacks=callbacks, callback_metrics=callback_metrics)
+                           callbacks=callbacks, callback_metrics=callback_metrics, **kwargs)
 
         callbacks.on_train_end()
         self._on_train_end()
