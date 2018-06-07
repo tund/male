@@ -272,6 +272,8 @@ def load_wikipos():
                           cache_subdir="demo")
     label_path = get_file("wiki_pos.labels", origin=remote_data_dir() + "/wiki_pos.labels",
                           cache_subdir="demo")
+    walk_path = get_file("wiki_pos.walks", origin=remote_data_dir() + "/wiki_pos.walks",
+                         cache_subdir="demo")
 
     G = nx.read_edgelist(graph_path, nodetype=int,
                          data=(('weight', float),),
@@ -281,7 +283,12 @@ def load_wikipos():
         for line in fin:
             labels.append(tuple([int(i) for i in line.split()]))
 
-    return G, np.array(labels)
+    walks = []
+    with open(walk_path) as fin:
+        for line in fin:
+            walks.append(list(map(int, line.split())))
+
+    return G, np.array(labels), walks
 
 
 def shuffle(x, y=None, randseed='default'):
