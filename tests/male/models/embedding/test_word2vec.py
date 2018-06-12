@@ -6,7 +6,7 @@ import sys
 import pytest
 from male.datasets import demo
 from male.callbacks import Display
-from male.models.deep_learning.embedding import Word2Vec
+from male.models.embedding import Word2Vec
 
 
 @pytest.mark.skipif('tensorflow' not in sys.modules, reason="requires tensorflow library")

@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 plt.style.use('ggplot')
 
-from .... import TensorFlowModel
+from male import TensorFlowModel
 
 
 class Word2Vec(TensorFlowModel):
