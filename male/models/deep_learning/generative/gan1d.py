@@ -9,8 +9,8 @@ import matplotlib.pyplot as plt
 plt.style.use('ggplot')
 
 from .... import TensorFlowModel
-from ...distribution import Uniform1D
-from ...distribution import Gaussian1D
+from ...distributions import Uniform1D
+from ...distributions import Gaussian1D
 from ....utils.generic_utils import make_batches
 from ....backend.tensorflow_backend import linear
 
@@ -76,12 +76,11 @@ class GAN1D(TensorFlowModel):
         self.d_loss = tf.reduce_mean(-tf.log(self.d1) - tf.log(1 - self.d2))
         self.g_loss = tf.reduce_mean(-tf.log(self.d2))
 
-        self.d_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='discriminator')
-        self.g_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='generator')
-
-        self.d_opt = self._create_optimizer(self.d_loss, self.d_params,
+        d_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='discriminator')
+        g_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='generator')
+        self.d_opt = self._create_optimizer(self.d_loss, d_params,
                                             self.discriminator_learning_rate)
-        self.g_opt = self._create_optimizer(self.g_loss, self.g_params,
+        self.g_opt = self._create_optimizer(self.g_loss, g_params,
                                             self.generator_learning_rate)
 
     def _fit_loop(self, x, y,

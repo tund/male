@@ -19,12 +19,12 @@ from male.metrics import InceptionScore
 from male.metrics import InceptionMetricList
 from male.models.distributions import Uniform1D
 from male.models.distributions import Gaussian1D
-from male.models.deep_learning.generative import DCGAN
+from male.models.deep_learning.generative import WGAN_GP
 
 
 @pytest.mark.skipif('tensorflow' not in sys.modules, reason="requires tensorflow library")
-def test_dcgan_mnist(show_figure=False, block_figure_on_end=False):
-    print("========== Test DCGAN on MNIST data ==========")
+def test_wgan_gp_mnist(show_figure=False, block_figure_on_end=False):
+    print("========== Test WGAN-GP on MNIST data ==========")
 
     np.random.seed(random_seed())
 
@@ -32,10 +32,13 @@ def test_dcgan_mnist(show_figure=False, block_figure_on_end=False):
     x_train = x_train.astype(np.float32).reshape([-1, 28, 28, 1]) / 0.5 - 1.
     x_test = x_test.astype(np.float32).reshape([-1, 28, 28, 1]) / 0.5 - 1.
 
+    root_dir = os.path.join(model_dir(), "male/WGAN-GP/MNIST")
     loss_display = Display(layout=(1, 1),
                            dpi='auto',
                            show=show_figure,
                            block_on_end=block_figure_on_end,
+                           filepath=[os.path.join(root_dir, "loss/loss_{epoch:04d}.png"),
+                                     os.path.join(root_dir, "loss/loss_{epoch:04d}.pdf")],
                            monitor=[{'metrics': ['d_loss', 'g_loss'],
                                      'type': 'line',
                                      'labels': ["discriminator loss", "generator loss"],
@@ -58,44 +61,46 @@ def test_dcgan_mnist(show_figure=False, block_figure_on_end=False):
                                        },
                                       ])
 
-    model = DCGAN(model_name="DCGAN_MNIST_z_uniform",
-                  num_z=10,  # set to 100 for a full run
-                  z_prior=Uniform1D(low=-1.0, high=1.0),
-                  img_size=(28, 28, 1),
-                  batch_size=16,  # set to 64 for a full run
-                  num_conv_layers=3,  # set to 3 for a full run
-                  num_gen_feature_maps=4,  # set to 32 for a full run
-                  num_dis_feature_maps=4,  # set to 32 for a full run
-                  metrics=['d_loss', 'g_loss'],
-                  callbacks=[loss_display, sample_display],
-                  num_epochs=4,  # set to 100 for a full run
-                  # summary_freq=1,  # uncomment this for a full run
-                  random_state=random_seed(),
-                  verbose=1)
+    model = WGAN_GP(model_name="WGAN_GP_MNIST_z_uniform",
+                    num_z=10,  # set to 100 for a full run
+                    z_prior=Uniform1D(low=-1.0, high=1.0),
+                    img_size=(28, 28, 1),
+                    batch_size=16,  # set to 64 for a full run
+                    num_conv_layers=3,  # set to 3 for a full run
+                    num_gen_feature_maps=4,  # set to 32 for a full run
+                    num_dis_feature_maps=4,  # set to 32 for a full run
+                    metrics=['d_loss', 'g_loss'],
+                    callbacks=[loss_display, sample_display],
+                    num_epochs=4,  # set to 100 for a full run
+                    # summary_freq=1,  # uncomment this for a full run
+                    random_state=random_seed(),
+                    log_path=os.path.join(root_dir, "logs"),
+                    verbose=1)
 
     model.fit(x_train)
 
-    model = DCGAN(model_name="DCGAN_MNIST_z_Gaussian",
-                  num_z=10,  # set to 100 for a full run
-                  z_prior=Gaussian1D(mu=0.0, sigma=1.0),
-                  img_size=(28, 28, 1),
-                  batch_size=32,  # set to 64 for a full run
-                  num_conv_layers=3,  # set to 3 for a full run
-                  num_gen_feature_maps=4,  # set to 32 for a full run
-                  num_dis_feature_maps=4,  # set to 32 for a full run
-                  metrics=['d_loss', 'g_loss'],
-                  callbacks=[loss_display, sample_display],
-                  num_epochs=4,  # set to 100 for a full run
-                  # summary_freq=1,  # uncomment this for a full run
-                  random_state=random_seed(),
-                  verbose=1)
+    model = WGAN_GP(model_name="WGAN_GP_MNIST_z_Gaussian",
+                    num_z=10,  # set to 100 for a full run
+                    z_prior=Gaussian1D(mu=0.0, sigma=1.0),
+                    img_size=(28, 28, 1),
+                    batch_size=32,  # set to 64 for a full run
+                    num_conv_layers=3,  # set to 3 for a full run
+                    num_gen_feature_maps=4,  # set to 32 for a full run
+                    num_dis_feature_maps=4,  # set to 32 for a full run
+                    metrics=['d_loss', 'g_loss'],
+                    callbacks=[loss_display, sample_display],
+                    num_epochs=4,  # set to 100 for a full run
+                    # summary_freq=1,  # uncomment this for a full run
+                    random_state=random_seed(),
+                    log_path=os.path.join(root_dir, "logs"),
+                    verbose=1)
 
     model.fit(x_train)
 
 
 @pytest.mark.skipif('tensorflow' not in sys.modules, reason="requires tensorflow library")
-def test_dcgan_fashion_mnist(show_figure=False, block_figure_on_end=False):
-    print("========== Test DCGAN on Fashion-MNIST data ==========")
+def test_wgan_gp_fashion_mnist(show_figure=False, block_figure_on_end=False):
+    print("========== Test WGAN-GP on Fashion-MNIST data ==========")
 
     np.random.seed(random_seed())
 
@@ -103,10 +108,13 @@ def test_dcgan_fashion_mnist(show_figure=False, block_figure_on_end=False):
     x_train = x_train.astype(np.float32).reshape([-1, 28, 28, 1]) / 0.5 - 1.
     x_test = x_test.astype(np.float32).reshape([-1, 28, 28, 1]) / 0.5 - 1.
 
+    root_dir = os.path.join(model_dir(), "male/WGAN-GP/FashionMNIST")
     loss_display = Display(layout=(1, 1),
                            dpi='auto',
                            show=show_figure,
                            block_on_end=block_figure_on_end,
+                           filepath=[os.path.join(root_dir, "loss/loss_{epoch:04d}.png"),
+                                     os.path.join(root_dir, "loss/loss_{epoch:04d}.pdf")],
                            monitor=[{'metrics': ['d_loss', 'g_loss'],
                                      'type': 'line',
                                      'labels': ["discriminator loss", "generator loss"],
@@ -129,42 +137,44 @@ def test_dcgan_fashion_mnist(show_figure=False, block_figure_on_end=False):
                                        },
                                       ])
 
-    model = DCGAN(model_name="DCGAN_MNIST",
-                  num_z=10,  # set to 100 for a full run
-                  z_prior=Uniform1D(low=-1.0, high=1.0),
-                  img_size=(28, 28, 1),
-                  batch_size=16,  # set to 64 for a full run
-                  num_conv_layers=3,  # set to 3 for a full run
-                  num_gen_feature_maps=4,  # set to 64 for a full run
-                  num_dis_feature_maps=4,  # set to 64 for a full run
-                  metrics=['d_loss', 'g_loss'],
-                  callbacks=[loss_display, sample_display],
-                  num_epochs=4,  # set to 100 for a full run
-                  random_state=random_seed(),
-                  verbose=1)
+    model = WGAN_GP(model_name="WGAN_GP_FashionMNIST",
+                    num_z=10,  # set to 100 for a full run
+                    z_prior=Uniform1D(low=-1.0, high=1.0),
+                    img_size=(28, 28, 1),
+                    batch_size=16,  # set to 64 for a full run
+                    num_conv_layers=3,  # set to 3 for a full run
+                    num_gen_feature_maps=4,  # set to 64 for a full run
+                    num_dis_feature_maps=4,  # set to 64 for a full run
+                    metrics=['d_loss', 'g_loss'],
+                    callbacks=[loss_display, sample_display],
+                    num_epochs=4,  # set to 100 for a full run
+                    random_state=random_seed(),
+                    log_path=os.path.join(root_dir, "logs"),
+                    verbose=1)
 
     model.fit(x_train)
 
-    model = DCGAN(model_name="DCGAN_MNIST",
-                  num_z=10,  # set to 100 for a full run
-                  z_prior=Gaussian1D(mu=0.0, sigma=1.0),
-                  img_size=(28, 28, 1),
-                  batch_size=32,  # set to 64 for a full run
-                  num_conv_layers=3,  # set to 3 for a full run
-                  num_gen_feature_maps=4,  # set to 64 for a full run
-                  num_dis_feature_maps=4,  # set to 64 for a full run
-                  metrics=['d_loss', 'g_loss'],
-                  callbacks=[loss_display, sample_display],
-                  num_epochs=4,  # set to 100 for a full run
-                  random_state=random_seed(),
-                  verbose=1)
+    model = WGAN_GP(model_name="WGAN_GP_FashionMNIST",
+                    num_z=10,  # set to 100 for a full run
+                    z_prior=Gaussian1D(mu=0.0, sigma=1.0),
+                    img_size=(28, 28, 1),
+                    batch_size=32,  # set to 64 for a full run
+                    num_conv_layers=3,  # set to 3 for a full run
+                    num_gen_feature_maps=4,  # set to 64 for a full run
+                    num_dis_feature_maps=4,  # set to 64 for a full run
+                    metrics=['d_loss', 'g_loss'],
+                    callbacks=[loss_display, sample_display],
+                    num_epochs=4,  # set to 100 for a full run
+                    random_state=random_seed(),
+                    log_path=os.path.join(root_dir, "logs"),
+                    verbose=1)
 
     model.fit(x_train)
 
 
 @pytest.mark.skipif('tensorflow' not in sys.modules, reason="requires tensorflow library")
-def test_dcgan_save_and_load(show_figure=False, block_figure_on_end=False):
-    print("========== Test Save and Load functions of DCGAN on MNIST data ==========")
+def test_wgan_gp_save_and_load(show_figure=False, block_figure_on_end=False):
+    print("========== Test Save and Load functions of WGAN-GP on MNIST data ==========")
 
     np.random.seed(random_seed())
 
@@ -172,11 +182,13 @@ def test_dcgan_save_and_load(show_figure=False, block_figure_on_end=False):
     x_train = x_train.astype(np.float32).reshape([-1, 28, 28, 1]) / 0.5 - 1.
     x_test = x_test.astype(np.float32).reshape([-1, 28, 28, 1]) / 0.5 - 1.
 
-    root_dir = os.path.join(model_dir(), "male/DCGAN/MNIST")
+    root_dir = os.path.join(model_dir(), "male/WGAN-GP/MNIST")
     loss_display = Display(layout=(1, 1),
                            dpi='auto',
                            show=show_figure,
                            block_on_end=block_figure_on_end,
+                           filepath=[os.path.join(root_dir, "loss/loss_{epoch:04d}.png"),
+                                     os.path.join(root_dir, "loss/loss_{epoch:04d}.pdf")],
                            monitor=[{'metrics': ['d_loss', 'g_loss'],
                                      'type': 'line',
                                      'labels': ["discriminator loss", "generator loss"],
@@ -199,19 +211,19 @@ def test_dcgan_save_and_load(show_figure=False, block_figure_on_end=False):
                                        },
                                       ])
 
-    model = DCGAN(model_name="DCGAN_MNIST_SaveLoad",
-                  num_z=10,  # set to 100 for a full run
-                  img_size=(28, 28, 1),
-                  batch_size=16,  # set to 64 for a full run
-                  num_conv_layers=3,  # set to 3 for a full run
-                  num_gen_feature_maps=4,  # set to 32 for a full run
-                  num_dis_feature_maps=4,  # set to 32 for a full run
-                  metrics=['d_loss', 'g_loss'],
-                  callbacks=[loss_display, sample_display],
-                  num_epochs=2,  # set to 100 for a full run
-                  log_path=os.path.join(root_dir, "logs"),
-                  random_state=random_seed(),
-                  verbose=1)
+    model = WGAN_GP(model_name="WGAN_GP_MNIST_SaveLoad",
+                    num_z=10,  # set to 100 for a full run
+                    img_size=(28, 28, 1),
+                    batch_size=16,  # set to 64 for a full run
+                    num_conv_layers=3,  # set to 3 for a full run
+                    num_gen_feature_maps=4,  # set to 32 for a full run
+                    num_dis_feature_maps=4,  # set to 32 for a full run
+                    metrics=['d_loss', 'g_loss'],
+                    callbacks=[loss_display, sample_display],
+                    num_epochs=2,  # set to 100 for a full run
+                    log_path=os.path.join(root_dir, "logs"),
+                    random_state=random_seed(),
+                    verbose=1)
 
     model.fit(x_train)
 
@@ -225,8 +237,8 @@ def test_dcgan_save_and_load(show_figure=False, block_figure_on_end=False):
 
 
 @pytest.mark.skipif('tensorflow' not in sys.modules, reason="requires tensorflow library")
-def test_dcgan_cifar10(show_figure=False, block_figure_on_end=False):
-    print("========== Test DCGAN on CIFAR10 data ==========")
+def test_wgan_gp_cifar10(show_figure=False, block_figure_on_end=False):
+    print("========== Test WGAN-GP on CIFAR10 data ==========")
 
     np.random.seed(random_seed())
 
@@ -235,11 +247,13 @@ def test_dcgan_cifar10(show_figure=False, block_figure_on_end=False):
     x_train = x_train[:num_data].astype(np.float32).reshape([-1, 32, 32, 3]) / 0.5 - 1.
     x_test = x_test.astype(np.float32).reshape([-1, 32, 32, 3]) / 0.5 - 1.
 
-    root_dir = os.path.join(model_dir(), "male/DCGAN/cifar10")
+    root_dir = os.path.join(model_dir(), "male/WGAN-GP/CIFAR10")
     loss_display = Display(layout=(1, 1),
                            dpi='auto',
                            show=show_figure,
                            block_on_end=block_figure_on_end,
+                           filepath=[os.path.join(root_dir, "loss/loss_{epoch:04d}.png"),
+                                     os.path.join(root_dir, "loss/loss_{epoch:04d}.pdf")],
                            monitor=[{'metrics': ['d_loss', 'g_loss'],
                                      'type': 'line',
                                      'labels': ["discriminator loss", "generator loss"],
@@ -262,27 +276,27 @@ def test_dcgan_cifar10(show_figure=False, block_figure_on_end=False):
                                        },
                                       ])
 
-    model = DCGAN(model_name="DCGAN_CIFAR10",
-                  num_z=10,  # set to 100 for a full run
-                  img_size=(32, 32, 3),
-                  batch_size=16,  # set to 64 for a full run
-                  num_conv_layers=3,  # set to 3 for a full run
-                  num_gen_feature_maps=4,  # set to 32 for a full run
-                  num_dis_feature_maps=4,  # set to 32 for a full run
-                  metrics=['d_loss', 'g_loss'],
-                  callbacks=[loss_display, sample_display],
-                  num_epochs=4,  # set to 100 for a full run
-                  random_state=random_seed(),
-                  log_path=os.path.join(root_dir, "logs"),
-                  verbose=1)
+    model = WGAN_GP(model_name="WGAN_GP_CIFAR10",
+                    num_z=10,  # set to 100 for a full run
+                    img_size=(32, 32, 3),
+                    batch_size=16,  # set to 64 for a full run
+                    num_conv_layers=3,  # set to 3 for a full run
+                    num_gen_feature_maps=4,  # set to 32 for a full run
+                    num_dis_feature_maps=4,  # set to 32 for a full run
+                    metrics=['d_loss', 'g_loss'],
+                    callbacks=[loss_display, sample_display],
+                    num_epochs=4,  # set to 100 for a full run
+                    random_state=random_seed(),
+                    log_path=os.path.join(root_dir, "logs"),
+                    verbose=1)
 
     model.fit(x_train)
 
 
 @pytest.mark.skipif('tensorflow' not in sys.modules, reason="requires tensorflow library")
 @pytest.mark.skipif(sys.platform == 'win32', reason="does not run on windows")
-def test_dcgan_cifar10_inception_score(show_figure=False, block_figure_on_end=False):
-    print("========== Test DCGAN with Inception Score on CIFAR10 data ==========")
+def test_wgan_gp_cifar10_inception_score(show_figure=False, block_figure_on_end=False):
+    print("========== Test WGAN-GP with Inception Score on CIFAR10 data ==========")
 
     np.random.seed(random_seed())
 
@@ -291,7 +305,7 @@ def test_dcgan_cifar10_inception_score(show_figure=False, block_figure_on_end=Fa
     x_train = x_train[:num_data].astype(np.float32).reshape([-1, 32, 32, 3]) / 0.5 - 1.
     x_test = x_test.astype(np.float32).reshape([-1, 32, 32, 3]) / 0.5 - 1.
 
-    root_dir = os.path.join(model_dir(), "male/DCGAN/cifar10")
+    root_dir = os.path.join(model_dir(), "male/WGAN-GP/CIFAR10")
     filepath = os.path.join(root_dir, "checkpoints/{epoch:04d}_{inception_score:.6f}.ckpt")
     checkpoint = ModelCheckpoint(filepath,
                                  mode='max',
@@ -347,30 +361,30 @@ def test_dcgan_cifar10_inception_score(show_figure=False, block_figure_on_end=Fa
                                        },
                                       ])
 
-    model = DCGAN(model_name="DCGAN_CIFAR10",
-                  num_z=10,  # set to 100 for a full run
-                  img_size=(32, 32, 3),
-                  batch_size=16,  # set to 64 for a full run
-                  num_conv_layers=3,  # set to 3 for a full run
-                  num_gen_feature_maps=4,  # set to 32 for a full run
-                  num_dis_feature_maps=4,  # set to 32 for a full run
-                  metrics=['d_loss', 'g_loss', 'inception_score'],
-                  callbacks=[loss_display, inception_score_display, sample_display, checkpoint],
-                  num_epochs=4,  # set to 100 for a full run
-                  inception_metrics=InceptionScore(),
-                  inception_metrics_freq=1,
-                  # summary_freq=1,  # uncomment this for a full run
-                  log_path=os.path.join(root_dir, "logs"),
-                  random_state=random_seed(),
-                  verbose=1)
+    model = WGAN_GP(model_name="WGAN_GP_CIFAR10",
+                    num_z=10,  # set to 100 for a full run
+                    img_size=(32, 32, 3),
+                    batch_size=16,  # set to 64 for a full run
+                    num_conv_layers=3,  # set to 3 for a full run
+                    num_gen_feature_maps=4,  # set to 32 for a full run
+                    num_dis_feature_maps=4,  # set to 32 for a full run
+                    metrics=['d_loss', 'g_loss', 'inception_score'],
+                    callbacks=[loss_display, inception_score_display, sample_display, checkpoint],
+                    num_epochs=4,  # set to 100 for a full run
+                    inception_metrics=InceptionScore(),
+                    inception_metrics_freq=1,
+                    # summary_freq=1,  # uncomment this for a full run
+                    log_path=os.path.join(root_dir, "logs"),
+                    random_state=random_seed(),
+                    verbose=1)
 
     model.fit(x_train)
 
 
 @pytest.mark.skipif('tensorflow' not in sys.modules, reason="requires tensorflow library")
 @pytest.mark.skipif(sys.platform == 'win32', reason="does not run on windows")
-def test_dcgan_cifar10_fid(show_figure=False, block_figure_on_end=False):
-    print("========== Test DCGAN with FID on CIFAR10 data ==========")
+def test_wgan_gp_cifar10_fid(show_figure=False, block_figure_on_end=False):
+    print("========== Test WGAN-GP with FID on CIFAR10 data ==========")
 
     np.random.seed(random_seed())
 
@@ -379,7 +393,7 @@ def test_dcgan_cifar10_fid(show_figure=False, block_figure_on_end=False):
     x_train = x_train[:num_data].astype(np.float32).reshape([-1, 32, 32, 3]) / 0.5 - 1.
     x_test = x_test.astype(np.float32).reshape([-1, 32, 32, 3]) / 0.5 - 1.
 
-    root_dir = os.path.join(model_dir(), "male/DCGAN/cifar10")
+    root_dir = os.path.join(model_dir(), "male/WGAN-GP/CIFAR10")
     checkpoints = ModelCheckpoint(
         os.path.join(root_dir, "checkpoints/{epoch:04d}_{FID:.6f}.ckpt"),
         mode='min',
@@ -433,32 +447,32 @@ def test_dcgan_cifar10_fid(show_figure=False, block_figure_on_end=False):
                                        },
                                       ])
 
-    model = DCGAN(model_name="DCGAN_CIFAR10",
-                  num_z=10,  # set to 100 for a full run
-                  img_size=(32, 32, 3),
-                  batch_size=16,  # set to 64 for a full run
-                  num_conv_layers=3,  # set to 3 for a full run
-                  num_gen_feature_maps=4,  # set to 32 for a full run
-                  num_dis_feature_maps=4,  # set to 32 for a full run
-                  metrics=['d_loss', 'g_loss', 'FID', 'FID_100points'],
-                  callbacks=[loss_display, fid_display,
-                             sample_display, checkpoints],
-                  num_epochs=4,  # set to 100 for a full run
-                  inception_metrics=[FID(data="cifar10"),
-                                     FID(name="FID_100points", data=x_train[:100])],
-                  inception_metrics_freq=1,
-                  # summary_freq=1,  # uncomment this for a full run
-                  log_path=os.path.join(root_dir, "logs"),
-                  random_state=random_seed(),
-                  verbose=1)
+    model = WGAN_GP(model_name="WGAN_GP_CIFAR10",
+                    num_z=10,  # set to 100 for a full run
+                    img_size=(32, 32, 3),
+                    batch_size=16,  # set to 64 for a full run
+                    num_conv_layers=3,  # set to 3 for a full run
+                    num_gen_feature_maps=4,  # set to 32 for a full run
+                    num_dis_feature_maps=4,  # set to 32 for a full run
+                    metrics=['d_loss', 'g_loss', 'FID', 'FID_100points'],
+                    callbacks=[loss_display, fid_display,
+                               sample_display, checkpoints],
+                    num_epochs=4,  # set to 100 for a full run
+                    inception_metrics=[FID(data="cifar10"),
+                                       FID(name="FID_100points", data=x_train[:100])],
+                    inception_metrics_freq=1,
+                    # summary_freq=1,  # uncomment this for a full run
+                    log_path=os.path.join(root_dir, "logs"),
+                    random_state=random_seed(),
+                    verbose=1)
 
     model.fit(x_train)
 
 
 @pytest.mark.skipif('tensorflow' not in sys.modules, reason="requires tensorflow library")
 @pytest.mark.skipif(sys.platform == 'win32', reason="does not run on windows")
-def test_dcgan_cifar10_inception_metric(show_figure=False, block_figure_on_end=False):
-    print("========== Test DCGAN with Inception Score and FID on CIFAR10 data ==========")
+def test_wgan_gp_cifar10_inception_metric(show_figure=False, block_figure_on_end=False):
+    print("========== Test WGAN-GP with Inception Score and FID on CIFAR10 data ==========")
 
     np.random.seed(random_seed())
 
@@ -467,7 +481,7 @@ def test_dcgan_cifar10_inception_metric(show_figure=False, block_figure_on_end=F
     x_train = x_train[:num_data].astype(np.float32).reshape([-1, 32, 32, 3]) / 0.5 - 1.
     x_test = x_test.astype(np.float32).reshape([-1, 32, 32, 3]) / 0.5 - 1.
 
-    root_dir = os.path.join(model_dir(), "male/DCGAN/cifar10")
+    root_dir = os.path.join(model_dir(), "male/WGAN-GP/CIFAR10")
     checkpoints_is = ModelCheckpoint(
         os.path.join(root_dir, "checkpoints_is/the_best_is.ckpt"),
         mode='max',
@@ -545,24 +559,24 @@ def test_dcgan_cifar10_inception_metric(show_figure=False, block_figure_on_end=F
                                        },
                                       ])
 
-    model = DCGAN(model_name="DCGAN_CIFAR10",
-                  num_z=10,  # set to 100 for a full run
-                  img_size=(32, 32, 3),
-                  batch_size=16,  # set to 64 for a full run
-                  num_conv_layers=3,  # set to 3 for a full run
-                  num_gen_feature_maps=4,  # set to 32 for a full run
-                  num_dis_feature_maps=4,  # set to 32 for a full run
-                  metrics=['d_loss', 'g_loss',
-                           'inception_score', 'inception_score_std', 'FID'],
-                  callbacks=[loss_display, inception_score_display, fid_display,
-                             sample_display, checkpoints_is, checkpoints_fid],
-                  num_epochs=4,  # set to 100 for a full run
-                  inception_metrics=[InceptionScore(), FID(data="cifar10")],
-                  inception_metrics_freq=1,
-                  # summary_freq=1,  # uncomment this for a full run
-                  log_path=os.path.join(root_dir, "logs"),
-                  random_state=random_seed(),
-                  verbose=1)
+    model = WGAN_GP(model_name="WGAN_GP_CIFAR10",
+                    num_z=100,  # set to 100 for a full run
+                    img_size=(32, 32, 3),
+                    batch_size=64,  # set to 64 for a full run
+                    num_conv_layers=3,  # set to 3 for a full run
+                    num_gen_feature_maps=32,  # set to 32 for a full run
+                    num_dis_feature_maps=32,  # set to 32 for a full run
+                    metrics=['d_loss', 'g_loss',
+                             'inception_score', 'inception_score_std', 'FID'],
+                    callbacks=[loss_display, inception_score_display, fid_display,
+                               sample_display, checkpoints_is, checkpoints_fid],
+                    num_epochs=4,  # set to 100 for a full run
+                    inception_metrics=[InceptionScore(), FID(data="cifar10")],
+                    inception_metrics_freq=1,
+                    summary_freq=1,  # uncomment this for a full run
+                    log_path=os.path.join(root_dir, "logs"),
+                    random_state=random_seed(),
+                    verbose=1)
 
     model.fit(x_train)
     filepath = os.path.join(root_dir, "checkpoints_fid/the_best_fid.ckpt")
@@ -575,8 +589,8 @@ def test_dcgan_cifar10_inception_metric(show_figure=False, block_figure_on_end=F
 
 
 @pytest.mark.skipif('tensorflow' not in sys.modules, reason="requires tensorflow library")
-def test_dcgan_image_saver():
-    print("========== Test DCGAN with Image Saver ==========")
+def test_wgan_gp_image_saver():
+    print("========== Test WGAN-GP with Image Saver ==========")
 
     np.random.seed(random_seed())
 
@@ -585,7 +599,7 @@ def test_dcgan_image_saver():
     x_train = x_train[:num_data].astype(np.float32).reshape([-1, 28, 28, 1]) / 0.5 - 1.
     x_test = x_test.astype(np.float32).reshape([-1, 28, 28, 1]) / 0.5 - 1.
 
-    root_dir = os.path.join(model_dir(), "male/DCGAN/imagesaver/mnist")
+    root_dir = os.path.join(model_dir(), "male/WGAN-GP/ImageSaver/MNIST")
     imgsaver = ImageSaver(freq=1,
                           filepath=os.path.join(root_dir, "mnist_{epoch:04d}.png"),
                           monitor={'metrics': 'x_samples',
@@ -593,19 +607,19 @@ def test_dcgan_image_saver():
                                    'tile_shape': (10, 10),
                                    })
 
-    model = DCGAN(model_name="DCGAN_MNIST",
-                  num_z=10,  # set to 100 for a full run
-                  img_size=(28, 28, 1),
-                  batch_size=16,  # set to 64 for a full run
-                  num_conv_layers=3,  # set to 3 for a full run
-                  num_gen_feature_maps=4,  # set to 32 for a full run
-                  num_dis_feature_maps=4,  # set to 32 for a full run
-                  metrics=['d_loss', 'g_loss'],
-                  callbacks=[imgsaver],
-                  num_epochs=4,  # set to 100 for a full run
-                  random_state=random_seed(),
-                  log_path=os.path.join(root_dir, "logs"),
-                  verbose=1)
+    model = WGAN_GP(model_name="WGAN_GP_MNIST",
+                    num_z=10,  # set to 100 for a full run
+                    img_size=(28, 28, 1),
+                    batch_size=16,  # set to 64 for a full run
+                    num_conv_layers=3,  # set to 3 for a full run
+                    num_gen_feature_maps=4,  # set to 32 for a full run
+                    num_dis_feature_maps=4,  # set to 32 for a full run
+                    metrics=['d_loss', 'g_loss'],
+                    callbacks=[imgsaver],
+                    num_epochs=4,  # set to 100 for a full run
+                    random_state=random_seed(),
+                    log_path=os.path.join(root_dir, "logs"),
+                    verbose=1)
 
     model.fit(x_train)
 
@@ -615,7 +629,8 @@ def test_dcgan_image_saver():
     x_train = x_train[:num_data].astype(np.float32).reshape([-1, 32, 32, 3]) / 0.5 - 1.
     x_test = x_test.astype(np.float32).reshape([-1, 32, 32, 3]) / 0.5 - 1.
 
-    root_dir = os.path.join(model_dir(), "male/DCGAN/imagesaver/cifar10")
+    # Test saving color images on CIFAR-10
+    root_dir = os.path.join(model_dir(), "male/WGAN-GP/ImageSaver/CIFAR10")
     imgsaver = ImageSaver(freq=1,
                           filepath=os.path.join(root_dir, "cifar10_{epoch:04d}.png"),
                           monitor={'metrics': 'x_samples',
@@ -623,30 +638,30 @@ def test_dcgan_image_saver():
                                    'tile_shape': (10, 10),
                                    })
 
-    model = DCGAN(model_name="DCGAN_CIFAR10",
-                  num_z=10,  # set to 100 for a full run
-                  img_size=(32, 32, 3),
-                  batch_size=16,  # set to 64 for a full run
-                  num_conv_layers=3,  # set to 3 for a full run
-                  num_gen_feature_maps=4,  # set to 32 for a full run
-                  num_dis_feature_maps=4,  # set to 32 for a full run
-                  metrics=['d_loss', 'g_loss'],
-                  callbacks=[imgsaver],
-                  num_epochs=4,  # set to 100 for a full run
-                  random_state=random_seed(),
-                  log_path=os.path.join(root_dir, "logs"),
-                  verbose=1)
+    model = WGAN_GP(model_name="WGAN_GP_CIFAR10",
+                    num_z=10,  # set to 100 for a full run
+                    img_size=(32, 32, 3),
+                    batch_size=16,  # set to 64 for a full run
+                    num_conv_layers=3,  # set to 3 for a full run
+                    num_gen_feature_maps=4,  # set to 32 for a full run
+                    num_dis_feature_maps=4,  # set to 32 for a full run
+                    metrics=['d_loss', 'g_loss'],
+                    callbacks=[imgsaver],
+                    num_epochs=4,  # set to 100 for a full run
+                    random_state=random_seed(),
+                    log_path=os.path.join(root_dir, "logs"),
+                    verbose=1)
 
     model.fit(x_train)
 
 
 if __name__ == '__main__':
     pytest.main([__file__])
-    # test_dcgan_mnist(show_figure=True, block_figure_on_end=True)
-    # test_dcgan_fashion_mnist(show_figure=True, block_figure_on_end=True)
-    # test_dcgan_save_and_load(show_figure=True, block_figure_on_end=True)
-    # test_dcgan_cifar10(show_figure=True, block_figure_on_end=True)
-    # test_dcgan_cifar10_inception_score(show_figure=True, block_figure_on_end=True)
-    # test_dcgan_cifar10_fid(show_figure=True, block_figure_on_end=True)
-    # test_dcgan_cifar10_inception_metric(show_figure=True, block_figure_on_end=True)
-    # test_dcgan_image_saver()
+    # test_wgan_gp_mnist(show_figure=True, block_figure_on_end=True)
+    # test_wgan_gp_fashion_mnist(show_figure=True, block_figure_on_end=True)
+    # test_wgan_gp_save_and_load(show_figure=True, block_figure_on_end=True)
+    # test_wgan_gp_cifar10(show_figure=True, block_figure_on_end=True)
+    # test_wgan_gp_cifar10_inception_score(show_figure=True, block_figure_on_end=True)
+    # test_wgan_gp_cifar10_fid(show_figure=True, block_figure_on_end=True)
+    # test_wgan_gp_cifar10_inception_metric(show_figure=True, block_figure_on_end=True)
+    # test_wgan_gp_image_saver()
