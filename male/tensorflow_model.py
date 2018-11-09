@@ -61,15 +61,15 @@ class TensorFlowModel(Model):
     def _build_model(self, x):
         pass
 
-    def fit(self, x=None, y=None):
+    def fit(self, x=None, y=None, **kwargs):
         """Fit the model to the data X and the label y if available
         """
 
         # copy to avoid modifying
-        x = x.copy() if x is not None else x
-        y = y.copy() if y is not None else y
+        x = copy.deepcopy(x) if x is not None else x
+        y = copy.deepcopy(y) if y is not None else y
 
-        if (x is not None) and (x.ndim < 2):
+        if (x is not None) and (hasattr(x, 'ndim')) and (x.ndim < 2):
             x = x[..., np.newaxis]
 
         if self.cv is not None:
@@ -89,7 +89,7 @@ class TensorFlowModel(Model):
 
         if (not hasattr(self, 'epoch')) or self.epoch == 0:
             self._init()
-            if x_train is not None:
+            if (x_train is not None) and (hasattr(x_train, 'shape')):
                 self.data_dim = x_train.shape[1]
             if y_train is not None:
                 # encode labels
@@ -105,7 +105,8 @@ class TensorFlowModel(Model):
             if y_train is not None:
                 y_train = self._transform_labels(y_train)
 
-        self.history = cbks.History()
+        if (not hasattr(self, 'history')) or self.history is None:
+            self.history = cbks.History()
         callbacks = [cbks.BaseLogger()] + [self.history] + self.callbacks
         if self.verbose:
             callbacks += [cbks.ProgbarLogger()]
@@ -120,7 +121,9 @@ class TensorFlowModel(Model):
         callbacks._set_params({
             'batch_size': self.batch_size,
             'num_epochs': self.num_epochs,
-            'num_samples': x_train.shape[0] if x_train is not None else self.batch_size,
+            'num_samples': x_train.shape[0]
+                           if (x_train is not None) and (hasattr(x_train, 'shape'))
+                           else self.batch_size,
             'verbose': self.verbose,
             'do_validation': do_validation,
             'metrics': callback_metrics,
@@ -134,7 +137,7 @@ class TensorFlowModel(Model):
                 self._fit_loop(x_train, y_train,
                                do_validation=do_validation,
                                x_valid=x_valid, y_valid=y_valid,
-                               callbacks=callbacks, callback_metrics=callback_metrics)
+                               callbacks=callbacks, callback_metrics=callback_metrics, **kwargs)
             except KeyboardInterrupt:
                 sys.exit()
             except:
@@ -146,12 +149,12 @@ class TensorFlowModel(Model):
             self._fit_loop(x_train, y_train,
                            do_validation=do_validation,
                            x_valid=x_valid, y_valid=y_valid,
-                           callbacks=callbacks, callback_metrics=callback_metrics)
+                           callbacks=callbacks, callback_metrics=callback_metrics, **kwargs)
 
         callbacks.on_train_end()
         self._on_train_end()
 
-        return self.history
+        return self
 
     def _on_train_begin(self):
         super(TensorFlowModel, self)._on_train_begin()
@@ -162,10 +165,20 @@ class TensorFlowModel(Model):
         super(TensorFlowModel, self)._on_train_end()
         self.tf_summary_writer.close()
 
+    def _on_epoch_end(self, **kwargs):
+        super(TensorFlowModel, self)._on_epoch_end()
+        if self.epoch % self.summary_freq == 0:
+            if "input_data" in kwargs:
+                _summary = self.tf_session.run(self.tf_merged_summaries,
+                                               feed_dict=kwargs["input_data"])
+            else:
+                _summary = self.tf_session.run(self.tf_merged_summaries)
+            self.tf_summary_writer.add_summary(_summary, self.epoch)
+
     def save(self, file_path=None, overwrite=True):
         if file_path is None:
-            file_path = os.path.join(model_dir(), self.model_name,
-                                     "{}_{}.ckpt".format(tuid(), self.model_name))
+            file_path = os.path.join(model_dir(),
+                                     "male/{}/{}.ckpt".format(self.model_name, tuid()))
         if not os.path.exists(os.path.dirname(file_path)):
             os.makedirs(os.path.dirname(file_path))
         self._save_model(file_path, overwrite)
@@ -196,6 +209,7 @@ class TensorFlowModel(Model):
             model.tf_merged_summaries = tf.summary.merge_all()
             saver = tf.train.Saver()
             saver.restore(model.tf_session, file_path)
+        model.best_params = model.get_all_params()
         return model
 
     def get_params(self, deep=True):

@@ -73,7 +73,7 @@ class CallbackList(object):
         self._delta_ts_batch_end.append(time.time() - t_before_callbacks)
         delta_t_median = np.median(self._delta_ts_batch_end)
         if self._delta_t_batch > 0. and (
-                        delta_t_median > 0.95 * self._delta_t_batch and delta_t_median > 0.1):
+                delta_t_median > 0.95 * self._delta_t_batch and delta_t_median > 0.1):
             warnings.warn('Method on_batch_end() is slow compared '
                           'to the batch update (%f). Check your callbacks.'
                           % delta_t_median)
@@ -266,8 +266,13 @@ class Display(Callback):
             12 * self.layout[1], 6.75 * self.layout[0])
         if self.dpi == 'auto':
             if self.show:
-                width, height = get_screen_resolution()
-                self.dpi = min(width * 0.5 / fig_width, height * 0.7 / fig_height)
+                try:
+                    width, height = get_screen_resolution()
+                    self.dpi = min(width * 0.5 / fig_width, height * 0.7 / fig_height)
+                except Exception as msg:
+                    print("Failed to get screen resolution. Set DPI to None."
+                          "Exception: {}".format(msg))
+                    self.dpi = None
             else:
                 self.dpi = None
         if self.monitor is not None:
@@ -308,10 +313,17 @@ class Display(Callback):
                                                **self.monitor[i])
 
                     if self.axs[u, v].get_legend() is None:
-                        self.axs[u, v].legend(fontsize=24, numpoints=1)
+                        handles, _ = self.axs[u, v].get_legend_handles_labels()
+                        if len(handles) > 0:
+                            self.axs[u, v].legend(fontsize=24, numpoints=1)
                 if self.show:
-                    plt.pause(0.0001)
+                    if plt.get_backend().lower() == "nbagg":
+                        time.sleep(0.0001)
+                    else:
+                        plt.pause(0.0001)
                 self.fig.tight_layout()
+                if plt.get_backend().lower() == "nbagg":
+                    self.fig.canvas.draw()
                 # save to figures
                 if self.filepath is not None:
                     for fp in self.filepath:
@@ -360,7 +372,8 @@ class ImageSaver(Callback):
     def on_epoch_end(self, epoch, logs={}):
         if not self.model.stop_training:
             if ((epoch + 1) % self.freq == 0) and (self.monitor is not None):
-                imgs = self.model.generate_images(param=self.monitor['metrics'], epoch=epoch + 1, **self.monitor)
+                imgs = self.model.generate_images(param=self.monitor['metrics'], epoch=epoch + 1,
+                                                  **self.monitor)
                 import scipy
                 scipy.misc.imsave(self.filepath.format(epoch=epoch + 1, **logs), imgs)
 
@@ -374,7 +387,8 @@ class History(Callback):
     gets returned by the `fit` method of models.
     '''
 
-    def on_train_begin(self, logs={}):
+    def __init__(self):
+        super(History, self).__init__()
         self.epoch = []
         self.history = {}
 
@@ -464,7 +478,7 @@ class ModelCheckpoint(Callback):
                         if self.verbose > 0:
                             print('Epoch %05d: %s improved from %0.5f to %0.5f,'
                                   ' saving model to %s'
-                                  % (epoch, self.monitor, self.best,
+                                  % (epoch + 1, self.monitor, self.best,
                                      current, filepath))
                         self.best = current
                         if self.save_weights_only:
@@ -474,10 +488,10 @@ class ModelCheckpoint(Callback):
                     else:
                         if self.verbose > 0:
                             print('Epoch %05d: %s did not improve. Best so far: %0.5f' %
-                                  (epoch, self.monitor, self.best))
+                                  (epoch + 1, self.monitor, self.best))
             else:
                 if self.verbose > 0:
-                    print('Epoch %05d: saving model to %s' % (epoch, filepath))
+                    print('Epoch %05d: saving model to %s' % (epoch + 1, filepath))
                 if self.save_weights_only:
                     self.model.save_weights(filepath, overwrite=True)
                 else:
@@ -537,7 +551,6 @@ class EarlyStopping(Callback):
         else:
             self.min_delta *= -1
 
-    def on_train_begin(self, logs={}):
         self.wait = 0  # Allow instances to be re-used
         self.best = np.Inf if self.monitor_op == np.less else -np.Inf
         self.best_idx = 0  # index of the epoch with the best performance

@@ -23,32 +23,6 @@ def test_logsumeone():
     assert np.all(np.abs(logsumone(x) - r) < 1e-2)
 
 
-def test_predict_visualization(show=False, block_figure_on_end=False):
-    from male.datasets import demo
-    from male.models.kernel import KSGD
-    from male.utils.disp_utils import visualize_classification_prediction
-
-    (x_train, y_train), (_, _) = demo.load_synthetic_2d()
-
-    idx_train = np.random.permutation(x_train.shape[0])
-    x_train = x_train[idx_train]
-    y_train = y_train[idx_train]
-
-    learner = KSGD(lbd=0.001,
-                   eps=0.001,
-                   gamma=20,
-                   kernel='gaussian',
-                   loss='hinge',
-                   batch_size=1,
-                   avg_weight=False)
-
-    learner.fit(x_train, y_train)
-
-    visualize_classification_prediction(learner, x_train, y_train, show=show,
-                                        block_on_end=block_figure_on_end,
-                                        epoch=learner.epoch, grid_size=20)
-
-
 def test_label_encoder_dict():
     from male.utils.label import LabelEncoderDict
     y = np.array([-1, 1, 3, 3, 1, 20])
