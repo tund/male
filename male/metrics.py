@@ -160,9 +160,9 @@ class InceptionScore(InceptionMetric):
                                 new_shape.append(None)
                             else:
                                 new_shape.append(s)
-                        o._shape = tf.TensorShape(new_shape)
+                        o.__dict__['_shape_val'] = tf.TensorShape(new_shape)
             w = sess.graph.get_operation_by_name("softmax/logits/MatMul").inputs[1]
-            logits = tf.matmul(tf.squeeze(pool3), w)
+            logits = tf.matmul(tf.squeeze(pool3, axis=[1, 2]), w)
             self.inception_layer = tf.nn.softmax(logits)
 
     # Call this function with list of images. Each of elements should be a
@@ -255,7 +255,7 @@ class FID(InceptionMetric):
                                 new_shape.append(None)
                             else:
                                 new_shape.append(s)
-                        o._shape = tf.TensorShape(new_shape)
+                        o.__dict__['_shape_val'] = tf.TensorShape(new_shape)
             self.inception_layer = pool3
 
         self._set_stats()
