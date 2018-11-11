@@ -570,20 +570,21 @@ def test_wgan_gp_resnet_cifar10_inception_metric(show_figure=False, block_figure
                                       ])
 
     model = WGAN_GP_ResNet(model_name="WGAN_GP_ResNet_CIFAR10",
-                           num_z=100,  # set to 100 for a full run
+                           num_z=128,  # set to 100 for a full run
                            img_size=(32, 32, 3),
                            batch_size=64,  # set to 64 for a full run
                            g_blocks=('up', 'up', 'up'),
                            d_blocks=('down', 'down', None, None),
-                           num_gen_feature_maps=32,  # set to 32 for a full run
-                           num_dis_feature_maps=32,  # set to 32 for a full run
+                           num_gen_feature_maps=128,  # set to 32 for a full run
+                           num_dis_feature_maps=128,  # set to 32 for a full run
                            metrics=['d_loss', 'g_loss',
                                     'inception_score', 'inception_score_std', 'FID'],
                            callbacks=[loss_display, inception_score_display, fid_display,
                                       sample_display, checkpoints_is, checkpoints_fid],
-                           num_epochs=4,  # set to 100 for a full run
+                           num_epochs=300,  # set to 100 for a full run
                            inception_metrics=[InceptionScore(), FID(data='cifar10')],
                            inception_metrics_freq=1,
+                           num_inception_samples=50000,
                            summary_freq=1,  # uncomment this for a full run
                            log_path=os.path.join(root_dir, 'logs'),
                            random_state=random_seed(),
@@ -594,7 +595,7 @@ def test_wgan_gp_resnet_cifar10_inception_metric(show_figure=False, block_figure
     print('Reloading the latest model at: {}'.format(filepath))
     model1 = TensorFlowModel.load_model(filepath)
     model1.inception_metrics = InceptionMetricList([InceptionScore(), FID(data='cifar10')])
-    model1.num_epochs = 6
+    model1.num_epochs = 500
     model1.fit(x_train)
     print('Done!')
 
