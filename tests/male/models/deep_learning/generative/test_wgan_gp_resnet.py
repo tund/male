@@ -491,6 +491,12 @@ def test_wgan_gp_resnet_cifar10_inception_metric(show_figure=False, block_figure
     x_train = x_train[:num_data].astype(np.float32).reshape([-1, 32, 32, 3]) / 0.5 - 1.
     x_test = x_test.astype(np.float32).reshape([-1, 32, 32, 3]) / 0.5 - 1.
 
+    import pickle
+    from male.configs import data_dir
+    tmp = pickle.load(open(os.path.join(data_dir(), "cifar10/cifar10_train.pkl"), "rb"))
+    x_train = tmp['data'].astype(np.float32).reshape(
+        [-1, 32, 32, 3]) / 127.5 - 1.
+
     root_dir = os.path.join(model_dir(), "male/WGAN-GP-ResNet/CIFAR10")
     checkpoints_is = ModelCheckpoint(
         os.path.join(root_dir, "checkpoints_is/the_best_is.ckpt"),
