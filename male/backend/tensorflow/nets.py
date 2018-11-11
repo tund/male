@@ -19,6 +19,7 @@ class ResnetGenerator(object):
         self.blocks = blocks
         self.bottom_height = (img_size[0] >> blocks.count('up')) << blocks.count('down')
         self.bottom_width = (img_size[1] >> blocks.count('up')) << blocks.count('down')
+        self.num_img_channels = img_size[2]
         self.use_batch_norm = use_batch_norm
         self.use_spectral_norm = use_spectral_norm
         self.kernel_initializer = kernel_initializer
@@ -63,7 +64,7 @@ class ResnetGenerator(object):
             if batch_norm_func is not None:
                 h = batch_norm_func(h, name='g.out.batch_norm')
             h = tf.nn.relu(h, name='g.out.relu')
-            h = conv2d(h, output_dim=3, kernel_size=3, strides=1,
+            h = conv2d(h, output_dim=self.num_img_channels, kernel_size=3, strides=1,
                        use_spectral_norm=use_spectral_norm,
                        update_spectral_norm=update_spectral_norm,
                        name='g.out.linear', initializer=None)  # glorot init

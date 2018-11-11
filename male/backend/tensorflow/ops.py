@@ -4,7 +4,6 @@ from __future__ import absolute_import
 
 import tensorflow as tf
 from functools import partial
-from .layers import linear
 
 ####################################################################################################
 # Weight initializer
@@ -225,6 +224,7 @@ def conv_cond_concat(x, y):
 
 
 def minibatch(input, num_kernels=5, kernel_dim=3, name='minibatch'):
+    from .layers import linear
     x = linear(input, num_kernels * kernel_dim, name=name, initializer=dcgan_initializer)
     activation = tf.reshape(x, (-1, num_kernels, kernel_dim))
     diffs = (tf.expand_dims(activation, 3)

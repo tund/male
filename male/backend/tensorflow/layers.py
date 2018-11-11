@@ -42,9 +42,6 @@ def conv2d(x,
     kernel_size = int2tuple(kernel_size, reps=2)
     strides = int2tuple(strides, reps=2)
 
-    if isinstance(kernel_size, int):
-        kernel_size = (kernel_size, kernel_size)
-
     with tf.variable_scope(name):
         w = tf.get_variable('weights', shape=[kernel_size[0], kernel_size[1],
                                               x.get_shape()[-1], output_dim],
@@ -215,7 +212,7 @@ def residual_block(input,
                    activation_func=None,
                    activate_input=True,
                    resample=None,
-                   name='block'):
+                   name='resblock'):
     kernel_size = int2tuple(kernel_size, reps=2)
     strides = int2tuple(strides, reps=2)
 
