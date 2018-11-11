@@ -28,8 +28,8 @@ class WGAN_GP_ResNet(TensorFlowModel):
                  num_z=128,
                  batch_size=64,
                  z_prior=Gaussian1D(mu=0.0, sigma=1.0),
-                 d_learning_rate=0.0004,
-                 g_learning_rate=0.0001,
+                 d_learning_rate=0.0002,  # SAGAN/BigGAN 0.0004 / 0.0002
+                 g_learning_rate=0.00005,  # SAGAN/BigGAN: 0.0001 / 0.00005
                  img_size=(32, 32, 3),  # (height, width, channels)
                  num_gen_feature_maps=128,  # number of feature maps of generator
                  num_dis_feature_maps=128,  # number of feature maps of discriminator
