@@ -481,8 +481,8 @@ def test_wgan_gp_cifar10_fid(show_figure=False, block_figure_on_end=False):
 
 @pytest.mark.skipif('tensorflow' not in sys.modules, reason="requires tensorflow library")
 @pytest.mark.skipif(sys.platform == 'win32', reason="does not run on windows")
-def test_wgan_gp_cifar10_inception_metric(show_figure=False, block_figure_on_end=False):
-    print("========== Test WGAN-GP with Inception Score and FID on CIFAR10 data ==========")
+def test_wgan_gp_resnet_cifar10_inception_metric(show_figure=False, block_figure_on_end=False):
+    print("========== Test WGAN-GP-ResNet with Inception Score and FID on CIFAR10 data ==========")
 
     np.random.seed(random_seed())
 
@@ -491,7 +491,7 @@ def test_wgan_gp_cifar10_inception_metric(show_figure=False, block_figure_on_end
     x_train = x_train[:num_data].astype(np.float32).reshape([-1, 32, 32, 3]) / 0.5 - 1.
     x_test = x_test.astype(np.float32).reshape([-1, 32, 32, 3]) / 0.5 - 1.
 
-    root_dir = os.path.join(model_dir(), "male/WGAN-GP/CIFAR10")
+    root_dir = os.path.join(model_dir(), "male/WGAN-GP-ResNet/CIFAR10")
     checkpoints_is = ModelCheckpoint(
         os.path.join(root_dir, "checkpoints_is/the_best_is.ckpt"),
         mode='max',
@@ -569,33 +569,34 @@ def test_wgan_gp_cifar10_inception_metric(show_figure=False, block_figure_on_end
                                        },
                                       ])
 
-    model = WGAN_GP(model_name="WGAN_GP_CIFAR10",
-                    num_z=100,  # set to 100 for a full run
-                    img_size=(32, 32, 3),
-                    batch_size=64,  # set to 64 for a full run
-                    num_conv_layers=3,  # set to 3 for a full run
-                    num_gen_feature_maps=32,  # set to 32 for a full run
-                    num_dis_feature_maps=32,  # set to 32 for a full run
-                    metrics=['d_loss', 'g_loss',
-                             'inception_score', 'inception_score_std', 'FID'],
-                    callbacks=[loss_display, inception_score_display, fid_display,
-                               sample_display, checkpoints_is, checkpoints_fid],
-                    num_epochs=4,  # set to 100 for a full run
-                    inception_metrics=[InceptionScore(), FID(data="cifar10")],
-                    inception_metrics_freq=1,
-                    summary_freq=1,  # uncomment this for a full run
-                    log_path=os.path.join(root_dir, "logs"),
-                    random_state=random_seed(),
-                    verbose=1)
+    model = WGAN_GP_ResNet(model_name="WGAN_GP_ResNet_CIFAR10",
+                           num_z=100,  # set to 100 for a full run
+                           img_size=(32, 32, 3),
+                           batch_size=64,  # set to 64 for a full run
+                           g_blocks=('up', 'up', 'up'),
+                           d_blocks=('down', 'down', None, None),
+                           num_gen_feature_maps=32,  # set to 32 for a full run
+                           num_dis_feature_maps=32,  # set to 32 for a full run
+                           metrics=['d_loss', 'g_loss',
+                                    'inception_score', 'inception_score_std', 'FID'],
+                           callbacks=[loss_display, inception_score_display, fid_display,
+                                      sample_display, checkpoints_is, checkpoints_fid],
+                           num_epochs=4,  # set to 100 for a full run
+                           inception_metrics=[InceptionScore(), FID(data='cifar10')],
+                           inception_metrics_freq=1,
+                           summary_freq=1,  # uncomment this for a full run
+                           log_path=os.path.join(root_dir, 'logs'),
+                           random_state=random_seed(),
+                           verbose=1)
 
     model.fit(x_train)
-    filepath = os.path.join(root_dir, "checkpoints_fid/the_best_fid.ckpt")
-    print("Reloading the latest model at: {}".format(filepath))
+    filepath = os.path.join(root_dir, 'checkpoints_fid/the_best_fid.ckpt')
+    print('Reloading the latest model at: {}'.format(filepath))
     model1 = TensorFlowModel.load_model(filepath)
-    model1.inception_metrics = InceptionMetricList([InceptionScore(), FID(data="cifar10")])
+    model1.inception_metrics = InceptionMetricList([InceptionScore(), FID(data='cifar10')])
     model1.num_epochs = 6
     model1.fit(x_train)
-    print("Done!")
+    print('Done!')
 
 
 @pytest.mark.skipif('tensorflow' not in sys.modules, reason="requires tensorflow library")
@@ -670,8 +671,8 @@ if __name__ == '__main__':
     # test_wgan_gp_mnist(show_figure=True, block_figure_on_end=True)
     # test_wgan_gp_fashion_mnist(show_figure=True, block_figure_on_end=True)
     # test_wgan_gp_resnet_save_and_load(show_figure=False, block_figure_on_end=False)
-    test_wgan_gp_resnet_cifar10(show_figure=False, block_figure_on_end=False)
+    # test_wgan_gp_resnet_cifar10(show_figure=False, block_figure_on_end=False)
     # test_wgan_gp_cifar10_inception_score(show_figure=True, block_figure_on_end=True)
     # test_wgan_gp_cifar10_fid(show_figure=True, block_figure_on_end=True)
-    # test_wgan_gp_cifar10_inception_metric(show_figure=True, block_figure_on_end=True)
+    test_wgan_gp_resnet_cifar10_inception_metric(show_figure=False, block_figure_on_end=False)
     # test_wgan_gp_image_saver()
