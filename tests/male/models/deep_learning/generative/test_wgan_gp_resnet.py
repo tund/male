@@ -238,8 +238,8 @@ def test_wgan_gp_resnet_save_and_load(show_figure=False, block_figure_on_end=Fal
 
 
 @pytest.mark.skipif('tensorflow' not in sys.modules, reason="requires tensorflow library")
-def test_wgan_gp_cifar10(show_figure=False, block_figure_on_end=False):
-    print("========== Test WGAN-GP on CIFAR10 data ==========")
+def test_wgan_gp_resnet_cifar10(show_figure=False, block_figure_on_end=False):
+    print("========== Test WGAN-GP-ResNet on CIFAR10 data ==========")
 
     np.random.seed(random_seed())
 
@@ -248,7 +248,7 @@ def test_wgan_gp_cifar10(show_figure=False, block_figure_on_end=False):
     x_train = x_train[:num_data].astype(np.float32).reshape([-1, 32, 32, 3]) / 0.5 - 1.
     x_test = x_test.astype(np.float32).reshape([-1, 32, 32, 3]) / 0.5 - 1.
 
-    root_dir = os.path.join(model_dir(), "male/WGAN-GP/CIFAR10")
+    root_dir = os.path.join(model_dir(), "male/WGAN-GP-ResNet/CIFAR10")
     loss_display = Display(layout=(1, 1),
                            dpi='auto',
                            show=show_figure,
@@ -277,21 +277,30 @@ def test_wgan_gp_cifar10(show_figure=False, block_figure_on_end=False):
                                        },
                                       ])
 
-    model = WGAN_GP(model_name="WGAN_GP_CIFAR10",
-                    num_z=10,  # set to 100 for a full run
-                    img_size=(32, 32, 3),
-                    batch_size=16,  # set to 64 for a full run
-                    num_conv_layers=3,  # set to 3 for a full run
-                    num_gen_feature_maps=4,  # set to 32 for a full run
-                    num_dis_feature_maps=4,  # set to 32 for a full run
-                    metrics=['d_loss', 'g_loss'],
-                    callbacks=[loss_display, sample_display],
-                    num_epochs=4,  # set to 100 for a full run
-                    random_state=random_seed(),
-                    log_path=os.path.join(root_dir, "logs"),
-                    verbose=1)
+    model = WGAN_GP_ResNet(model_name="WGAN_GP_ResNet_CIFAR10",
+                           num_z=10,  # set to 100 for a full run
+                           img_size=(32, 32, 3),
+                           batch_size=16,  # set to 64 for a full run
+                           g_blocks=('up', 'up', 'up'),
+                           d_blocks=('down', 'down', None, None),
+                           num_gen_feature_maps=4,  # set to 32 for a full run
+                           num_dis_feature_maps=4,  # set to 32 for a full run
+                           metrics=['d_loss', 'g_loss'],
+                           callbacks=[loss_display, sample_display],
+                           num_epochs=2,  # set to 100 for a full run
+                           random_state=random_seed(),
+                           log_path=os.path.join(root_dir, "logs"),
+                           verbose=1)
 
     model.fit(x_train)
+
+    print("Saving model...")
+    save_file_path = model.save(os.path.join(root_dir, "checkpoints/ckpt"))
+    print("Reloading model...")
+    model1 = TensorFlowModel.load_model(save_file_path)
+    model1.num_epochs = 4
+    model1.fit(x_train)
+    print("Done!")
 
 
 @pytest.mark.skipif('tensorflow' not in sys.modules, reason="requires tensorflow library")
@@ -660,8 +669,8 @@ if __name__ == '__main__':
     # pytest.main([__file__])
     # test_wgan_gp_mnist(show_figure=True, block_figure_on_end=True)
     # test_wgan_gp_fashion_mnist(show_figure=True, block_figure_on_end=True)
-    test_wgan_gp_resnet_save_and_load(show_figure=False, block_figure_on_end=False)
-    # test_wgan_gp_cifar10(show_figure=True, block_figure_on_end=True)
+    # test_wgan_gp_resnet_save_and_load(show_figure=False, block_figure_on_end=False)
+    test_wgan_gp_resnet_cifar10(show_figure=False, block_figure_on_end=False)
     # test_wgan_gp_cifar10_inception_score(show_figure=True, block_figure_on_end=True)
     # test_wgan_gp_cifar10_fid(show_figure=True, block_figure_on_end=True)
     # test_wgan_gp_cifar10_inception_metric(show_figure=True, block_figure_on_end=True)
