@@ -37,6 +37,13 @@ def conv_out_size_same(size, stride):
     return int(math.ceil(float(size) / float(stride)))
 
 
+def int2tuple(x, reps=1):
+    if isinstance(x, int):
+        return (x,) * reps
+    else:
+        return x
+
+
 class Progbar(object):
     def __init__(self, target, width=30, verbose=1, interval=0.01):
         '''Dislays a progress bar.

@@ -9,6 +9,7 @@ try:
     from .cgan import CGANv1
     from .wgan import WGAN
     from .wgan_gp import WGAN_GP
+    from .wgan_gp_resnet import WGAN_GP_ResNet
 except ImportError:
     GAN = None
     DCGAN = None
@@ -18,3 +19,4 @@ except ImportError:
     CGANv1 = None
     WGAN = None
     WGAN_GP = None
+    WGAN_GP_ResNet = None
