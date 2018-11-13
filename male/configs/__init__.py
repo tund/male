@@ -19,6 +19,8 @@ from .common import remote_data_dir
 from .common import set_remote_data_dir
 from .common import remote_model_dir
 from .common import set_remote_model_dir
+from .common import tensorflow_cpp_min_log_level
+from .common import set_tensorflow_cpp_min_log_level
 
 HOME = expanduser("~")
 
@@ -57,6 +59,9 @@ if os.path.exists(_config_path):
     assert isinstance(_remote_data_dir, str)
     _remote_model_dir = _config.get('remote_model_dir', remote_model_dir())
     assert isinstance(_remote_model_dir, str)
+    _tensorflow_cpp_min_log_level = _config.get('tensorflow_cpp_min_log_level',
+                                                tensorflow_cpp_min_log_level())
+    assert isinstance(_tensorflow_cpp_min_log_level, int)
 
     set_epsilon(_epsilon)
     set_random_seed(_random_seed)
@@ -65,6 +70,7 @@ if os.path.exists(_config_path):
     set_model_dir(_model_dir)
     set_remote_data_dir(_remote_data_dir)
     set_remote_model_dir(_remote_model_dir)
+    set_tensorflow_cpp_min_log_level(_tensorflow_cpp_min_log_level)
 
 # save config file
 # if not os.path.exists(_config_path):
@@ -74,7 +80,11 @@ _config = {'epsilon': epsilon(),
            'data_dir': data_dir(),
            'model_dir': model_dir(),
            'remote_data_dir': remote_data_dir(),
-           'remote_model_dir': remote_model_dir()}
+           'remote_model_dir': remote_model_dir(),
+           'tensorflow_cpp_min_log_level': tensorflow_cpp_min_log_level()}
+
 with open(_config_path, 'w') as f:
     f.write(json.dumps(_config, indent=4))
     # </editor-fold>
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = str(_config.get('tensorflow_cpp_min_log_level'))

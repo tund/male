@@ -12,8 +12,9 @@ _RANDOM_SEED = 6789
 _MATPLOTLIB_BACKEND = "default"
 _DATA_DIR = os.path.join(HOME, ".male/datasets")
 _MODEL_DIR = os.path.join(HOME, ".male/models")
-_REMOTE_DATA_DIR = "http://prada-research.net/demo/datasets"
-_REMOTE_MODEL_DIR = "http://prada-research.net/demo/models"
+_REMOTE_DATA_DIR = "https://raw.githubusercontent.com/tund/tund.github.io/master/datasets/demo"
+_REMOTE_MODEL_DIR = "https://raw.githubusercontent.com/tund/tund.github.io/master/models/demo"
+_TF_CPP_MIN_LOG_LEVEL = 3
 
 
 def epsilon():
@@ -105,3 +106,12 @@ def remote_model_dir():
 def set_remote_model_dir(d):
     global _REMOTE_MODEL_DIR
     _REMOTE_MODEL_DIR = d
+
+
+def tensorflow_cpp_min_log_level():
+    return _TF_CPP_MIN_LOG_LEVEL
+
+
+def set_tensorflow_cpp_min_log_level(loglevel):
+    global _TF_CPP_MIN_LOG_LEVEL
+    _TF_CPP_MIN_LOG_LEVEL = loglevel
