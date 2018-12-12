@@ -237,4 +237,4 @@ class TensorFlowModel(Model):
         if type(self).__module__.startswith('male.'):
             return dict(out, _male_version=__version__)
         else:
-            return dict(self.__dict__.items())
+            return out
