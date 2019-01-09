@@ -119,7 +119,6 @@ class TensorFlowModel(Model):
 
         callbacks._set_model(self)
         callbacks._set_params({
-            'batch_size': self.batch_size,
             'num_epochs': self.num_epochs,
             'num_samples': x_train.shape[0]
                            if (x_train is not None) and (hasattr(x_train, 'shape'))
