@@ -16,9 +16,14 @@ def linear(input,
            use_bias=True,
            use_spectral_norm=False,
            update_spectral_norm=True,
+           l2_reg=None,
            name='linear'):
+    regularizer = None if l2_reg is None else tf.contrib.layers.l2_regularizer(scale=l2_reg, scope=name)
     with tf.variable_scope(name):
-        w = tf.get_variable('weights', [input.get_shape()[1], output_dim], initializer=initializer)
+        w = tf.get_variable('weights',
+                            [input.get_shape()[1], output_dim],
+                            initializer=initializer,
+                            regularizer=regularizer)
         if use_spectral_norm:
             lin = tf.matmul(input, spectral_norm(w, update=update_spectral_norm))
         else:
@@ -27,7 +32,6 @@ def linear(input,
             b = tf.get_variable('biases', [output_dim], initializer=zero_initializer)
             lin = lin + b
         return lin
-
 
 def conv2d(x,
            output_dim,
@@ -38,14 +42,16 @@ def conv2d(x,
            initializer=dcgan_initializer,
            use_spectral_norm=False,
            update_spectral_norm=True,
+           l2_reg=None,
            name='conv2d'):
     kernel_size = int2tuple(kernel_size, reps=2)
     strides = int2tuple(strides, reps=2)
-
+    regularizer = None if l2_reg is None else tf.contrib.layers.l2_regularizer(scale=l2_reg, scope=name)
     with tf.variable_scope(name):
         w = tf.get_variable('weights', shape=[kernel_size[0], kernel_size[1],
                                               x.get_shape()[-1], output_dim],
-                            initializer=initializer)
+                            initializer=initializer,
+                            regularizer=regularizer)
         if use_spectral_norm:
             w = spectral_norm(w, update=update_spectral_norm)
         conv = tf.nn.conv2d(input=x, filter=w, padding=padding,
@@ -54,7 +60,6 @@ def conv2d(x,
             bias = tf.get_variable('biases', [output_dim], initializer=zero_initializer)
             conv = tf.nn.bias_add(conv, bias)
         return conv
-
 
 def deconv2d(x,
              output_shape,
@@ -65,14 +70,17 @@ def deconv2d(x,
              use_spectral_norm=False,
              update_spectral_norm=True,
              initializer=dcgan_initializer,
+             l2_reg=None,
              name='deconv2d'):
     kernel_size = int2tuple(kernel_size, reps=2)
     strides = int2tuple(strides, reps=2)
+    regularizer = None if l2_reg is None else tf.contrib.layers.l2_regularizer(scale=l2_reg, scope=name)
 
     with tf.variable_scope(name):
         w = tf.get_variable('weights', shape=[kernel_size[0], kernel_size[1],
                                               output_shape[-1], x.get_shape()[-1]],
-                            initializer=initializer)
+                            initializer=initializer,
+                            regularizer=regularizer)
         if use_spectral_norm:
             w = spectral_norm(w, update=update_spectral_norm)
         deconv = tf.nn.conv2d_transpose(x, filter=w, output_shape=output_shape,
@@ -83,6 +91,17 @@ def deconv2d(x,
             deconv = tf.nn.bias_add(deconv, bias)
         return deconv
 
+def SE_layer(x, ratio=2, initializer=None, l2_reg=None, name='SE'):
+    input_dim = x.get_shape().as_list()[-1]
+    with tf.variable_scope(name):
+        h = tf.reduce_mean(x, axis=[1, 2], name='squeeze')
+        h = linear(x, input_dim // ratio, initializer=initializer, l2_reg=l2_reg, name='l1.lin')
+        h = tf.nn.relu(h, name='l1.relu')
+        h = linear(h, input_dim, initializer=initializer, l2_reg=l2_reg, name='l2.lin')
+        h = tf.nn.sigmoid(h, name='l2.sigmoid')
+        h = tf.reshape(h, [-1, 1, 1, input_dim], name='l2.reshape')
+        output = tf.multiply(x, h, name='output')
+        return output
 
 def attention_old(x,
                   down_size=8,
@@ -90,6 +109,7 @@ def attention_old(x,
                   activation_func=None,
                   use_spectral_norm=False,
                   update_spectral_norm=True,
+                  l2_reg=None,
                   name='attention'):
     with tf.variable_scope(name):
         z = x
@@ -104,6 +124,7 @@ def attention_old(x,
                    strides=1,
                    use_spectral_norm=use_spectral_norm,
                    update_spectral_norm=update_spectral_norm,
+                   l2_reg=l2_reg,
                    name='conv.f')
         g = conv2d(z,
                    output_dim=z.get_shape()[-1] // down_size,
@@ -111,6 +132,7 @@ def attention_old(x,
                    strides=1,
                    use_spectral_norm=use_spectral_norm,
                    update_spectral_norm=update_spectral_norm,
+                   l2_reg=l2_reg,
                    name='conv.g')
         h = conv2d(z,
                    output_dim=z.get_shape()[-1],
@@ -118,6 +140,7 @@ def attention_old(x,
                    strides=1,
                    use_spectral_norm=use_spectral_norm,
                    update_spectral_norm=update_spectral_norm,
+                   l2_reg=l2_reg,
                    name='conv.h')
 
         # N = h * w
@@ -205,6 +228,7 @@ def residual_block(input,
                    kernel_size=(3, 3),
                    strides=(2, 2),
                    initializer=he_initializer,
+                   skip_initializer=xavier_initializer,
                    use_spectral_norm=False,
                    update_spectral_norm=True,
                    batch_norm_func=None,
@@ -212,6 +236,8 @@ def residual_block(input,
                    activation_func=None,
                    activate_input=True,
                    resample=None,
+                   l2_reg=None,
+                   SE=None,
                    name='resblock'):
     kernel_size = int2tuple(kernel_size, reps=2)
     strides = int2tuple(strides, reps=2)
@@ -220,17 +246,22 @@ def residual_block(input,
     input_dim = input_shape[-1]
     resize = partial(tf.image.resize_nearest_neighbor,
                      size=(input_shape[1] * strides[0], input_shape[2] * strides[1]))
-    mean_pool = partial(tf.nn.avg_pool, ksize=[1, 2, 2, 1],
+    mean_pool = partial(tf.nn.avg_pool, ksize=[1, strides[0], strides[1], 1],
                         strides=[1, strides[0], strides[1], 1], padding='SAME')
 
     if resample == 'up':
         # skip connection
         skip = input
         if input_dim != output_dim:
-            skip = conv2d(skip, output_dim, kernel_size=1, strides=1,
+            skip = conv2d(skip,
+                          output_dim,
+                          kernel_size=1,
+                          strides=1,
                           use_spectral_norm=use_spectral_norm,
                           update_spectral_norm=update_spectral_norm,
-                          initializer=None, name=name + '.skip.conv')  # Glorot init
+                          initializer=skip_initializer,
+                          l2_reg=l2_reg,
+                          name=name + '.skip.conv')
         skip = resize(skip, name=name + '.skip.resize')
 
         # first convolutional layer
@@ -239,10 +270,16 @@ def residual_block(input,
             h = batch_norm_func(h, name=name + '.conv1.batch_norm')
         if activation_func is not None and activate_input:
             h = activation_func(h, name=name + '.conv1.acts')
-        h = conv2d(h, output_dim, kernel_size=kernel_size, strides=1,
+
+        h = conv2d(h,
+                   output_dim,
+                   kernel_size=kernel_size,
+                   strides=1,
                    use_spectral_norm=use_spectral_norm,
                    update_spectral_norm=update_spectral_norm,
-                   initializer=initializer, name=name + '.conv1.lin')
+                   initializer=initializer,
+                   l2_reg=l2_reg,
+                   name=name + '.conv1.lin')
 
         # second convolutional layer
         if batch_norm_func is not None:
@@ -251,21 +288,33 @@ def residual_block(input,
             h = activation_func(h, name=name + '.conv2.acts')
 
         h = resize(h, name=name + '.conv2.resize')
-        h = conv2d(h, output_dim, kernel_size=kernel_size, strides=1,
+        h = conv2d(h,
+                   output_dim,
+                   kernel_size=kernel_size,
+                   strides=1,
                    use_spectral_norm=use_spectral_norm,
                    update_spectral_norm=update_spectral_norm,
-                   initializer=initializer, name=name + '.conv2.lin')
+                   initializer=initializer,
+                   l2_reg=l2_reg,
+                   name=name + '.conv2.lin')
+
+        if SE != None:
+            h = SE_layer(h, SE, initializer=initializer, l2_reg=l2_reg, name=name+'.SE')
 
         output = tf.add(h, skip, name=name + '.output')
-    elif resample == 'down':
+    elif resample in ['down', 'down-stride']:
         # skip connection
         skip = input
         if input_dim != output_dim:
-            skip = conv2d(skip, output_dim, kernel_size=1, strides=1,
+            skip = conv2d(skip,
+                          output_dim,
+                          kernel_size=1,
+                          strides=1,
                           use_spectral_norm=use_spectral_norm,
                           update_spectral_norm=update_spectral_norm,
-                          initializer=None,
-                          name=name + '.skip.conv')  # Glorot init
+                          initializer=skip_initializer,
+                          l2_reg=l2_reg,
+                          name=name + '.skip.conv')
         skip = mean_pool(skip, name=name + '.skip.mean_pool')
 
         # first convolutional layer
@@ -273,11 +322,18 @@ def residual_block(input,
         if batch_norm_func is not None and batch_norm_input:
             h = batch_norm_func(h, name=name + '.conv1.batch_norm')
         if activation_func is not None and activate_input:
-            h = activation_func(h, name=name + '.conv1.act')
-        h = conv2d(h, output_dim, kernel_size=kernel_size, strides=1,
+            h = activation_func(h, name=name + '.conv1.acts')
+
+        h = conv2d(h,
+                   output_dim,
+                   kernel_size=kernel_size,
+                   strides=1 if resample=='down' else strides,
+                   # two ways to downsample, either use stride > 1 or use average pooling later
                    use_spectral_norm=use_spectral_norm,
                    update_spectral_norm=update_spectral_norm,
-                   initializer=initializer, name=name + '.conv1.lin')
+                   initializer=initializer,
+                   l2_reg=l2_reg,
+                   name=name + '.conv1.lin')
 
         # second convolutional layer
         if batch_norm_func is not None:
@@ -285,21 +341,36 @@ def residual_block(input,
         if activation_func is not None:
             h = activation_func(h, name=name + '.conv2.acts')
 
-        h = conv2d(h, output_dim, kernel_size=kernel_size, strides=1,
+        h = conv2d(h,
+                   output_dim,
+                   kernel_size=kernel_size,
+                   strides=1,
                    use_spectral_norm=use_spectral_norm,
                    update_spectral_norm=update_spectral_norm,
-                   initializer=initializer, name=name + '.conv2.lin')
-        h = mean_pool(h, name=name + '.conv2.mean_pool')
+                   initializer=initializer,
+                   l2_reg=l2_reg,
+                   name=name + '.conv2.lin')
+
+        if resample == 'down':
+            h = mean_pool(h, name=name + '.conv2.mean_pool')
+
+        if SE != None:
+            h = SE_layer(h, SE, initializer=initializer, l2_reg=l2_reg, name=name+'.SE')
 
         output = tf.add(h, skip, name=name + '.output')
     else:  # the same dimension
         # skip connection
         skip = input
         if input_dim != output_dim:
-            skip = conv2d(skip, output_dim, kernel_size=1, strides=1,
+            skip = conv2d(skip,
+                          output_dim,
+                          kernel_size=1,
+                          strides=1,
                           use_spectral_norm=use_spectral_norm,
                           update_spectral_norm=update_spectral_norm,
-                          initializer=None, name=name + '.skip.conv')  # Glorot init
+                          initializer=skip_initializer,
+                          l2_reg=l2_reg,
+                          name=name + '.skip.conv')
 
         # first convolutional layer
         h = input
@@ -307,28 +378,264 @@ def residual_block(input,
             h = batch_norm_func(h, name=name + '.conv1.batch_norm')
         if activation_func is not None and activate_input:
             h = activation_func(h, name=name + ".conv1.acts")
-        h = conv2d(h, output_dim, kernel_size=kernel_size, strides=1,
+
+        h = conv2d(h,
+                   output_dim,
+                   kernel_size=kernel_size,
+                   strides=1,
                    use_spectral_norm=use_spectral_norm,
                    update_spectral_norm=update_spectral_norm,
-                   initializer=initializer, name=name + '.conv1.lin')
+                   initializer=initializer,
+                   l2_reg=l2_reg,
+                   name=name + '.conv1.lin')
 
         # second convolutional layer
         if batch_norm_func is not None:
             h = batch_norm_func(h, name=name + '.conv2.batch_norm')
         if activation_func is not None:
             h = activation_func(h, name=name + '.conv2.acts')
-        h = conv2d(h, output_dim, kernel_size=kernel_size, strides=1,
+
+        h = conv2d(h,
+                   output_dim,
+                   kernel_size=kernel_size,
+                   strides=1,
                    use_spectral_norm=use_spectral_norm,
                    update_spectral_norm=update_spectral_norm,
-                   initializer=initializer, name=name + '.conv2.lin')
+                   initializer=initializer,
+                   l2_reg=l2_reg,
+                   name=name + '.conv2.lin')
+
+        if SE != None:
+            h = SE_layer(h, SE, initializer=initializer, l2_reg=l2_reg, name=name+'.SE')
 
         output = tf.add(h, skip, name=name + '.output')
 
     return output
 
+def residual_block_bottleneck(input,
+                              output_dim,
+                              kernel_size=(3, 3),
+                              strides=(2, 2),
+                              initializer=he_initializer,
+                              skip_initializer=None,
+                              use_spectral_norm=False,
+                              update_spectral_norm=True,
+                              batch_norm_func=None,
+                              batch_norm_input=True,
+                              activation_func=None,
+                              activate_input=True,
+                              resample=None,
+                              l2_reg=None,
+                              SE=None,
+                              name='resblock'):
+    kernel_size = int2tuple(kernel_size, reps=2)
+    strides = int2tuple(strides, reps=2)
 
-def simple_layer(x, output_dim, initializer=he_initializer, training=True, name='dnn', layer=0):
-    h = linear(x, output_dim, initializer=initializer, name='{}.layer{}.lin'.format(name, layer))
+    input_shape = input.get_shape().as_list()
+    input_dim = input_shape[-1]
+    resize = partial(tf.image.resize_nearest_neighbor,
+                     size=(input_shape[1] * strides[0], input_shape[2] * strides[1]))
+    mean_pool = partial(tf.nn.avg_pool, ksize=[1, strides[0], strides[1], 1],
+                        strides=[1, strides[0], strides[1], 1], padding='SAME')
+
+    if resample == 'up':
+        # skip connection
+        skip = input
+        if input_dim != output_dim:
+            skip = conv2d(skip,
+                          output_dim,
+                          kernel_size=1,
+                          strides=1,
+                          use_spectral_norm=use_spectral_norm,
+                          update_spectral_norm=update_spectral_norm,
+                          initializer=skip_initializer,
+                          l2_reg=l2_reg,
+                          name=name + '.skip.conv')
+        skip = resize(skip, name=name + '.skip.resize')
+
+        # first convolutional layer
+        h = input
+        if batch_norm_func is not None and batch_norm_input:
+            h = batch_norm_func(h, name=name + '.conv1.batch_norm')
+        if activation_func is not None and activate_input:
+            h = activation_func(h, name=name + '.conv1.acts')
+
+        h = conv2d(h,
+                   output_dim,
+                   kernel_size=kernel_size,
+                   strides=1,
+                   use_spectral_norm=use_spectral_norm,
+                   update_spectral_norm=update_spectral_norm,
+                   initializer=initializer,
+                   l2_reg=l2_reg,
+                   name=name + '.conv1.lin')
+
+        # second convolutional layer
+        if batch_norm_func is not None:
+            h = batch_norm_func(h, name=name + '.conv2.batch_norm')
+        if activation_func is not None:
+            h = activation_func(h, name=name + '.conv2.acts')
+
+        h = resize(h, name=name + '.conv2.resize')
+        h = conv2d(h,
+                   output_dim,
+                   kernel_size=kernel_size,
+                   strides=1,
+                   use_spectral_norm=use_spectral_norm,
+                   update_spectral_norm=update_spectral_norm,
+                   initializer=initializer,
+                   l2_reg=l2_reg,
+                   name=name + '.conv2.lin')
+
+        if SE != None:
+            h = SE_layer(h, SE, initializer=initializer, l2_reg=l2_reg, name=name+'.SE')
+
+        output = tf.add(h, skip, name=name + '.output')
+    elif resample in ['down', 'down-stride']:
+        # skip connection
+        skip = input
+        if input_dim != output_dim * 4:
+            skip = conv2d(skip,
+                          output_dim * 4,
+                          kernel_size=1,
+                          strides=1,
+                          use_spectral_norm=use_spectral_norm,
+                          update_spectral_norm=update_spectral_norm,
+                          initializer=skip_initializer,
+                          l2_reg=l2_reg,
+                          name=name + '.skip.conv')
+        skip = mean_pool(skip, name=name + '.skip.mean_pool')
+
+        # first convolutional layer
+        h = input
+        if batch_norm_func is not None and batch_norm_input:
+            h = batch_norm_func(h, name=name + '.conv1.batch_norm')
+        if activation_func is not None and activate_input:
+            h = activation_func(h, name=name + '.conv1.acts')
+
+        h = conv2d(h,
+                   output_dim,
+                   kernel_size=1,
+                   strides=1,
+                   # two ways to downsample, either use stride > 1 or use average pooling later
+                   use_spectral_norm=use_spectral_norm,
+                   update_spectral_norm=update_spectral_norm,
+                   initializer=initializer,
+                   l2_reg=l2_reg,
+                   name=name + '.conv1.lin')
+
+        # second convolutional layer
+        if batch_norm_func is not None:
+            h = batch_norm_func(h, name=name + '.conv2.batch_norm')
+        if activation_func is not None:
+            h = activation_func(h, name=name + '.conv2.acts')
+
+        h = conv2d(h,
+                   output_dim,
+                   kernel_size=kernel_size,
+                   strides=1 if resample=='down' else strides,
+                   # different from the paper, we perform down sampling here instead of the first conv
+                   use_spectral_norm=use_spectral_norm,
+                   update_spectral_norm=update_spectral_norm,
+                   initializer=initializer,
+                   l2_reg=l2_reg,
+                   name=name + '.conv2.lin')
+
+        # third convolutional layer
+        if batch_norm_func is not None:
+            h = batch_norm_func(h, name=name + '.conv3.batch_norm')
+        if activation_func is not None:
+            h = activation_func(h, name=name + '.conv3.acts')
+
+        h = conv2d(h,
+                   output_dim * 4,
+                   kernel_size=1,
+                   strides=1,
+                   use_spectral_norm=use_spectral_norm,
+                   update_spectral_norm=update_spectral_norm,
+                   initializer=initializer,
+                   l2_reg=l2_reg,
+                   name=name + '.conv3.lin')
+
+        if resample == 'down':
+            h = mean_pool(h, name=name + '.conv3.mean_pool')
+
+        if SE != None:
+            h = SE_layer(h, SE, initializer=initializer, l2_reg=l2_reg, name=name+'.SE')
+
+        output = tf.add(h, skip, name=name + '.output')
+    else:  # the same dimension
+        # skip connection
+        skip = input
+        if input_dim != output_dim * 4:
+            skip = conv2d(skip,
+                          output_dim * 4,
+                          kernel_size=1,
+                          strides=1,
+                          use_spectral_norm=use_spectral_norm,
+                          update_spectral_norm=update_spectral_norm,
+                          initializer=skip_initializer,
+                          l2_reg=l2_reg,
+                          name=name + '.skip.conv')
+
+        # first convolutional layer
+        h = input
+        if batch_norm_func is not None and batch_norm_input:
+            h = batch_norm_func(h, name=name + '.conv1.batch_norm')
+        if activation_func is not None and activate_input:
+            h = activation_func(h, name=name + ".conv1.acts")
+
+        h = conv2d(h,
+                   output_dim,
+                   kernel_size=1,
+                   strides=1,
+                   use_spectral_norm=use_spectral_norm,
+                   update_spectral_norm=update_spectral_norm,
+                   initializer=initializer,
+                   l2_reg=l2_reg,
+                   name=name + '.conv1.lin')
+
+        # second convolutional layer
+        if batch_norm_func is not None:
+            h = batch_norm_func(h, name=name + '.conv2.batch_norm')
+        if activation_func is not None:
+            h = activation_func(h, name=name + '.conv2.acts')
+
+        h = conv2d(h,
+                   output_dim,
+                   kernel_size=kernel_size,
+                   strides=1,
+                   use_spectral_norm=use_spectral_norm,
+                   update_spectral_norm=update_spectral_norm,
+                   initializer=initializer,
+                   l2_reg=l2_reg,
+                   name=name + '.conv2.lin')
+
+        # third convolutional layer
+        if batch_norm_func is not None:
+            h = batch_norm_func(h, name=name + '.conv3.batch_norm')
+        if activation_func is not None:
+            h = activation_func(h, name=name + '.conv3.acts')
+
+        h = conv2d(h,
+                   output_dim * 4,
+                   kernel_size=1,
+                   strides=1,
+                   use_spectral_norm=use_spectral_norm,
+                   update_spectral_norm=update_spectral_norm,
+                   initializer=initializer,
+                   l2_reg=l2_reg,
+                   name=name + '.conv3.lin')
+
+        if SE != None:
+            h = SE_layer(h, SE, initializer=initializer, l2_reg=l2_reg, name=name+'.SE')
+
+        output = tf.add(h, skip, name=name + '.output')
+
+    return output
+
+def simple_layer(x, output_dim, initializer=he_initializer, training=True, l2_reg=None, name='dnn', layer=0):
+    h = linear(x, output_dim, initializer=initializer, l2_reg=l2_reg, name='{}.layer{}.lin'.format(name, layer))
     h = batch_norm(h, training=training, name='{}.layer{}.batch_norm'.format(name, layer))
     get_activation_summary(h, '{}.layer{}.batch_norm'.format(name, layer))
     h = tf.nn.relu(h, name='{}.layer{}.relu'.format(name, layer))

@@ -15,7 +15,7 @@ from ...distributions import Gaussian1D
 from ....utils.generic_utils import make_batches
 from ....utils.disp_utils import create_image_grid
 from ....metrics import FID, InceptionScore, InceptionMetricList
-from ....backend.tensorflow.nets import ResnetGenerator, ResnetDiscriminator
+from .tensorflow_nets import ResnetGenerator, ResnetDiscriminator
 from ....backend.tensorflow.ops import he_initializer, adam_optimizer
 
 

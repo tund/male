@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 plt.style.use('ggplot')
 
 from . import DCGAN
-from ...distribution import Uniform1D
+from ...distributions import Uniform1D
 
 
 class WeightedGAN(DCGAN):

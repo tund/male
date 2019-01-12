@@ -121,13 +121,8 @@ class DFM(DCGAN):
 
                 callbacks.on_batch_end(batch_idx, batch_logs)
 
-            if (self.epoch + 1) % self.inception_score_freq == 0 and \
-                            "inception_score" in self.metrics:
-                epoch_logs['inception_score'] = self._compute_inception_score(
-                    self.generate(num_samples=self.num_inception_samples))
-
-            callbacks.on_epoch_end(self.epoch, epoch_logs)
-            self._on_epoch_end()
+            self._on_epoch_end(epoch_logs, input_data={self.x: x_batch, self.z: z_batch})
+            callbacks.on_epoch_end(self.epoch - 1, epoch_logs)
 
     def _create_discriminator(self, x, train=True, reuse=False, name="discriminator"):
         with tf.variable_scope(name) as scope:

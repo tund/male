@@ -1,11 +1,35 @@
-from .efrbm import EFRBM
-from .nrbm import NonnegativeRBM
-from .srbm import SupervisedRBM
-from .ssrbm import SemiSupervisedRBM
-from .bbrbm import BernoulliBernoulliRBM
-from .rsrbm import ReplicatedSoftmaxRBM
+try:
+    from .bbrbm import BernoulliBernoulliRBM
+
+except ImportError as e:
+    print('[WARNING]', e)
+
+try:
+    from .nrbm import NonnegativeRBM
+except ImportError as e:
+    print('[WARNING]', e)
+
+try:
+    from .srbm import SupervisedRBM
+except ImportError as e:
+    print('[WARNING]', e)
+
+try:
+    from .ssrbm import SemiSupervisedRBM
+except ImportError as e:
+    print('[WARNING]', e)
+
+try:
+    from .efrbm import EFRBM
+except ImportError as e:
+    print('[WARNING]', e)
+
+try:
+    from .rsrbm import ReplicatedSoftmaxRBM
+except ImportError as e:
+    print('[WARNING]', e)
 
 try:
     from .tensorflow_bbrbm import BernoulliBernoulliTensorFlowRBM
-except ImportError:
-    BernoulliBernoulliTensorFlowRBM = None
+except ImportError as e:
+    print('[WARNING]', e)

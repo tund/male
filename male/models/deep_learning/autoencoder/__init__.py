@@ -1,4 +1,4 @@
 try:
     from .keras_vae import KerasVAE
-except ImportError:
-    KerasVAE = None
+except ImportError as e:
+    print('[WARNING]', e)

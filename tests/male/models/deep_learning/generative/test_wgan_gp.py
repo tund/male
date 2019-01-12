@@ -370,7 +370,7 @@ def test_wgan_gp_cifar10_inception_score(show_figure=False, block_figure_on_end=
                     num_dis_feature_maps=4,  # set to 32 for a full run
                     metrics=['d_loss', 'g_loss', 'inception_score'],
                     callbacks=[loss_display, inception_score_display, sample_display, checkpoint],
-                    num_epochs=4,  # set to 100 for a full run
+                    num_epochs=2,  # set to 100 for a full run
                     inception_metrics=InceptionScore(),
                     inception_metrics_freq=1,
                     # summary_freq=1,  # uncomment this for a full run

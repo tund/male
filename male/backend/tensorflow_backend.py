@@ -139,8 +139,9 @@ def adam_optimizer(loss, learning_rate, beta1, params):
         m = opt.get_slot(var, "m")  # get the first-moment vector
         v = opt.get_slot(var, "v")  # get the second-moment vector
 
-        m_hat = m / (1 - opt._beta1_power)  # bias correction
-        v_hat = v / (1 - opt._beta2_power)  # bias correction
+        beta1_power, beta2_power = opt._get_beta_accumulators()
+        m_hat = m / (1 - beta1_power)  # bias correction
+        v_hat = v / (1 - beta2_power)  # bias correction
 
         step = learning_rate * m_hat / (v_hat ** 0.5 + opt._epsilon_t)  # update size
         update_ratio = tf.abs(step) / (tf.abs(var) + 1e-8)  # update ratio

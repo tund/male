@@ -57,7 +57,7 @@ def test_mlp_softmax():
     clf = MLP(model_name="MLP_softmax",
               hidden_units_list=(5,),
               batch_size=16,
-              num_epochs=100,
+              num_epochs=4,
               learning_rate=0.1,
               reg_lambda=0.01,
               random_state=random_seed())
@@ -88,7 +88,7 @@ def test_mlp_softmax_gridsearch():
     ps = PredefinedSplit(test_fold=[-1] * x_train.shape[0] + [1] * x_test.shape[0])
 
     clf = MLP(model_name="mlp_softmax_gridsearch",
-              num_epochs=100,
+              num_epochs=4,
               catch_exception=True,
               random_state=random_seed())
 

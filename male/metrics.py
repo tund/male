@@ -4,6 +4,7 @@ from __future__ import absolute_import
 
 import os
 import sys
+import six
 import math
 import warnings
 import numpy as np
@@ -70,6 +71,27 @@ class InceptionMetric(object):
 
     def score(self, images, batch_size=32, **kwargs):
         pass
+
+    def _get_params_to_dump(self, deep=True):
+        out = dict()
+        for key, value in six.iteritems(self.__dict__):
+            if ((not type(value).__module__.startswith('tf')) and
+                    (not type(value).__module__.startswith('tensorflow')) and
+                    (key != 'best_params')):
+                out[key] = value
+        # param_names = ['tf_graph', 'tf_config', 'tf_merged_summaries']
+        # for key in param_names:
+        #     if key in self.__dict__:
+        #         out[key] = self.__getattribute__(key)
+        return out
+
+    def __getstate__(self):
+        from . import __version__
+        out = self._get_params_to_dump(deep=True)
+        if type(self).__module__.startswith('male.'):
+            return dict(out, _male_version=__version__)
+        else:
+            return out
 
 
 class InceptionMetricList(InceptionMetric):

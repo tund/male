@@ -7,8 +7,8 @@ import pytest
 
 from male.configs import random_seed
 from male.callbacks import Display
-from male.models.distribution import GMM
-from male.models.distribution import Gaussian1D
+from male.models.distributions import GMM
+from male.models.distributions import Gaussian1D
 from male.models.deep_learning.generative import D2GAN2D
 
 

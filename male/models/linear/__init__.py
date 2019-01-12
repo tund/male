@@ -1,6 +1,9 @@
-from .glm import GLM
+try:
+    from .glm import GLM
+except ImportError as e:
+    print('[WARNING]', e)
 
 try:
     from .tensorflow_glm import TensorFlowGLM
-except ImportError:
-    TensorFlowGLM = None
+except ImportError as e:
+    print('[WARNING]', e)

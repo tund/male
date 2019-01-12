@@ -9,7 +9,7 @@ from functools import partial
 # Weight initializer
 ####################################################################################################
 dcgan_initializer = tf.random_normal_initializer(mean=0.0, stddev=0.02)
-he_initializer = tf.contrib.layers.variance_scaling_initializer()
+he_initializer = tf.contrib.layers.variance_scaling_initializer(factor=2.0, mode='FAN_IN')
 xavier_initializer = tf.contrib.layers.xavier_initializer()
 zero_initializer = tf.constant_initializer(0.0)
 ones_initializer = tf.constant_initializer(1.0)
@@ -97,7 +97,7 @@ def layer_norm(inputs,
                center=True,
                scale=True,
                epsilon=1e-6,
-               reuse=None,
+               reuse=False,
                trainable=True,
                begin_norm_axis=1,
                begin_params_axis=-1,
@@ -132,7 +132,7 @@ def layer_norm(inputs,
                                     trainable=trainable)
 
         # Calculate the moments (instance activations) and outputs
-        mean, variance = tf.nn.moments(inputs, norm_axes, keep_dims=True)
+        mean, variance = tf.nn.moments(inputs, norm_axes, keepdims=True)
         inv = tf.rsqrt(variance + epsilon)
         outputs = (inputs - mean) * tf.cast(inv, dtype)
         if scale:
@@ -147,7 +147,7 @@ def instance_norm(inputs,
                   scale=True,
                   epsilon=1e-6,
                   param_initializers=None,
-                  reuse=None,
+                  reuse=False,
                   trainable=True,
                   data_format='NHWC',
                   name='instance_norm'):
@@ -202,13 +202,23 @@ def instance_norm(inputs,
                 gamma = tf.reshape(gamma, params_shape_broadcast)
 
         # Calculate the moments (instance activations) and outputs
-        mean, variance = tf.nn.moments(inputs, moments_axes, keep_dims=True)
+        mean, variance = tf.nn.moments(inputs, moments_axes, keepdims=True)
         inv = tf.rsqrt(variance + epsilon)
         outputs = (inputs - mean) * tf.cast(inv, dtype)
         if scale:
             outputs = outputs * gamma
         if center:
             outputs = outputs + beta
+        return outputs
+
+
+def affine(x, name='affine', reuse=False):
+    num_channels = x.get_shape().as_list()[-1]
+    with tf.variable_scope(name, reuse=reuse):
+        beta = tf.get_variable('beta', shape=[1, 1, 1, num_channels], initializer=zero_initializer)
+        gamma = tf.get_variable('gamma', shape=[1, 1, 1, num_channels],
+                                initializer=ones_initializer)
+        outputs = x * gamma + beta
         return outputs
 
 
@@ -221,17 +231,6 @@ def conv_cond_concat(x, y):
     x_shapes = x.get_shape()
     y_shapes = y.get_shape()
     return tf.concat([x, y * tf.ones([x_shapes[0], x_shapes[1], x_shapes[2], y_shapes[3]])], 3)
-
-
-def minibatch(input, num_kernels=5, kernel_dim=3, name='minibatch'):
-    from .layers import linear
-    x = linear(input, num_kernels * kernel_dim, name=name, initializer=dcgan_initializer)
-    activation = tf.reshape(x, (-1, num_kernels, kernel_dim))
-    diffs = (tf.expand_dims(activation, 3)
-             - tf.expand_dims(tf.transpose(activation, [1, 2, 0]), 0))
-    abs_diffs = tf.reduce_sum(tf.abs(diffs), 2)
-    minibatch_features = tf.reduce_sum(tf.exp(-abs_diffs), 2)
-    return tf.concat(1, [input, minibatch_features])
 
 
 ##################################################################################
@@ -252,23 +251,40 @@ def up_sample(x, scale_factor=2):
 # Optimizers
 ##################################################################################
 
-def adam_optimizer(loss, lr=0.0002, beta1=0.0, beta2=0.9, scope='adam', ignore_list=[]):
+def adam_optimizer(loss, lr=0.0002, beta1=0.0, beta2=0.9,
+                   scope="adam", clip=None, summary=True, ignore_list=()):
     def ignore(s):
         for x in ignore_list:
             if s.find(x) >= 0:
                 return True
+
         return False
 
-    params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=scope)
+    params, reg_losses = [], []
+    if not isinstance(scope, list) and not isinstance(scope, tuple):
+        scope = [scope]
+
+    for sc in scope:
+        reg_losses += tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES, scope=sc)
+        vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=sc)
+        for var in vars:
+            if not ignore(var.op.name):
+                params += [var]
+
+    total_loss = tf.add_n([loss] + reg_losses) if len(reg_losses) > 0 else loss
     update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
     with tf.control_dependencies(update_ops):
         opt = tf.train.AdamOptimizer(lr, beta1=beta1, beta2=beta2)
-        grads = opt.compute_gradients(loss, var_list=params)
-        train_op = opt.apply_gradients(grads)
+        grads = opt.compute_gradients(total_loss, var_list=params)
+        if clip is not None:
+            grads_clipped = [(tf.clip_by_value(grad, -clip, clip), var) for grad, var in grads]
+            train_op = opt.apply_gradients(grads_clipped)
+        else:
+            train_op = opt.apply_gradients(grads)
 
     for var in params:
-        m = opt.get_slot(var, 'm')  # get the first-moment vector
-        v = opt.get_slot(var, 'v')  # get the second-moment vector
+        m = opt.get_slot(var, "m")  # get the first-moment vector
+        v = opt.get_slot(var, "v")  # get the second-moment vector
 
         beta1_power, beta2_power = opt._get_beta_accumulators()
         m_hat = m / (1 - beta1_power)  # bias correction
@@ -276,13 +292,90 @@ def adam_optimizer(loss, lr=0.0002, beta1=0.0, beta2=0.9, scope='adam', ignore_l
 
         step = lr * m_hat / (v_hat ** 0.5 + opt._epsilon_t)  # update size
 
-        if not ignore(var.op.name):
+        if summary:
             tf.summary.histogram(var.op.name + '/values', var)
             tf.summary.histogram(var.op.name + '/update_size', step)
 
     for grad, var in grads:
-        if grad is not None and not ignore(var.op.name):
+        if summary and grad is not None:
             tf.summary.histogram(var.op.name + '/gradients', grad)
+
+    return train_op
+
+
+def momentum_optimizer(loss, lr=0.0002, momentum=0.9,
+                       scope="momentum", clip=None, summary=True, ignore_list=[]):
+    def ignore(s):
+        for x in ignore_list:
+            if s.find(x) >= 0:
+                return True
+
+        return False
+
+    params, reg_losses = [], []
+    if not isinstance(scope, list) and not isinstance(scope, tuple):
+        scope = [scope]
+
+    for sc in scope:
+        reg_losses += tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES, scope=sc)
+        vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=sc)
+        for var in vars:
+            if not ignore(var.op.name):
+                params += [var]
+
+    total_loss = tf.add_n([loss] + reg_losses) if len(reg_losses) > 0 else loss
+    update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+    with tf.control_dependencies(update_ops):
+        opt = tf.train.MomentumOptimizer(lr, momentum=momentum)
+        grads = opt.compute_gradients(total_loss, var_list=params)
+        if clip is not None:
+            grads_clipped = [(tf.clip_by_value(grad, -clip, clip), var) for grad, var in grads]
+            train_op = opt.apply_gradients(grads_clipped)
+        else:
+            train_op = opt.apply_gradients(grads)
+
+    for grad, var in grads:
+        if summary and grad is not None:
+            tf.summary.histogram(var.op.name + '/gradients', grad)
+
+    return train_op
+
+
+def SGD_optimizer(loss, lr=0.0002, scope="SGD", clip=None, summary=True, ignore_list=[]):
+    def ignore(s):
+        for x in ignore_list:
+            if s.find(x) >= 0:
+                return True
+
+        return False
+
+    params, reg_losses = [], []
+    if not isinstance(scope, list) and not isinstance(scope, tuple):
+        scope = [scope]
+
+    for sc in scope:
+        reg_losses += tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES, scope=sc)
+        vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=sc)
+        for var in vars:
+            if not ignore(var.op.name):
+                params += [var]
+
+    total_loss = tf.add_n([loss] + reg_losses) if len(reg_losses) > 0 else loss
+    update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+    with tf.control_dependencies(update_ops):
+        opt = tf.train.GradientDescentOptimizer(lr)
+        grads = opt.compute_gradients(total_loss, var_list=params)
+        if clip is not None:
+            grads_clipped = [(tf.clip_by_value(grad, -clip, clip), var) for grad, var in grads]
+            train_op = opt.apply_gradients(grads_clipped)
+        else:
+            train_op = opt.apply_gradients(grads)
+
+    for grad, var in grads:
+        if summary and grad is not None:
+            tf.summary.histogram(var.op.name + '/gradients', grad)
+            gradient_norm = tf.sqrt(tf.reduce_sum(tf.square(grad)))
+            tf.summary.scalar(var.op.name + '/gradient_norm', gradient_norm)
 
     return train_op
 

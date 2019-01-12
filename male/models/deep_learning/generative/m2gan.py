@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 plt.style.use('ggplot')
 
 from . import DCGAN
-from ...distribution import Uniform1D
+from ...distributions import Uniform1D
 from ....activations import tf_lrelu as lrelu
 from ....utils.generic_utils import make_batches
 from ....utils.generic_utils import conv_out_size_same

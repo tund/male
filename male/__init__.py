@@ -6,7 +6,7 @@ from .optimizer import Optimizer
 
 try:
     from .tensorflow_model import TensorFlowModel
-except ImportError:
-    TensorFlowModel = None
+except ImportError as e:
+    print('[WARNING]', e)
 
 __version__ = '0.1.0'

@@ -5,7 +5,7 @@ from __future__ import absolute_import
 import numpy as np
 import tensorflow as tf
 
-from male.models.distribution import Uniform1D
+from male.models.distributions import Uniform1D
 from male.models.deep_learning.generative import GAN1D
 
 

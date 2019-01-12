@@ -10,7 +10,6 @@ import matplotlib.pyplot as plt
 plt.style.use('ggplot')
 
 from . import DCGAN
-from ...distribution import Uniform1D
 from ....activations import tf_lrelu as lrelu
 from ....utils.generic_utils import make_batches
 from ....utils.generic_utils import conv_out_size_same
@@ -121,13 +120,8 @@ class GANK(DCGAN):
 
                 iteration += 1
 
-            if (self.epoch + 1) % self.inception_score_freq == 0 and \
-                            "inception_score" in self.metrics:
-                epoch_logs['inception_score'] = self._compute_inception_score(
-                    self.generate(num_samples=self.num_inception_samples))
-
-            callbacks.on_epoch_end(self.epoch, epoch_logs)
-            self._on_epoch_end()
+            self._on_epoch_end(epoch_logs, input_data={self.x: x_batch, self.z: z_batch})
+            callbacks.on_epoch_end(self.epoch - 1, epoch_logs)
 
     def _loss(self, x, y):
         if self.loss == 'hinge':

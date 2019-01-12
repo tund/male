@@ -274,7 +274,7 @@ def test_dfm_cifar10_inception_score(show_figure=False, block_figure_on_end=Fals
                 metrics=['d_loss', 'g_loss', 'inception_score'],
                 callbacks=[loss_display, inception_score_display, sample_display, checkpoint],
                 num_epochs=4,  # set to 100 for a full run
-                inception_score_freq=1,
+                inception_metrics_freq=1,
                 random_state=random_seed(),
                 verbose=1)
 
