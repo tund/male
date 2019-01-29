@@ -18,7 +18,8 @@ def linear(input,
            update_spectral_norm=True,
            l2_reg=None,
            name='linear'):
-    regularizer = None if l2_reg is None else tf.contrib.layers.l2_regularizer(scale=l2_reg, scope=name)
+    regularizer = None if l2_reg is None else \
+        tf.contrib.layers.l2_regularizer(scale=l2_reg, scope=name)
     with tf.variable_scope(name):
         w = tf.get_variable('weights',
                             [input.get_shape()[1], output_dim],
@@ -33,6 +34,7 @@ def linear(input,
             lin = lin + b
         return lin
 
+
 def conv2d(x,
            output_dim,
            kernel_size=(3, 3),
@@ -46,7 +48,8 @@ def conv2d(x,
            name='conv2d'):
     kernel_size = int2tuple(kernel_size, reps=2)
     strides = int2tuple(strides, reps=2)
-    regularizer = None if l2_reg is None else tf.contrib.layers.l2_regularizer(scale=l2_reg, scope=name)
+    regularizer = None if l2_reg is None else \
+        tf.contrib.layers.l2_regularizer(scale=l2_reg, scope=name)
     with tf.variable_scope(name):
         w = tf.get_variable('weights', shape=[kernel_size[0], kernel_size[1],
                                               x.get_shape()[-1], output_dim],
@@ -61,6 +64,7 @@ def conv2d(x,
             conv = tf.nn.bias_add(conv, bias)
         return conv
 
+
 def deconv2d(x,
              output_shape,
              kernel_size=(3, 3),
@@ -74,7 +78,8 @@ def deconv2d(x,
              name='deconv2d'):
     kernel_size = int2tuple(kernel_size, reps=2)
     strides = int2tuple(strides, reps=2)
-    regularizer = None if l2_reg is None else tf.contrib.layers.l2_regularizer(scale=l2_reg, scope=name)
+    regularizer = None if l2_reg is None else \
+        tf.contrib.layers.l2_regularizer(scale=l2_reg, scope=name)
 
     with tf.variable_scope(name):
         w = tf.get_variable('weights', shape=[kernel_size[0], kernel_size[1],
@@ -91,6 +96,7 @@ def deconv2d(x,
             deconv = tf.nn.bias_add(deconv, bias)
         return deconv
 
+
 def SE_layer(x, ratio=2, initializer=None, l2_reg=None, name='SE'):
     input_dim = x.get_shape().as_list()[-1]
     with tf.variable_scope(name):
@@ -102,6 +108,7 @@ def SE_layer(x, ratio=2, initializer=None, l2_reg=None, name='SE'):
         h = tf.reshape(h, [-1, 1, 1, input_dim], name='l2.reshape')
         output = tf.multiply(x, h, name='output')
         return output
+
 
 def attention_old(x,
                   down_size=8,
@@ -299,7 +306,7 @@ def residual_block(input,
                    name=name + '.conv2.lin')
 
         if SE != None:
-            h = SE_layer(h, SE, initializer=initializer, l2_reg=l2_reg, name=name+'.SE')
+            h = SE_layer(h, SE, initializer=initializer, l2_reg=l2_reg, name=name + '.SE')
 
         output = tf.add(h, skip, name=name + '.output')
     elif resample in ['down', 'down-stride']:
@@ -327,7 +334,7 @@ def residual_block(input,
         h = conv2d(h,
                    output_dim,
                    kernel_size=kernel_size,
-                   strides=1 if resample=='down' else strides,
+                   strides=1 if resample == 'down' else strides,
                    # two ways to downsample, either use stride > 1 or use average pooling later
                    use_spectral_norm=use_spectral_norm,
                    update_spectral_norm=update_spectral_norm,
@@ -355,7 +362,7 @@ def residual_block(input,
             h = mean_pool(h, name=name + '.conv2.mean_pool')
 
         if SE != None:
-            h = SE_layer(h, SE, initializer=initializer, l2_reg=l2_reg, name=name+'.SE')
+            h = SE_layer(h, SE, initializer=initializer, l2_reg=l2_reg, name=name + '.SE')
 
         output = tf.add(h, skip, name=name + '.output')
     else:  # the same dimension
@@ -406,11 +413,12 @@ def residual_block(input,
                    name=name + '.conv2.lin')
 
         if SE != None:
-            h = SE_layer(h, SE, initializer=initializer, l2_reg=l2_reg, name=name+'.SE')
+            h = SE_layer(h, SE, initializer=initializer, l2_reg=l2_reg, name=name + '.SE')
 
         output = tf.add(h, skip, name=name + '.output')
 
     return output
+
 
 def residual_block_bottleneck(input,
                               output_dim,
@@ -488,7 +496,7 @@ def residual_block_bottleneck(input,
                    name=name + '.conv2.lin')
 
         if SE != None:
-            h = SE_layer(h, SE, initializer=initializer, l2_reg=l2_reg, name=name+'.SE')
+            h = SE_layer(h, SE, initializer=initializer, l2_reg=l2_reg, name=name + '.SE')
 
         output = tf.add(h, skip, name=name + '.output')
     elif resample in ['down', 'down-stride']:
@@ -533,7 +541,7 @@ def residual_block_bottleneck(input,
         h = conv2d(h,
                    output_dim,
                    kernel_size=kernel_size,
-                   strides=1 if resample=='down' else strides,
+                   strides=1 if resample == 'down' else strides,
                    # different from the paper, we perform down sampling here instead of the first conv
                    use_spectral_norm=use_spectral_norm,
                    update_spectral_norm=update_spectral_norm,
@@ -561,7 +569,7 @@ def residual_block_bottleneck(input,
             h = mean_pool(h, name=name + '.conv3.mean_pool')
 
         if SE != None:
-            h = SE_layer(h, SE, initializer=initializer, l2_reg=l2_reg, name=name+'.SE')
+            h = SE_layer(h, SE, initializer=initializer, l2_reg=l2_reg, name=name + '.SE')
 
         output = tf.add(h, skip, name=name + '.output')
     else:  # the same dimension
@@ -628,14 +636,17 @@ def residual_block_bottleneck(input,
                    name=name + '.conv3.lin')
 
         if SE != None:
-            h = SE_layer(h, SE, initializer=initializer, l2_reg=l2_reg, name=name+'.SE')
+            h = SE_layer(h, SE, initializer=initializer, l2_reg=l2_reg, name=name + '.SE')
 
         output = tf.add(h, skip, name=name + '.output')
 
     return output
 
-def simple_layer(x, output_dim, initializer=he_initializer, training=True, l2_reg=None, name='dnn', layer=0):
-    h = linear(x, output_dim, initializer=initializer, l2_reg=l2_reg, name='{}.layer{}.lin'.format(name, layer))
+
+def simple_layer(x, output_dim, initializer=he_initializer,
+                 training=True, l2_reg=None, name='dnn', layer=0):
+    h = linear(x, output_dim, initializer=initializer, l2_reg=l2_reg,
+               name='{}.layer{}.lin'.format(name, layer))
     h = batch_norm(h, training=training, name='{}.layer{}.batch_norm'.format(name, layer))
     get_activation_summary(h, '{}.layer{}.batch_norm'.format(name, layer))
     h = tf.nn.relu(h, name='{}.layer{}.relu'.format(name, layer))

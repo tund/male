@@ -121,8 +121,8 @@ class TensorFlowModel(Model):
         callbacks._set_params({
             'num_epochs': self.num_epochs,
             'num_samples': x_train.shape[0]
-                           if (x_train is not None) and (hasattr(x_train, 'shape'))
-                           else self.batch_size,
+            if (x_train is not None) and (hasattr(x_train, 'shape'))
+            else self.batch_size,
             'verbose': self.verbose,
             'do_validation': do_validation,
             'metrics': callback_metrics,
@@ -194,9 +194,13 @@ class TensorFlowModel(Model):
             saver = tf.train.Saver()
             saver.save(self.tf_session, file_path)
 
+    def _on_load_model_pickle_end(self):
+        pass
+
     @staticmethod
     def load_model(file_path):
         model = pkl.load(open(file_path + ".pkl", 'rb'))['model']
+        model._on_load_model_pickle_end()
         model.tf_graph = tf.Graph()
         model.tf_config = tf_backend.get_default_config()
         model.tf_session = tf.Session(config=model.tf_config, graph=model.tf_graph)
