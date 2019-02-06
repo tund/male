@@ -236,3 +236,19 @@ def visualize_classification_prediction(estimator, x_train, y_train,
     kwargs['ax'] = axes
     if show:
         plt.show(block=block_on_end)
+
+
+def disp_heatmap(data, labels=None, sorted_by_labels=False):
+    if sorted_by_labels and (labels is None):
+        raise ValueError('Requires labels if enable sorted by labels')
+    if sorted_by_labels:
+        idx = np.argsort(labels)
+        _ = plt.imshow(data[idx], aspect='auto')
+        _ = plt.colorbar()
+        _, oy = np.unique(labels[idx], return_index=True)
+        for i in oy[1:]:
+            plt.axhline(i, color='red')
+    else:
+        _ = plt.imshow(data, aspect='auto')
+    plt.grid(False)
+    plt.tight_layout()
