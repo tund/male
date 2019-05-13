@@ -420,6 +420,49 @@ def SGD_optimizer(loss, lr=0.0002, scope="SGD", clip=None, summary=True, ignore_
     return train_op
 
 
+def adadelta_optimizer(loss, lr=1.0, rho=0.95, scope='adadelta',
+                       global_step=None, clip=None, summary=True, ignore_list=()):
+    def ignore(s):
+        for x in ignore_list:
+            if s.find(x) >= 0:
+                return True
+
+        return False
+
+    params, reg_losses = [], []
+    if not isinstance(scope, list) and not isinstance(scope, tuple):
+        scope = [scope]
+
+    for sc in scope:
+        reg_losses += tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES, scope=sc)
+        vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=sc)
+        for var in vars:
+            if not ignore(var.op.name):
+                params += [var]
+
+    total_loss = tf.add_n([loss] + reg_losses) if len(reg_losses) > 0 else loss
+    update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+    with tf.control_dependencies(update_ops):
+        opt = tf.train.AdadeltaOptimizer(lr, rho=rho)
+        grads = opt.compute_gradients(total_loss, var_list=params)
+        if clip is not None:
+            grads_list = [grad for grad, var in grads]
+            var_list = [var for grad, var in grads]
+            grads_clipped, _ = tf.clip_by_global_norm(grads_list, clip)
+            train_op = opt.apply_gradients(zip(grads_clipped, var_list), global_step=global_step)
+        else:
+            train_op = opt.apply_gradients(grads, global_step=global_step)
+
+    for grad, var in grads:
+        if summary and grad is not None:
+            tf.summary.histogram(var.op.name + '/values', var)
+            tf.summary.histogram(var.op.name + '/gradients', grad)
+            gradient_norm = tf.sqrt(tf.reduce_sum(tf.square(grad)) + 1e-8)
+            tf.summary.scalar(var.op.name + '/gradient_norm', gradient_norm)
+
+    return train_op
+
+
 ####################################################################################################
 # Miscs
 ####################################################################################################

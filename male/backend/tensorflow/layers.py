@@ -39,6 +39,7 @@ def conv2d(x,
            output_dim,
            kernel_size=(3, 3),
            strides=(2, 2),
+           dilations=(1, 1),
            padding='SAME',
            use_bias=True,
            initializer=dcgan_initializer,
@@ -48,6 +49,7 @@ def conv2d(x,
            name='conv2d'):
     kernel_size = int2tuple(kernel_size, reps=2)
     strides = int2tuple(strides, reps=2)
+    dilations = int2tuple(dilations, reps=2)
     regularizer = None if l2_reg is None else \
         tf.contrib.layers.l2_regularizer(scale=l2_reg, scope=name)
     with tf.variable_scope(name):
@@ -58,7 +60,8 @@ def conv2d(x,
         if use_spectral_norm:
             w = spectral_norm(w, update=update_spectral_norm)
         conv = tf.nn.conv2d(input=x, filter=w, padding=padding,
-                            strides=[1, strides[0], strides[1], 1])
+                            strides=[1, strides[0], strides[1], 1],
+                            dilations=[1, dilations[0], dilations[1], 1])
         if use_bias:
             bias = tf.get_variable('biases', [output_dim], initializer=zero_initializer)
             conv = tf.nn.bias_add(conv, bias)
@@ -234,6 +237,7 @@ def residual_block(input,
                    output_dim,
                    kernel_size=(3, 3),
                    strides=(2, 2),
+                   dilations=(1, 1),  # don't apply for upblock
                    initializer=he_initializer,
                    skip_initializer=xavier_initializer,
                    use_spectral_norm=False,
@@ -248,6 +252,7 @@ def residual_block(input,
                    name='resblock'):
     kernel_size = int2tuple(kernel_size, reps=2)
     strides = int2tuple(strides, reps=2)
+    dilations = [int2tuple(x, reps=2) for x in dilations]
 
     input_shape = input.get_shape().as_list()
     input_dim = input_shape[-1]
@@ -336,6 +341,7 @@ def residual_block(input,
                    kernel_size=kernel_size,
                    strides=1 if resample == 'down' else strides,
                    # two ways to downsample, either use stride > 1 or use average pooling later
+                   dilations=dilations[0],
                    use_spectral_norm=use_spectral_norm,
                    update_spectral_norm=update_spectral_norm,
                    initializer=initializer,
@@ -352,6 +358,7 @@ def residual_block(input,
                    output_dim,
                    kernel_size=kernel_size,
                    strides=1,
+                   dilations=dilations[1],
                    use_spectral_norm=use_spectral_norm,
                    update_spectral_norm=update_spectral_norm,
                    initializer=initializer,
@@ -390,6 +397,7 @@ def residual_block(input,
                    output_dim,
                    kernel_size=kernel_size,
                    strides=1,
+                   dilations=dilations[0],
                    use_spectral_norm=use_spectral_norm,
                    update_spectral_norm=update_spectral_norm,
                    initializer=initializer,
@@ -406,6 +414,7 @@ def residual_block(input,
                    output_dim,
                    kernel_size=kernel_size,
                    strides=1,
+                   dilations=dilations[1],
                    use_spectral_norm=use_spectral_norm,
                    update_spectral_norm=update_spectral_norm,
                    initializer=initializer,
