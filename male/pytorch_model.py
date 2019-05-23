@@ -15,6 +15,7 @@ from . import Model
 from .configs import model_dir
 from . import callbacks as cbks
 from .utils.generic_utils import tuid
+from sklearn.utils.validation import check_is_fitted
 from .utils.io_utils import ask_to_proceed_with_overwrite
 
 
@@ -49,6 +50,10 @@ class PyTorchModel(Model):
             self.device = torch.device('cuda')
         else:
             self.device = torch.device(self.default_device)
+
+    def _build_model(self, x):
+        self.net = None
+        pass
 
     def fit(self, x=None, y=None, **kwargs):
         """Fit the model to the data X and the label y if available
@@ -134,6 +139,34 @@ class PyTorchModel(Model):
         self._on_train_end()
 
         return self
+
+    def forward(self, x):
+        return self.net(x)
+
+    def get_loss(self, x, y, **kwargs):
+        with torch.no_grad():
+            if not isinstance(x, torch.Tensor):
+                x = torch.tensor(x).type(self.float).to(self.device)
+            if not isinstance(y, torch.Tensor):
+                y = torch.tensor(y).to(self.device)
+            y_pred = self.forward(x)
+            return self.criterion(y_pred, y).item()
+
+    def _on_batch_end(self, x, y=None, logs={}):
+        outs = {}
+        for m in self.metrics:
+            if m in logs:
+                continue
+            if m == 'loss':
+                outs.update({m: self.get_loss(x, y)})
+            if m == 'acc':
+                outs.update({m: self.score(x, self._decode_labels(y))})
+            if m == 'err':
+                if self.task == 'classification':
+                    outs.update({m: 1 - self.score(x, self._decode_labels(y))})
+                else:
+                    outs.update({m: -self.score(x, self._decode_labels(y))})
+        return outs
 
     def save(self, file_path=None, overwrite=True):
         if file_path is None:

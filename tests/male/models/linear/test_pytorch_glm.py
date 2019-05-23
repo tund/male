@@ -26,8 +26,8 @@ def test_pytorch_glm_logit():
     print('Number of testing samples = {}'.format(x_test.shape[0]))
 
     clf = PyTorchGLM(model_name='PytorchGLM_logit',
-                     l1_penalty=0.0,
-                     l2_penalty=0.0,
+                     l1_penalty=0.0001,
+                     l2_penalty=0.001,
                      optimizer='sgd',
                      random_state=random_seed())
 
@@ -75,8 +75,8 @@ def test_pytorch_glm_regression():
                      task='regression',
                      link='linear',  # link function
                      loss='quadratic',  # loss function
-                     l2_penalty=0.0,  # ridge regularization
-                     l1_penalty=0.0,  # Lasso regularization
+                     l2_penalty=0.001,  # ridge regularization
+                     l1_penalty=0.0001,  # Lasso regularization
                      l1_smooth=1E-5,  # smoothing for Lasso regularization
                      l1_method='pseudo_huber',  # approximation method for L1-norm
                      random_state=random_seed())

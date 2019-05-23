@@ -7,6 +7,7 @@ import numpy as np
 
 from male import PyTorchModel
 from male.models.linear import GLM
+from male.backend.pytorch.ops import cross_entropy_with_one_hot
 from male.utils.generic_utils import make_batches
 from male.utils.disp_utils import tile_raster_images
 
@@ -45,21 +46,21 @@ class PyTorchGLM(PyTorchModel, GLM):
             self.b = torch.zeros(1,
                                  device=self.device, dtype=self.float, requires_grad=True)
 
-    def _cross_entropy_with_one_hot(self, input, target):
-        return torch.nn.CrossEntropyLoss()(input, target.argmax(dim=1))
-
     def _build_model(self, x):
         if self.loss == 'logit':
             self.criterion = torch.nn.BCEWithLogitsLoss()
         elif self.loss == 'softmax':
-            self.criterion = self._cross_entropy_with_one_hot
+            self.criterion = cross_entropy_with_one_hot
         else:  # quadratic (regression)
             self.criterion = torch.nn.MSELoss()
-        self.regularization = 0.0
+
+    def _regularization(self):
+        regularization = 0.0
         if self.l2_penalty > 0:
-            self.regularization += 0.5 * self.l2_penalty * torch.sum(torch.pow(self.w, 2))
+            regularization += 0.5 * self.l2_penalty * torch.sum(torch.pow(self.w, 2))
         if self.l1_penalty > 0:
-            self.regularization += self.l1_penalty * torch.reduce_sum(torch.abs(self.w))
+            regularization += self.l1_penalty * torch.sum(torch.abs(self.w))
+        return regularization
 
     def _fit_loop(self, x, y,
                   do_validation=False,
@@ -68,10 +69,10 @@ class PyTorchGLM(PyTorchModel, GLM):
 
         batches = make_batches(x.shape[0], self.batch_size)
         # convert data to Torch Tensor
-        x_tensor = torch.from_numpy(x).to(self.device)
-        y_tensor = torch.from_numpy(y).to(self.device)
+        x_tensor = torch.from_numpy(x).type(self.float).to(self.device)
+        y_tensor = torch.from_numpy(y).type(self.float).to(self.device)
         if x_valid is not None:
-            x_valid_tensor = torch.from_numpy(x_valid).to(self.device)
+            x_valid_tensor = torch.from_numpy(x_valid).type(self.float).to(self.device)
         while (self.epoch < self.num_epochs) and (not self.stop_training):
             epoch_logs = {}
             callbacks.on_epoch_begin(self.epoch)
@@ -88,7 +89,7 @@ class PyTorchGLM(PyTorchModel, GLM):
                 y_pred = x_batch.mm(self.w) + self.b
                 y_pred = y_pred.squeeze()
                 loss = self.criterion(y_pred, y_batch)
-                total_loss = loss + self.regularization
+                total_loss = loss + self._regularization()
 
                 # compute the gradients
                 total_loss.backward()
@@ -115,21 +116,21 @@ class PyTorchGLM(PyTorchModel, GLM):
     def get_loss(self, x, y, **kwargs):
         with torch.no_grad():
             if not isinstance(x, torch.Tensor):
-                x = torch.tensor(x).to(self.device)
+                x = torch.tensor(x).type(self.float).to(self.device)
             if not isinstance(y, torch.Tensor):
-                y = torch.tensor(y).to(self.device)
+                y = torch.tensor(y).type(self.float).to(self.device)
             y_pred = x.mm(self.w) + self.b
             return self.criterion(y_pred, y).item()
 
     def get_link(self, x, **kwargs):
         with torch.no_grad():
             if not isinstance(x, torch.Tensor):
-                x = torch.tensor(x).to(self.device)
+                x = torch.tensor(x).type(self.float).to(self.device)
             y = x.mm(self.w) + self.b
             if self.link == 'logit':
                 y = torch.sigmoid(y)
             elif self.link == 'softmax':
-                y = torch.nn.functional.softmax(y)
+                y = torch.nn.functional.softmax(y, dim=1)
             return y.cpu().detach().numpy()
 
     def disp_weights(self, disp_dim=None, tile_shape=None,
@@ -165,7 +166,7 @@ class PyTorchGLM(PyTorchModel, GLM):
             ax.set_yticklabels([])
             ax.set_xlabel("epoch #{}".format(kwargs['epoch']), fontsize=28)
         else:
-            fig, ax = plt.subplots()
+            _, ax = plt.subplots()
             ax.set_title(kwargs['title'] if 'title' in kwargs else "Learned weights",
                          fontsize=28)
             ax.axis('off')
