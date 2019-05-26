@@ -19,6 +19,12 @@ except ImportError as e:
     PyTorchMLP = None
     print('[WARNING]', e)
 
+try:
+    from .pytorch_cnn import PyTorchConvNet
+except ImportError as e:
+    PyTorchConvNet = None
+    print('[WARNING]', e)
+
 '''
 # This way looks nice, but we cannot browse code (Go to definition, declaration, ...)
 import_models = [('from .adsf import ASDF', 'ASDF = None'),

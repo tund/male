@@ -96,7 +96,7 @@ def test_pytorch_mlp_v1(show=False, block_figure_on_end=False):
 
     clf = PyTorchMLP(model_name='PyTorchMLP',
                      arch='MLPv1',
-                     num_epochs=20,
+                     num_epochs=4,
                      batch_size=100,
                      metrics=['loss', 'err'],
                      callbacks=[loss_display, err_display, weight_display],
@@ -192,7 +192,7 @@ def test_pytorch_mlp_v2(show=False, block_figure_on_end=False):
 
     clf = PyTorchMLP(model_name='PyTorchMLP',
                      arch='MLPv2',
-                     num_epochs=20,
+                     num_epochs=4,
                      batch_size=100,
                      metrics=['loss', 'err'],
                      callbacks=[loss_display, err_display, weight_display],

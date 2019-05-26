@@ -183,8 +183,15 @@ class PyTorchModel(Model):
             proceed = ask_to_proceed_with_overwrite(file_path)
             if not proceed:
                 return
-        # torch.save(self.state_dict(), file_path)
+        # torch.save(self, file_path)
         pkl.dump({'model': self}, open(file_path, 'wb'))
+
+    @staticmethod
+    def load_model(file_path):
+        # model = torch.load(file_path)
+        model = pkl.load(open(file_path, 'rb'))['model']        
+        model.net.eval() 
+        return model
 
     def get_params(self, deep=True):
         out = super(PyTorchModel, self).get_params(deep=deep)

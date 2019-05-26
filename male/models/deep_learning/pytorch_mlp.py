@@ -35,6 +35,8 @@ class PyTorchMLP(PyTorchModel):
         else:
             self.net = MLPv2(data_dim=x.shape[1], num_hiddens=num_hiddens,
                              num_classes=self.num_classes, act_func=act_func)
+        if self.verbose > 0:
+            print(self.net)
         self.criterion = nn.CrossEntropyLoss()
         self.optz = optim.SGD(self.net.parameters(), lr=self.learning_rate)
 
@@ -177,7 +179,7 @@ class MLPv2(nn.Module):
         for i in range(1, len(num_hiddens)):
             self.layers.add_module('fc{}'.format(i), nn.Linear(num_hiddens[i - 1], num_hiddens[i]))
             self.layers.add_module('relu{}'.format(i), nn.ReLU())
-        self.layers.add_module('fc_out', nn.Linear(num_hiddens[-1], num_classes))        
+        self.layers.add_module('fc_out', nn.Linear(num_hiddens[-1], num_classes))
 
-    def forward(self, x):        
+    def forward(self, x):
         return self.layers(x)
