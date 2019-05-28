@@ -113,6 +113,22 @@ def SE_layer(x, ratio=2, initializer=None, l2_reg=None, name='SE'):
         return output
 
 
+def residual_gate_layer(identity, residual, output_dim, l2_reg=None, mode='iden', name='gate'):
+    assert mode in ['iden', 'both']
+    with tf.variable_scope(name):
+        gate_inputs = identity if mode == 'iden' else tf.concat([identity, residual], -1)
+        gate_linear = conv2d(gate_inputs,
+                             output_dim,
+                             kernel_size=1,
+                             strides=1,
+                             # l2_reg=l2_reg,
+                             name='linear')
+        gate_activation = tf.sigmoid(gate_linear, name='activation')
+        tf.summary.histogram(name + '.linear', gate_linear)
+        tf.summary.histogram(name + '.activation', gate_activation)
+        return gate_activation
+
+
 def attention_old(x,
                   down_size=8,
                   batch_norm_func=None,
@@ -246,6 +262,7 @@ def residual_block(input,
                    batch_norm_input=True,
                    activation_func=None,
                    activate_input=True,
+                   residual_gate=None,  # input gate to the residual path for the SAME (NONE) block
                    resample=None,
                    l2_reg=None,
                    SE=None,
@@ -310,8 +327,8 @@ def residual_block(input,
                    l2_reg=l2_reg,
                    name=name + '.conv2.lin')
 
-        if SE != None:
-            h = SE_layer(h, SE, initializer=initializer, l2_reg=l2_reg, name=name + '.SE')
+        if SE is not None:
+            h = SE_layer(h, SE, initializer=initializer, l2_reg=l2_reg, name=name + '.SE')        
 
         output = tf.add(h, skip, name=name + '.output')
     elif resample in ['down', 'down-stride']:
@@ -368,7 +385,7 @@ def residual_block(input,
         if resample == 'down':
             h = mean_pool(h, name=name + '.conv2.mean_pool')
 
-        if SE != None:
+        if SE is not None:
             h = SE_layer(h, SE, initializer=initializer, l2_reg=l2_reg, name=name + '.SE')
 
         output = tf.add(h, skip, name=name + '.output')
@@ -392,6 +409,9 @@ def residual_block(input,
             h = batch_norm_func(h, name=name + '.conv1.batch_norm')
         if activation_func is not None and activate_input:
             h = activation_func(h, name=name + ".conv1.acts")
+
+        if residual_gate is not None:
+            identity_path = tf.stop_gradient(h)
 
         h = conv2d(h,
                    output_dim,
@@ -421,8 +441,14 @@ def residual_block(input,
                    l2_reg=l2_reg,
                    name=name + '.conv2.lin')
 
-        if SE != None:
+        if SE is not None:
             h = SE_layer(h, SE, initializer=initializer, l2_reg=l2_reg, name=name + '.SE')
+
+        # perhaps never use SE and residual_gate at the same time
+        if residual_gate is not None:
+            gate = residual_gate_layer(identity_path, tf.stop_gradient(h), output_dim, l2_reg,
+                                       mode=residual_gate, name=name + '.residual_gate')
+            h = tf.multiply(h, gate)
 
         output = tf.add(h, skip, name=name + '.output')
 
