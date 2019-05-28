@@ -204,9 +204,11 @@ class TensorFlowModel(Model):
     def load_model(file_path):
         model = pkl.load(open(file_path + ".pkl", 'rb'))['model']
         model._on_load_model_pickle_end()
+        if not hasattr(model, 'per_process_gpu_memory_fraction'):
+            model.per_process_gpu_memory_fraction = None  # default
         model.tf_graph = tf.Graph()
         model.tf_config = tf_backend.get_default_config(
-            per_process_gpu_memory_fraction=self.per_process_gpu_memory_fraction)
+            per_process_gpu_memory_fraction=model.per_process_gpu_memory_fraction)
         model.tf_session = tf.Session(config=model.tf_config, graph=model.tf_graph)
         with model.tf_graph.as_default():
             # tf.get_variable_scope().reuse_variables()
