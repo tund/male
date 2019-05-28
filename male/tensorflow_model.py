@@ -24,17 +24,20 @@ class TensorFlowModel(Model):
                  log_path=None,
                  model_path=None,
                  summary_freq=int(1e+8),
+                 per_process_gpu_memory_fraction=None,
                  **kwargs):
         super(TensorFlowModel, self).__init__(model_name=model_name, **kwargs)
         self.log_path = log_path
         self.model_path = model_path
         self.summary_freq = summary_freq
+        self.per_process_gpu_memory_fraction = per_process_gpu_memory_fraction
 
     def _init(self):
         super(TensorFlowModel, self)._init()
 
         self.tf_graph = tf.Graph()
-        self.tf_config = tf_backend.get_default_config()
+        self.tf_config = tf_backend.get_default_config(
+            per_process_gpu_memory_fraction=self.per_process_gpu_memory_fraction)
         self.tf_session = tf.Session(config=self.tf_config, graph=self.tf_graph)
         self.tf_merged_summaries = None
         self.tf_summary_writer = None
