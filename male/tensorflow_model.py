@@ -13,7 +13,7 @@ import tensorflow as tf
 from . import Model
 from .configs import model_dir
 from . import callbacks as cbks
-from .backend import tensorflow_backend as tf_backend
+from .backend import tensorflow as tf_backend
 from .utils.generic_utils import tuid
 from .utils.io_utils import ask_to_proceed_with_overwrite
 
@@ -205,7 +205,8 @@ class TensorFlowModel(Model):
         model = pkl.load(open(file_path + ".pkl", 'rb'))['model']
         model._on_load_model_pickle_end()
         model.tf_graph = tf.Graph()
-        model.tf_config = tf_backend.get_default_config()
+        model.tf_config = tf_backend.get_default_config(
+            per_process_gpu_memory_fraction=self.per_process_gpu_memory_fraction)
         model.tf_session = tf.Session(config=model.tf_config, graph=model.tf_graph)
         with model.tf_graph.as_default():
             # tf.get_variable_scope().reuse_variables()
