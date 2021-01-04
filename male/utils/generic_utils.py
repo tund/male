@@ -2,12 +2,18 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
+import os
 import sys
+import re
 import six
 import time
 import copy
 import math
+import glob
+import shutil
+import hashlib
 import warnings
+import cProfile
 import numpy as np
 
 
@@ -178,3 +184,107 @@ def get_from_module(identifier, module_params, module_name,
             raise ValueError('Invalid ' + str(module_name) + ': ' +
                              str(identifier))
     return identifier
+
+
+def retrieve_all_files(path):
+    """Retrieve all files in a directory and all its sub-directories, sort file names ascendingly.
+    # Arguments:
+        path: the input directory.
+    # Returns:
+        A sorted list of all retrieved files.
+    """
+    return sorted([f for f in glob.glob(os.path.join(path, "**"), recursive=True) if os.path.isfile(f)])
+
+
+def makedirs(path):
+    os.makedirs(path, exist_ok=True)
+
+
+def copyfile(src, dst):
+    """Copy a source file (`src`) to another place (`dst`), create directories if not exist.
+    # Arguments:
+        src: the source/input file.
+        dst: the destination/output file.
+    """
+    path = os.path.dirname(dst)
+    makedirs(path)  # create directories recursively
+    shutil.copyfile(src, dst)
+
+
+def copydir(src, dst):
+    shutil.copytree(src, dst)
+
+
+def md5sum(file_path):
+    return hashlib.md5(open(file_path, 'rb').read()).hexdigest()
+
+
+def totuple(x, reps=1):
+    if (not isinstance(x, tuple)) and (not isinstance(x, list)):
+        return (x,) * reps
+    else:
+        return x
+
+
+def dist2p(point1, point2):
+    return np.sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
+
+
+def compute_angle(u, v, k):
+    '''
+    Compute angle between two vectors: uv and uk
+    :param u:
+    :param v:
+    :param k:
+    :return:
+    '''
+    uv = (v[0] - u[0], v[1] - u[1])
+    uk = (k[0] - u[0], k[1] - u[1])
+    uv_length = np.sqrt(uv[0] ** 2 + uv[1] ** 2)
+    uk_length = np.sqrt(uk[0] ** 2 + uk[1] ** 2)
+    return np.arccos((uv[0] * uk[0] + uv[1] * uk[1]) / (uv_length * uk_length)) * 180 / np.pi
+
+
+def str2npy(s):
+    while True:
+        m = re.search('[0-9|\.] +[0-9|\.]', s)
+        if m is None:
+            break
+        s = s.replace(s[m.span()[0]:m.span()[1]],
+                      s[m.span()[0]] + ',' + s[m.span()[1] - 1])
+    s = re.sub(' *\n *', ',', s)
+    return eval('np.array({})'.format(s))
+
+
+def profileit(func):
+    def wrapper(*args, **kwargs):
+        prof = cProfile.Profile()
+        result = prof.runcall(func, *args, **kwargs)
+        prof_file = os.path.join("./debug", func.__module__ + "." + func.__name__)
+        prof.dump_stats(prof_file + '.dump')
+
+        with open(prof_file + '.profile', 'w') as stream:
+            stats = pstats.Stats(prof_file + '.dump', stream=stream)
+            stats.sort_stats("cumtime")
+            stats.print_stats()
+        return result
+
+    return wrapper
+
+
+def parse_date_string_to_timestamp(text):
+    for fmt in ('%Y-%m-%d', '%d.%m.%Y', '%d/%m/%Y', '%m/%d/%Y',
+                '%Y/%m/%d %H:%M:%S', '%Y:%m:%d %H:%M:%S', '%Y:%m:%d %H:%M:%S.%f',
+                '%m/%Y'):
+        try:
+            return datetime.strptime(text, fmt).timestamp()
+        except ValueError:
+            pass
+    raise ValueError('no valid date format found for {}'.format(text))
+
+
+def has_substr_in_list(s, str_list):
+    for t in str_list:
+        if t in s:
+            return True
+    return False
