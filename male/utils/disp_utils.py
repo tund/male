@@ -6,7 +6,8 @@ from __future__ import print_function
 import numpy as np
 from matplotlib.colors import ColorConverter
 
-from ..configs import matplotlib_backend
+from male.utils import imutils
+from male.configs import matplotlib_backend
 
 # if matplotlib_backend() != "default":
 #     matplotlib.use(matplotlib_backend())
@@ -252,3 +253,27 @@ def disp_heatmap(data, labels=None, sorted_by_labels=False):
         _ = plt.imshow(data, aspect='auto')
     plt.grid(False)
     plt.tight_layout()
+
+
+def plot_image_grid(imgs, labels=None, num_cols=None, fig_size=10, title_fontsize=18):
+    num_images = len(imgs)
+    if num_cols is None:
+        # We use np.ceil as we want to display all the images
+        num_rows = int(np.ceil(np.sqrt(num_images)))
+        num_cols = num_rows
+    else:
+        num_rows = int(np.ceil(num_images / num_cols))
+
+    fig, axs = plt.subplots(num_rows, num_cols, figsize=(fig_size, fig_size))
+    if not isinstance(axs, np.ndarray):
+        axs = np.array([[axs]])
+    for (i, img) in enumerate(imgs):
+        if isinstance(img, str):
+            img = imutils.load_image_file(img)
+        x, y = i // num_rows, i % num_rows
+        _ = axs[x, y].imshow(img)
+        _ = axs[x, y].axis('off')
+        if labels is not None:
+            _ = axs[x, y].set_title(labels[i], fontsize=title_fontsize)
+    fig.tight_layout()
+    return fig, axs
