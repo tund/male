@@ -276,4 +276,3 @@ def plot_image_grid(imgs, labels=None, num_cols=None, fig_size=10, title_fontsiz
         if labels is not None:
             _ = axs[x, y].set_title(labels[i], fontsize=title_fontsize)
     fig.tight_layout()
-    return fig, axs

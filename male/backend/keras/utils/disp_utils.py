@@ -3,11 +3,11 @@ import matplotlib.pyplot as plt
 
 
 def plot_history(history):
-    acc = history.history['accuracy']
-    val_acc = history.history['val_accuracy']
+    acc = history['accuracy']
+    val_acc = history['val_accuracy']
 
-    loss = history.history['loss']
-    val_loss = history.history['val_loss']
+    loss = history['loss']
+    val_loss = history['val_loss']
 
     plt.figure(figsize=(8, 8))
     plt.subplot(2, 1, 1)
