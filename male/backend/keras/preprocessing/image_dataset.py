@@ -1,6 +1,11 @@
 import numpy as np
+import tensorflow as tf
 from tensorflow.python.keras.layers.preprocessing import image_preprocessing
-from tensorflow.python.keras.preprocessing.image_dataset import paths_and_labels_to_dataset
+from tensorflow.python.data.ops import dataset_ops
+from tensorflow.python.keras.preprocessing import dataset_utils
+from tensorflow.python.keras.preprocessing.image_dataset import path_to_image
+
+AUTOTUNE = tf.data.experimental.AUTOTUNE
 
 
 def image_dataset_from_dataframe(df,
@@ -120,8 +125,28 @@ def image_dataset_from_dataframe(df,
         buffer_size = batch_size * 8 if buffer_size is None else buffer_size
         dataset = dataset.shuffle(buffer_size=buffer_size, seed=seed)
     dataset = dataset.batch(batch_size)
+    dataset = dataset.prefetch(buffer_size=AUTOTUNE)
     # Users may need to reference `class_names`.
     dataset.class_names = class_names
     # Include file paths for images as attribute.
     dataset.file_paths = image_paths
     return dataset
+
+
+def paths_and_labels_to_dataset(image_paths,
+                                image_size,
+                                num_channels,
+                                labels,
+                                label_mode,
+                                num_classes,
+                                interpolation):
+    """Constructs a dataset of images and labels."""
+    # TODO(fchollet): consider making num_parallel_calls settable
+    path_ds = dataset_ops.Dataset.from_tensor_slices(image_paths)
+    img_ds = path_ds.map(
+        lambda x: path_to_image(x, image_size, num_channels, interpolation),
+        num_parallel_calls=AUTOTUNE)
+    if label_mode:
+        label_ds = dataset_utils.labels_to_dataset(labels, label_mode, num_classes)
+        img_ds = dataset_ops.Dataset.zip((img_ds, label_ds))
+    return img_ds
