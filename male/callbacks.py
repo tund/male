@@ -357,6 +357,131 @@ class Display(Callback):
             plt.show(block=self.block_on_end)
 
 
+class DisplayHistogram(Callback):
+    """Callback that visualizes/displays events
+    """
+    COLOR = ['r', 'g', 'b', 'y', 'c', 'm', 'k']
+    MARKER = ["x", "d", "o", ">", "<", "^", "v", "|", "1", "s", "+", "*"]
+    MARKER_SIZE = 16
+    MARKER_EDGE_WIDTH = [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
+    LINESTYLE = ['-', '--', '-.', ':']
+    LINE_WIDTH = 4
+
+    def __init__(self, title=None, dpi=None, layout=(1, 1), show=True,
+                 block_on_end=True, figsize=None, freq=1, filepath=None, monitor=None):
+        super(DisplayHistogram, self).__init__()
+        self.title = title
+        self.dpi = dpi
+        self.layout = layout
+        self.figsize = figsize
+        self.freq = freq
+        self.filepath = filepath
+        if filepath is not None:
+            if isinstance(filepath, list):
+                self.filepath = tuple(filepath)
+            else:
+                self.filepath = filepath if isinstance(filepath, tuple) else (filepath,)
+        self.show = show
+        self.block_on_end = block_on_end
+        self.monitor = monitor
+
+    def draw(self, ax, title, **kwargs):
+        ax.set_title(title, fontsize=28)
+        if 'xlabel_params' in kwargs:
+            ax.set_xlabel(kwargs['xlabel'] if 'xlabel' in kwargs else "", **kwargs['xlabel_params'])
+        else:
+            ax.set_xlabel(kwargs['xlabel'] if 'xlabel' in kwargs else "", fontsize=28)
+
+        if 'ylabel_params' in kwargs:
+            ax.set_ylabel(kwargs['ylabel'] if 'ylabel' in kwargs else "", **kwargs['ylabel_params'])
+        else:
+            ax.set_ylabel(kwargs['ylabel'] if 'ylabel' in kwargs else "", fontsize=28)
+        ax.tick_params(axis='both', which='major', labelsize=24)
+
+    def on_train_begin(self, logs={}):
+        # create directories for storing figures if not exist
+        if self.filepath is not None:
+            for fp in self.filepath:
+                if not os.path.exists(os.path.dirname(fp)):
+                    os.makedirs(os.path.dirname(fp))
+
+        fig_width, fig_height = self.figsize if self.figsize is not None else (
+            12 * self.layout[1], 6.75 * self.layout[0])
+        if self.dpi == 'auto':
+            if self.show:
+                try:
+                    width, height = get_screen_resolution()
+                    self.dpi = min(width * 0.5 / fig_width, height * 0.7 / fig_height)
+                except Exception as msg:
+                    print("Failed to get screen resolution. Set DPI to None."
+                          "Exception: {}".format(msg))
+                    self.dpi = None
+            else:
+                self.dpi = None
+        if self.monitor is not None:
+            self.fig, self.axs = plt.subplots(
+                self.layout[0], self.layout[1], squeeze=False,
+                figsize=(fig_width, fig_height), dpi=self.dpi)
+            if self.title is not None:
+                self.fig.canvas.set_window_title(self.title)
+            for i in range(len(self.monitor)):
+                u, v = np.unravel_index(i, self.layout, order='C')
+                self.draw(self.axs[u, v], **self.monitor[i])
+            if self.show:
+                plt.ion()
+            else:
+                plt.ioff()
+
+    def on_epoch_end(self, epoch, logs={}):
+        if not self.model.stop_training:
+            if ((epoch + 1) % self.freq == 0) and (self.monitor is not None):
+                i = 0   # we just allow 1 monitor for DisplayHistogram
+                self.model.display(param=self.monitor[i]['type'],
+                                    epoch=epoch + 1,
+                                    ax=self.axs,
+                                    layout=self.layout,
+                                    **self.monitor[i])
+                if self.show:
+                    if plt.get_backend().lower() == "nbagg":
+                        time.sleep(0.0001)
+                    else:
+                        plt.pause(0.0001)
+                self.fig.tight_layout()
+                if plt.get_backend().lower() == "nbagg":
+                    self.fig.canvas.draw()
+                # save to figures
+                if self.filepath is not None:
+                    for fp in self.filepath:
+                        self.fig.savefig(fp.format(epoch=epoch + 1, **logs))
+
+    def disp(self, ax, id, x, y, type, label, *args, **kwargs):
+        if type == 'line':
+            _ = ax.plot(x, y, label=label,
+                        color=kwargs['color'] if 'color' in kwargs else self.COLOR[
+                            id % len(self.COLOR)],
+                        linestyle=kwargs['linestyle'] if 'linestyle' in kwargs else self.LINESTYLE[
+                            id % len(self.LINESTYLE)],
+                        linewidth=kwargs['linewidth'] if 'linewidth' in kwargs else self.LINE_WIDTH,
+                        marker=kwargs['marker'] if 'marker' in kwargs else self.MARKER[
+                            id % len(self.MARKER)],
+                        markersize=kwargs[
+                            'markersize'] if 'markersize' in kwargs else self.MARKER_SIZE,
+                        markeredgewidth=kwargs[
+                            'markeredgewidth'] if 'markeredgewidth' in kwargs else
+                        self.MARKER_EDGE_WIDTH[id % len(self.MARKER_EDGE_WIDTH)],
+                        markevery=len(x) // 10 + 1,
+                        )
+        elif type == 'img':
+            _ = ax.imshow(x, aspect='auto',
+                          cmap=kwargs['color'] if 'color' in kwargs else 'Greys_r',
+                          interpolation=kwargs[
+                              'interpolation'] if 'interpolation' in kwargs else 'none')
+
+    def on_train_end(self, logs={}):
+        if self.show:
+            plt.show(block=self.block_on_end)
+
+
 class ImageSaver(Callback):
     def __init__(self, freq=1, filepath=None, monitor=None):
         super(ImageSaver, self).__init__()
